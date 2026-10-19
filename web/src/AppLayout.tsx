@@ -1,33 +1,44 @@
-import { Outlet, useSearchParams } from "react-router";
+import { useEffect } from "react";
+import { Outlet, useMatch, useSearchParams } from "react-router";
 import { useLiveStateQuery } from "./features/live/data/useLiveStateQuery.ts";
 import { useRefreshStatusQuery } from "./features/refresh/data/useRefreshStatusQuery.ts";
 import { t, tp } from "./shared/lib/i18n/index.ts";
-import { NavBar, type NavBarItem } from "./shared/ui/NavBar.tsx";
+import { NavBar, type NavBarBadge, type NavBarItem } from "./shared/ui/NavBar.tsx";
 
 // The shared navigation around every page (FR-14).
 export function AppLayout() {
   const [searchParams] = useSearchParams();
   const scratchSuffix = searchParams.get("scratch") === "1" ? "?scratch=1" : "";
+  const isLivePage = useMatch("/live") !== null;
   const liveQuery = useLiveStateQuery({ isPolling: true });
   // The refresh the API starts when a live session ends (FR-13) is followed from every page, so that its end reloads the recap.
   useRefreshStatusQuery();
 
-  // No badge while loading, on error or when nothing runs or waits.
+  // No count while loading, on error or when nothing runs or waits; the counts never follow the live page's workspace filter.
   const counts = liveQuery.isError ? undefined : liveQuery.data?.counts;
-  const activeCount = counts === undefined ? 0 : counts.running + counts.awaitingAnswer;
+  const awaitingCount = counts?.awaitingAnswer ?? 0;
+  const runningCount = counts?.running ?? 0;
+  const liveBadges: NavBarBadge[] = [];
+  if (awaitingCount > 0) {
+    liveBadges.push({ count: awaitingCount, label: tp("layout.nav.liveAwaiting", awaitingCount), tone: "attention" });
+  }
+  if (runningCount > 0) {
+    liveBadges.push({ count: runningCount, label: tp("layout.nav.liveRunning", runningCount), tone: "default" });
+  }
   const items: NavBarItem[] = [
     { to: `/${scratchSuffix}`, label: t("layout.nav.workspaces") },
     { to: `/dashboard${scratchSuffix}`, label: t("layout.nav.dashboard") },
-    {
-      to: "/live",
-      label: t("layout.nav.live"),
-      ...(activeCount > 0 ? { badge: { count: activeCount, label: tp("layout.nav.liveBadge", activeCount) } } : {}),
-    },
+    { to: "/live", label: t("layout.nav.live"), badges: liveBadges },
   ];
+
+  // FR-14: the browser tab says how many sessions wait for an answer, so that it shows from another tab.
+  useEffect(() => {
+    document.title = awaitingCount > 0 ? t("layout.title.awaiting", { count: awaitingCount }) : t("layout.title.base");
+  }, [awaitingCount]);
 
   return (
     <>
-      <NavBar label={t("layout.nav.label")} items={items} />
+      <NavBar label={t("layout.nav.label")} items={items} isWide={isLivePage} />
       <Outlet />
     </>
   );

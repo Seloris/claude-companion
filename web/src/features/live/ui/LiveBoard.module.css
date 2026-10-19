@@ -1,0 +1,21 @@
+.board {
+  display: grid;
+  gap: 16px;
+}
+
+.columns {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  /* Every column shows: the tab list is for the phone. */
+  .tabs {
+    display: none;
+  }
+}

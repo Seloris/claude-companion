@@ -1,0 +1,135 @@
+/* The tile's tone is the colour of its column: the halo of a change reads it. */
+.tile {
+  --tile-tone: var(--accent);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--item-bg);
+  border: var(--item-border);
+  border-radius: var(--item-radius);
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 400ms;
+}
+
+.awaiting {
+  --tile-tone: var(--status-awaiting);
+}
+
+.finished {
+  --tile-tone: var(--status-finished);
+}
+
+/* FR-18: a status that just changed shows a halo for a few seconds; the page's reduced-motion rule drops the fade, not the halo. */
+.isHighlighted {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tile-tone) 45%, transparent);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.86em;
+  color: var(--text-muted);
+}
+
+.branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.branch svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.branchName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.activity {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-control);
+}
+
+/* The question and the reply stand out from the rest of the tile: they are what the person came for. */
+.callout {
+  display: grid;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  overflow-wrap: anywhere;
+}
+
+.question {
+  background: var(--status-awaiting-soft);
+}
+
+.reply {
+  background: var(--status-finished-soft);
+}
+
+.replyLabel {
+  font-size: var(--label-size);
+  font-weight: 600;
+  color: var(--status-finished);
+}
+
+.block {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.queue {
+  margin: 0;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding-top: 10px;
+  border-top: var(--border-width) solid var(--border);
+}
+
+.when {
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actions svg {
+  width: 15px;
+  height: 15px;
+}

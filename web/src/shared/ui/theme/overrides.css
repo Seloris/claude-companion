@@ -10,4 +10,37 @@
   --chart-bar-radius: 4px;
   /* The width of the page's content: the panel and the navigation above it line up on it. */
   --content-width: 680px;
+  /* The width of the live page and of the navigation above it: its board needs three columns. */
+  --live-width: 1360px;
+  /* The colour of a workspace, picked by a stable hash of its key: the workspace's square and its filter dot. */
+  --workspace-1: #7c3aed;
+  --workspace-2: #be185d;
+  --workspace-3: #0369a1;
+  --workspace-4: #b45309;
+  --workspace-5: #15803d;
+  --workspace-6: #c2410c;
+  --workspace-7: #4338ca;
+  --workspace-8: #0e7490;
+  /* The status of a live session: a question is not a danger, so it gets its own amber; `En cours` uses the accent. */
+  --status-awaiting: #b45309;
+  --status-awaiting-soft: rgba(245, 158, 11, 0.16);
+  --status-finished: #4338ca;
+  --status-finished-soft: rgba(99, 102, 241, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --workspace-1: #a78bfa;
+    --workspace-2: #f472b6;
+    --workspace-3: #38bdf8;
+    --workspace-4: #fbbf24;
+    --workspace-5: #4ade80;
+    --workspace-6: #fb923c;
+    --workspace-7: #818cf8;
+    --workspace-8: #22d3ee;
+    --status-awaiting: #fbbf24;
+    --status-awaiting-soft: rgba(251, 191, 36, 0.16);
+    --status-finished: #a5b4fc;
+    --status-finished-soft: rgba(165, 180, 252, 0.16);
+  }
 }

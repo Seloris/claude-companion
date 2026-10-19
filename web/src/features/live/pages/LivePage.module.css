@@ -1,15 +1,40 @@
-/* The page gutter around the panel, down to narrow widths. */
+/* The page gutter, down to narrow widths; the board is wider than the other pages (--live-width). */
 .page {
+  display: grid;
+  gap: 24px;
+  max-width: var(--live-width);
+  margin: 0 auto;
   padding: 40px 16px;
 }
 
-.counts {
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+
+.heading {
+  display: grid;
+  gap: 8px;
+}
+
+.summary {
   margin: 0;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.workspaces {
-  display: grid;
-  gap: 28px;
+/* Read by screen readers only. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

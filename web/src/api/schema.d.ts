@@ -606,6 +606,9 @@ export interface components {
             isLogFound: boolean;
             isStored: boolean;
             lastPrompt: string | null;
+            lastReply: string | null;
+            /** Format: date-time */
+            turnStartedAt: string | null;
             question: string | null;
             questionCount: number;
             waitingFor: string | null;

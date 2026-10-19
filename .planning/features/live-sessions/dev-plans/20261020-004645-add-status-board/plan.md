@@ -49,6 +49,19 @@ Grill not run, to move straight on; the defaults below come from the mockups.
 - Review finding: a copied assistant line (same uuid, re-appended before a compaction) → counted once in `readAssistantTexts`; blank text blocks dropped (hardening, one condition each, tested)
 - Review finding: a built-in command (`/model`, `/compact`) counts as a prompt and moves `turnStartedAt` → left as the plan's Decisions say (`prompts.at(-1)`), reported to the person as a plan gap for stage 2 or a plan revision (departing from the plan is not an autonomous call)
 - Review finding: the same copied chains can move `turnStartedAt` back for a few lines around a compaction → left open, same reason
+- Web, built-in command moving `turnStartedAt` (stage 1 open point 1) → `bucketOf` treats an idle session whose last prompt is newer than its `statusSince` as having no finished turn (idle group); the api and the seen-mark key stay as the Decisions say (a prompt answered with no turn, such as `/model`, leaves the status as it is, so there is no turn to show and the person has just been in the session)
+- Web, background task notification restarting Claude without moving `turnStartedAt` (stage 1 open point 4) → left open, as the seen-mark key is `turnStartedAt` per the Decisions; the web cannot tell the new turn from the marked one (a plan revision could key the mark on `statusSince`)
+- Prune of seen marks → `useSeenMarks().prune` runs from the page's effect against the full list of a successful, readable read, and drops the stored entries of sessions no longer live
+- Status tracking → the map lives in `useState`, advanced during render once per `dataUpdatedAt` (the `react-hooks` lint forbids a ref written during render); an unreadable folder keeps the entries, so a recovery does not reset the order
+- Tab and filter state → the filter falls back to every workspace by derivation (no effect); the phone's selected tab stays in the page's state, `Question posée` by default
+- Live region → announces the changes of the last read only (they clear on the next 3 s read)
+- Browser test → run on a dev server pair started for the test (api :3150 on a scratch database, web :5190) because the api on :3100 was started before stage 1 and does not serve the new fields; the running-to-finished move, the questions, the queue and the built-in command case were driven through a stub on :3160 that rewrites a few real sessions, as no real session could be made to finish on demand
+- Review finding: `Tabs` half of the ARIA pattern → fixed: ids, `aria-controls`, `role="tabpanel"` on the columns labelled by their heading, roving `tabindex`, arrow keys, Home and End
+- Review finding: two tabs wiping each other's `Vu` marks → fixed: writes merge onto the storage, a `storage` listener re-reads; the prune's write left the state updater
+- Review finding: the workspace filter sat below the header → fixed: in the header, as the plan and the mockup say
+- Review finding: announcement of a finished session read "Au repos", and hidden sessions were announced → fixed: it says "Terminée" when the tile is in `Terminées récemment`, and only visible sessions are announced
+- Review finding: `MoonIcon` and the `.link` rule of `texts.module.css` unused, a glued summary sentence and `live.announce` key naming → fixed (icon and rule removed, `live.page.summary` and `live.announce.change`)
+- Review remark (api, not fixed): `statusSince` falls back to the status file's `updatedAt` when `statusUpdatedAt` is missing; if that is a heartbeat the 15-minute window and "Tour de" drift → not verified, left open
 
 ## api
 
@@ -123,14 +136,14 @@ Commit: `feat(live-sessions): api — last reply and turn start of a live sessio
 
 ### Stage 2 — web
 Commit: `feat(live-sessions): web — status board`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: `useSeenMarks`
-- [ ] pages: `useStatusTracking`, `LivePage` rewritten, `AppLayout` counts, width and tab title
-- [ ] ui: `board.ts`, tile, column, board, idle group, filter, chip, pill; shared `Tabs`, `ChipGroup`, `NavBar`; tokens; i18n; old components removed
-- [ ] Conventions: `web/CLAUDE.md` updated
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: `useSeenMarks`
+- [x] pages: `useStatusTracking`, `LivePage` rewritten, `AppLayout` counts, width and tab title
+- [x] ui: `board.ts`, tile, column, board, idle group, filter, chip, pill; shared `Tabs`, `ChipGroup`, `NavBar`; tokens; i18n; old components removed
+- [x] Conventions: `web/CLAUDE.md` updated
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill): the three columns and their counts; a session moving from `En cours` to `Terminées récemment` with the halo and its last reply; `Vu` and "Tout marquer comme vu" survive a reload; the filter; the folded idle group; the navigation counts and the tab title; the tabs at 375 px; dark mode
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [x] Browser test: the change tested in `web` (`test-in-browser` skill): the three columns and their counts; a session moving from `En cours` to `Terminées récemment` with the halo and its last reply; `Vu` and "Tout marquer comme vu" survive a reload; the filter; the folded idle group; the navigation counts and the tab title; the tabs at 375 px; dark mode

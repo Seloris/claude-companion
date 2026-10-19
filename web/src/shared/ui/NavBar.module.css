@@ -13,6 +13,10 @@
   list-style: none;
 }
 
+.wide {
+  max-width: var(--live-width);
+}
+
 .link {
   display: inline-flex;
   align-items: center;
