@@ -41,7 +41,7 @@ src/
 | Script | Does |
 |---|---|
 | `build` | `tsc -b && vite build`: type-checks, then bundles |
-| `dev` | `vite`, with the `/api` proxy to http://localhost:3000 |
+| `dev` | `vite`, with the `/api` proxy to http://localhost:3100 |
 
 ## Conventions
 
@@ -64,10 +64,10 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 
 ## Testing
 
-- No unit tests on the front: the `test-in-browser` skill checks a change in the real app on http://localhost:5173; there are no test accounts, nothing to sign in with.
+- No unit tests on the front: the `test-in-browser` skill checks a change in the real app on http://localhost:5180; there are no test accounts, nothing to sign in with.
 
 ## Local run
 
 - Prerequisites: Node 22, `npm ci`.
-- Run: `npm run dev` → http://localhost:5173; the API must be running on http://localhost:3000 (`test-in-browser` starts both when they do not answer).
+- Run: `npm run dev` → http://localhost:5180; the API must be running on http://localhost:3100 (`test-in-browser` starts both when they do not answer).
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.

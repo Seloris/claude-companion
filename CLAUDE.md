@@ -25,7 +25,7 @@ The code uses identifiers in English, each mapped to a business term. Use the id
 
 Two components, started in this order (Node 22, no database server: the API runs PGlite in-process).
 
-1. `api`: `cd api && npm ci && npm run db:migrate && npm run dev` → http://localhost:3000. Re-run `npm run db:migrate` after every new migration, with the API stopped. It reads the session logs from `~/.claude/projects` (`CLAUDE_PROJECTS_DIR` overrides it).
-2. `web`: `cd web && npm ci && npx openapi-typescript ../api/openapi.json --output src/api/schema.d.ts && npm run dev` → http://localhost:5173. The dev server proxies `/api` to the API.
+1. `api`: `cd api && npm ci && npm run db:migrate && npm run dev` → http://localhost:3100. Re-run `npm run db:migrate` after every new migration, with the API stopped. It reads the session logs from `~/.claude/projects` (`CLAUDE_PROJECTS_DIR` overrides it).
+2. `web`: `cd web && npm ci && npx openapi-typescript ../api/openapi.json --output src/api/schema.d.ts && npm run dev` → http://localhost:5180. The dev server proxies `/api` to the API.
 
 No accounts, no sign-in: the application is local and single-user, every route is public and the front has no login.

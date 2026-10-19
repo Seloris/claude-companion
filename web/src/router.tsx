@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 
-// One lazy route per feature page: `{ path: "/orders", lazy: () => import("./features/orders/pages/OrdersPage.tsx") }`.
 export const router = createBrowserRouter([
-  { path: "/", element: <h1>claude-companion</h1> },
+  { path: "/", lazy: () => import("./features/workspaces/pages/WorkspacesPage.tsx") },
+  { path: "/workspaces/:workspaceId", lazy: () => import("./features/workspaces/pages/WorkspacePage.tsx") },
+  { path: "/sessions/:sessionId", lazy: () => import("./features/workspaces/pages/SessionPage.tsx") },
 ]);

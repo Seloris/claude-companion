@@ -3,10 +3,366 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness of the API */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The API is up */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            status: "ok";
+                            /** Format: date-time */
+                            time: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether a refresh runs, and the report of the last one */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The refresh status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefreshStatus"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Start a refresh, or return the one already running */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The refresh runs */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefreshStatus"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspaces, most recent activity first, with their totals */
+        get: {
+            parameters: {
+                query?: {
+                    includeScratch?: "true" | "false";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The workspaces */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkspaceList"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspaceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A workspace and its sessions, most recent first */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workspaceId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The workspace */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkspaceDetail"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A session with its token usage per model and its prompts */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sessionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The session */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SessionDetail"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        RefreshStatus: {
+            isRunning: boolean;
+            /** Format: date-time */
+            startedAt: string | null;
+            logsDir: string;
+            lastReport: components["schemas"]["RefreshReport"];
+        };
+        RefreshReport: {
+            /** @enum {string} */
+            status: "succeeded" | "failed";
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt: string;
+            durationMs: number;
+            isLogsDirFound: boolean;
+            sessionsAdded: number;
+            sessionsUpdated: number;
+            sessionsArchived: number;
+            unreadableLines: number;
+        } | null;
+        WorkspaceList: {
+            workspaces: components["schemas"]["WorkspaceSummary"][];
+            totals: {
+                sessionCount: number;
+                tokens: components["schemas"]["TokenCounts"];
+            };
+        };
+        WorkspaceSummary: {
+            id: number;
+            name: string;
+            path: string;
+            isScratch: boolean;
+            sessionCount: number;
+            /** Format: date-time */
+            lastActivityAt: string | null;
+            tokens: components["schemas"]["TokenCounts"];
+        };
+        TokenCounts: {
+            input: number;
+            output: number;
+            cacheRead: number;
+            cacheWrite: number;
+        };
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            code?: string;
+            errors?: {
+                [key: string]: string[];
+            };
+        };
+        WorkspaceDetail: {
+            id: number;
+            name: string;
+            path: string;
+            isScratch: boolean;
+            sessions: components["schemas"]["SessionSummary"][];
+        };
+        SessionSummary: {
+            id: string;
+            title: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt: string;
+            durationMs: number;
+            models: string[];
+            gitBranch: string | null;
+            origin: string | null;
+            promptCount: number;
+            subagentCount: number;
+            isArchived: boolean;
+            tokens: components["schemas"]["TokenCounts"];
+        };
+        SessionDetail: {
+            id: string;
+            title: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt: string;
+            durationMs: number;
+            models: string[];
+            gitBranch: string | null;
+            origin: string | null;
+            promptCount: number;
+            subagentCount: number;
+            isArchived: boolean;
+            tokens: components["schemas"]["TokenCounts"];
+            workspace: {
+                id: number;
+                name: string;
+            };
+            usages: {
+                model: string;
+                tokens: components["schemas"]["TokenCounts"];
+            }[];
+            prompts: {
+                position: number;
+                text: string;
+                /** Format: date-time */
+                sentAt: string;
+            }[];
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;

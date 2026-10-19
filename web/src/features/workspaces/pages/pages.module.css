@@ -1,0 +1,54 @@
+/* The page gutter around the panel, down to narrow widths. */
+.page {
+  padding: 40px 16px;
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+}
+
+.back {
+  justify-self: start;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+.section {
+  display: grid;
+  gap: 12px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15em;
+  font-weight: var(--title-weight);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.totals {
+  margin: 0;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

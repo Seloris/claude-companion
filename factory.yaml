@@ -11,4 +11,4 @@ components:
   - name: web
     path: web
     needs: [api]
-    url: http://localhost:5173
+    url: http://localhost:5180

@@ -160,6 +160,7 @@ None: the plan follows the components' `CLAUDE.md` as they are.
 - `start()` records a `failed` run → `refresh()` records it itself, with the counts reached so far; `start()` only logs an error the recording itself raises.
 - `listSessionIds()` → `listSessionIds({ isArchived })` (the refresh archives only the sessions not archived yet, so `sessionsArchived` counts each session once).
 - A session `parseSession` returns `null` for is skipped → skipped, but its log files are still recorded in `log_files`, so it is re-read only once it changes (FR-02).
+- Local ports 3000 (api) and 5173 (web) → 3100 and 5180, in `api/src/config.ts`, `web/vite.config.ts` (`strictPort`), `factory.yaml` and the `CLAUDE.md` files (other local projects hold 3000 and 5173; asked by the person during the browser test).
 
 ## Progress
 
@@ -172,13 +173,13 @@ Commit: `feat(session-ingestion): api — log ingestion, refresh and recap endpo
 
 ### Stage 2 — web
 Commit: `feat(session-ingestion): web — workspaces, sessions and refresh pages`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: i18n layer, formatters, workspaces and refresh hooks
-- [ ] pages: routes, workspaces, workspace and session pages
-- [ ] ui: refresh bar, workspace, session, token and prompt components
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: i18n layer, formatters, workspaces and refresh hooks
+- [x] pages: routes, workspaces, workspace and session pages
+- [x] ui: refresh bar, workspace, session, token and prompt components
 
 ## Validation
 
 - [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill): workspaces listed after the start-up refresh, Scratch switch and totals, a workspace's sessions, a session's prompts, a refresh with its report, the empty state with a missing `CLAUDE_PROJECTS_DIR`
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [x] Browser test: the change tested in `web` (`test-in-browser` skill): workspaces listed after the start-up refresh, Scratch switch and totals, a workspace's sessions, a session's prompts, a refresh with its report, the empty state with a missing `CLAUDE_PROJECTS_DIR`
