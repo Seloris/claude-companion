@@ -1,0 +1,8 @@
+.empty {
+  margin: 0;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  border: var(--border-width) dashed var(--border);
+  border-radius: var(--item-radius);
+}

@@ -1,0 +1,13 @@
+.badge {
+  flex: none;
+  padding: 1px 10px;
+  line-height: 1.7;
+  font-size: 0.78em;
+  font-weight: 600;
+  text-transform: var(--badge-transform);
+  letter-spacing: var(--badge-tracking);
+  color: var(--accent-soft-text);
+  background: var(--accent-soft);
+  border: var(--badge-border);
+  border-radius: var(--badge-radius);
+}

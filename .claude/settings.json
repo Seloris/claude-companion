@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node *scripts/timestamp.mjs)",
+      "Bash(node *scripts/manifest.mjs*)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git * push:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(git * push:*)"
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "webapp-factory": {
+      "source": {
+        "source": "directory",
+        "path": "C:/WS/webapp-factory"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "factory@webapp-factory": true,
+    "factory-board@webapp-factory": true
+  },
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  }
+}

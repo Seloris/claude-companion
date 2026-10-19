@@ -1,0 +1,5 @@
+.claude/local/
+# react-express pack
+node_modules/
+dist/
+**/.data/pglite/

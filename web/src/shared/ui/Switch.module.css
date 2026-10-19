@@ -1,0 +1,51 @@
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--control-h);
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.92em;
+}
+
+.switch input {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--surface-2);
+  border: var(--border-width) solid var(--control-border);
+  border-radius: var(--switch-radius);
+  transition: background-color 0.15s;
+}
+
+.switch input::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(18px - 2 * var(--border-width));
+  height: calc(18px - 2 * var(--border-width));
+  border-radius: var(--switch-radius);
+  background: var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.switch input:checked {
+  background: var(--accent);
+  border-color: var(--control-border-on);
+}
+
+.switch input:checked::before {
+  transform: translateX(16px);
+  background: var(--accent-text);
+}
+
+.switch input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

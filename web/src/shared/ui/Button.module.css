@@ -1,0 +1,81 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--control-h);
+  padding: 0 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--btn-weight);
+  text-transform: var(--btn-transform);
+  letter-spacing: var(--btn-tracking);
+  border: var(--border-width) solid var(--btn-border);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-control);
+  transition: transform 0.12s, filter 0.12s, background-color 0.12s, color 0.12s;
+}
+
+/* Restores the page's focus ring, which .btn's own shadow would replace (same specificity, loaded later). */
+.btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.btn:active {
+  transform: translate(1px, 1px);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* The variants are named after the `variant` prop, which picks them. */
+.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.danger {
+  background: var(--danger);
+  color: var(--danger-text);
+}
+
+.primary:hover:not(:disabled),
+.danger:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+.quiet {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Toward the text color: darker on a light skin, lighter on a dark one. */
+.quiet:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-2), var(--text) 8%);
+}
+
+/* A row action (delete), quiet until hovered. */
+.ghost {
+  height: auto;
+  padding: 6px 10px;
+  font-size: 0.86em;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-muted);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.ghost:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.ghost svg {
+  width: 15px;
+  height: 15px;
+}

@@ -1,0 +1,13 @@
+.panel {
+  display: grid;
+  gap: 28px;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--panel-pad);
+  background: var(--panel-bg);
+  border: var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}

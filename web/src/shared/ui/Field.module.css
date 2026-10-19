@@ -1,0 +1,19 @@
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: 0.85em;
+}

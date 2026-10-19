@@ -1,0 +1,14 @@
+name: claude-companion
+base_branch: develop
+language:
+  chat: fr
+  repo: en
+models: standard
+components:
+  - name: api
+    path: api
+    handoff: api/openapi.json
+  - name: web
+    path: web
+    needs: [api]
+    url: http://localhost:5173

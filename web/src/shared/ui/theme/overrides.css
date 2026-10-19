@@ -1,0 +1,3 @@
+/* This application's own values for the skin's variables, loaded after skin.css (the factory plugin's
+   skins/README.md lists them). Empty: the skin applies as is. A dark-only value goes in a
+   @media (prefers-color-scheme: dark) { :root { ... } } block. */

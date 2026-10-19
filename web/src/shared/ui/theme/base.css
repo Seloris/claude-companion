@@ -1,0 +1,16 @@
+/* The page under the skin: reads the skin's tokens only (the factory plugin's skins/recipes.css, page section). */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image: var(--bg-image);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size);
+  line-height: 1.5;
+}
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

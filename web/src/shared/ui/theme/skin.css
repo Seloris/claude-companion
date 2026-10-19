@@ -1,0 +1,92 @@
+/* Factory skin "aurora", copied from the factory plugin (skins/aurora/tokens.css). Do not edit:
+   switch skins with /factory:factory-init skin {component} {skin}; override variables in overrides.css. */
+:root {
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-size: 15px;
+  --title-size: 34px;
+  --title-weight: 500;
+  --title-tracking: -0.02em;
+  --title-transform: none;
+  --title-style: normal;
+  --label-size: 0.85em;
+  --label-weight: 500;
+  --label-transform: none;
+  --label-tracking: 0;
+  --radius: 20px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --check-radius: 7px;
+  --switch-radius: 999px;
+  --badge-radius: var(--radius-pill);
+  --border-width: 1px;
+  --control-h: 40px;
+  --panel-bg: var(--surface);
+  --panel-border: var(--border-width) solid var(--border);
+  --panel-pad: 32px;
+  --blur: blur(18px) saturate(140%);
+  --bg-image: radial-gradient(55% 50% at 12% 8%, rgba(20,184,166,.28), transparent 70%), radial-gradient(45% 45% at 90% 15%, rgba(132,204,22,.20), transparent 70%), radial-gradient(60% 55% at 70% 100%, rgba(139,92,246,.20), transparent 70%);
+  --shadow-card: 0 24px 48px -20px rgba(15,23,42,.25), inset 0 1px 0 rgba(255,255,255,.7);
+  --shadow-control: none;
+  --shadow-pop: 0 24px 60px -12px rgba(0,0,0,.35);
+  --list-gap: 8px;
+  --list-rule: none;
+  --item-pad: 12px 14px;
+  --item-bg: rgba(255,255,255,.55);
+  --item-border: var(--border-width) solid var(--border);
+  --item-rule: var(--item-border);
+  --item-radius: var(--radius-control);
+  --item-shadow: none;
+  --badge-border: 0;
+  --badge-transform: none;
+  --badge-tracking: 0;
+  --btn-border: transparent;
+  --btn-weight: 600;
+  --btn-transform: none;
+  --btn-tracking: 0;
+  --control-bg: rgba(255,255,255,.7);
+  --control-border: var(--border);
+  --control-border-on: var(--accent);
+  --accent-text: #ffffff;
+  --accent-soft: rgba(15,148,136,.12);
+  --accent-soft-text: #0b6b62;
+  --danger-text: #ffffff;
+  --focus: color-mix(in srgb, var(--accent) 35%, transparent);
+  --pop-bg: rgba(255,255,255,.95);
+  --scrim: rgba(15,17,22,.45);
+  --bg: #eef3f4;
+  --surface: rgba(255,255,255,.62);
+  --surface-2: rgba(255,255,255,.8);
+  --border: rgba(15,23,42,.09);
+  --text: #0f172a;
+  --text-muted: #55627a;
+  --accent: #0f9488;
+  --danger: #e11d48;
+  --danger-soft: rgba(225,29,72,.1);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #070b14;
+    --bg-image: radial-gradient(55% 50% at 12% 8%, rgba(45,212,191,.32), transparent 70%), radial-gradient(45% 45% at 90% 15%, rgba(132,204,22,.18), transparent 70%), radial-gradient(60% 55% at 70% 100%, rgba(139,92,246,.28), transparent 70%);
+    --surface: rgba(255,255,255,.06);
+    --surface-2: rgba(255,255,255,.1);
+    --border: rgba(255,255,255,.14);
+    --text: #eef2ff;
+    --text-muted: #a5adc8;
+    --accent: #5eead4;
+    --accent-text: #04201b;
+    --accent-soft: rgba(94,234,212,.14);
+    --accent-soft-text: #a7f3e4;
+    --danger: #fb7185;
+    --danger-soft: rgba(251,113,133,.14);
+    --danger-text: #2a0710;
+    --control-bg: rgba(0,0,0,.25);
+    --item-bg: rgba(255,255,255,.04);
+    --pop-bg: rgba(17,22,36,.92);
+    --scrim: rgba(3,6,12,.55);
+    --shadow-card: 0 30px 60px -20px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08);
+    color-scheme: dark;
+  }
+}
