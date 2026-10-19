@@ -31,6 +31,9 @@ function WorkspacePage() {
         <header className={styles.header}>
           <PageTitle>{workspace.name}</PageTitle>
           <p className={styles.subtitle}>{workspace.path}</p>
+          <Link className={styles.back} to={`/dashboard?workspace=${workspace.id}`}>
+            {t("workspace.page.dashboard")}
+          </Link>
         </header>
         {workspace.sessions.length === 0 ? (
           <EmptyState>{t("workspace.sessions.empty")}</EmptyState>

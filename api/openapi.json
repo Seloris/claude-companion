@@ -6,85 +6,6 @@
   },
   "components": {
     "schemas": {
-      "RefreshStatus": {
-        "type": "object",
-        "properties": {
-          "isRunning": {
-            "type": "boolean"
-          },
-          "startedAt": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time"
-          },
-          "logsDir": {
-            "type": "string"
-          },
-          "lastReport": {
-            "$ref": "#/components/schemas/RefreshReport"
-          }
-        },
-        "required": [
-          "isRunning",
-          "startedAt",
-          "logsDir",
-          "lastReport"
-        ]
-      },
-      "RefreshReport": {
-        "type": [
-          "object",
-          "null"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "succeeded",
-              "failed"
-            ]
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "finishedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "durationMs": {
-            "type": "integer"
-          },
-          "isLogsDirFound": {
-            "type": "boolean"
-          },
-          "sessionsAdded": {
-            "type": "integer"
-          },
-          "sessionsUpdated": {
-            "type": "integer"
-          },
-          "sessionsArchived": {
-            "type": "integer"
-          },
-          "unreadableLines": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "status",
-          "startedAt",
-          "finishedAt",
-          "durationMs",
-          "isLogsDirFound",
-          "sessionsAdded",
-          "sessionsUpdated",
-          "sessionsArchived",
-          "unreadableLines"
-        ]
-      },
       "WorkspaceList": {
         "type": "object",
         "properties": {
@@ -290,6 +211,21 @@
           },
           "tokens": {
             "$ref": "#/components/schemas/TokenCounts"
+          },
+          "toolCallCount": {
+            "type": "integer"
+          },
+          "failedToolCallCount": {
+            "type": "integer"
+          },
+          "skillCallCount": {
+            "type": "integer"
+          },
+          "agentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -304,7 +240,11 @@
           "promptCount",
           "subagentCount",
           "isArchived",
-          "tokens"
+          "tokens",
+          "toolCallCount",
+          "failedToolCallCount",
+          "skillCallCount",
+          "agentTypes"
         ]
       },
       "SessionDetail": {
@@ -357,6 +297,21 @@
           "tokens": {
             "$ref": "#/components/schemas/TokenCounts"
           },
+          "toolCallCount": {
+            "type": "integer"
+          },
+          "failedToolCallCount": {
+            "type": "integer"
+          },
+          "skillCallCount": {
+            "type": "integer"
+          },
+          "agentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "workspace": {
             "type": "object",
             "properties": {
@@ -390,27 +345,22 @@
               ]
             }
           },
-          "prompts": {
+          "activity": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "position": {
-                  "type": "integer"
-                },
-                "text": {
-                  "type": "string"
-                },
-                "sentAt": {
-                  "type": "string",
-                  "format": "date-time"
-                }
-              },
-              "required": [
-                "position",
-                "text",
-                "sentAt"
-              ]
+              "$ref": "#/components/schemas/ActivityEntry"
+            }
+          },
+          "subagents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubagentSummary"
+            }
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolUsage"
             }
           }
         },
@@ -427,80 +377,552 @@
           "subagentCount",
           "isArchived",
           "tokens",
+          "toolCallCount",
+          "failedToolCallCount",
+          "skillCallCount",
+          "agentTypes",
           "workspace",
           "usages",
-          "prompts"
+          "activity",
+          "subagents",
+          "tools"
+        ]
+      },
+      "ActivityEntry": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "prompt"
+                ]
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "position": {
+                "type": "integer"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "at",
+              "position",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "skill"
+                ]
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "name": {
+                "type": "string"
+              },
+              "args": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "isTyped": {
+                "type": "boolean"
+              },
+              "agentType": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "at",
+              "name",
+              "args",
+              "isTyped",
+              "agentType"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "subagent"
+                ]
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "agentId": {
+                "type": "string"
+              },
+              "agentType": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "model": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "at",
+              "agentId",
+              "agentType",
+              "description",
+              "model"
+            ]
+          }
+        ]
+      },
+      "SubagentSummary": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "agentType": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "launchedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "toolCallCount": {
+            "type": "integer"
+          },
+          "isLogMissing": {
+            "type": "boolean"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenCounts"
+          }
+        },
+        "required": [
+          "agentId",
+          "agentType",
+          "model",
+          "description",
+          "launchedAt",
+          "toolCallCount",
+          "isLogMissing",
+          "tokens"
+        ]
+      },
+      "ToolUsage": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "mcpServer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "callCount": {
+            "type": "integer"
+          },
+          "failedCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "mcpServer",
+          "callCount",
+          "failedCount"
+        ]
+      },
+      "Dashboard": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "since",
+              "until"
+            ]
+          },
+          "workspaceId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "sessionCount": {
+                "type": "integer"
+              },
+              "promptCount": {
+                "type": "integer"
+              },
+              "toolCallCount": {
+                "type": "integer"
+              },
+              "skillCallCount": {
+                "type": "integer"
+              },
+              "subagentCount": {
+                "type": "integer"
+              },
+              "tokens": {
+                "$ref": "#/components/schemas/TokenCounts"
+              }
+            },
+            "required": [
+              "sessionCount",
+              "promptCount",
+              "toolCallCount",
+              "skillCallCount",
+              "subagentCount",
+              "tokens"
+            ]
+          },
+          "agentTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentTypeRanking"
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountRanking"
+            }
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountRanking"
+            }
+          },
+          "mcpServers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountRanking"
+            }
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelRanking"
+            }
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "sessionCount": {
+                  "type": "integer"
+                },
+                "tokens": {
+                  "$ref": "#/components/schemas/TokenCounts"
+                }
+              },
+              "required": [
+                "date",
+                "sessionCount",
+                "tokens"
+              ]
+            }
+          }
+        },
+        "required": [
+          "period",
+          "workspaceId",
+          "totals",
+          "agentTypes",
+          "skills",
+          "tools",
+          "mcpServers",
+          "models",
+          "days"
+        ]
+      },
+      "AgentTypeRanking": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "runCount": {
+            "type": "integer"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenCounts"
+          },
+          "byWorkspace": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workspaceId": {
+                  "type": "integer"
+                },
+                "workspaceName": {
+                  "type": "string"
+                },
+                "runCount": {
+                  "type": "integer"
+                },
+                "tokens": {
+                  "$ref": "#/components/schemas/TokenCounts"
+                }
+              },
+              "required": [
+                "workspaceId",
+                "workspaceName",
+                "runCount",
+                "tokens"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "runCount",
+          "tokens",
+          "byWorkspace"
+        ]
+      },
+      "CountRanking": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "byWorkspace": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workspaceId": {
+                  "type": "integer"
+                },
+                "workspaceName": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "workspaceId",
+                "workspaceName",
+                "count"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "count",
+          "byWorkspace"
+        ]
+      },
+      "ModelRanking": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenCounts"
+          },
+          "byWorkspace": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workspaceId": {
+                  "type": "integer"
+                },
+                "workspaceName": {
+                  "type": "string"
+                },
+                "tokens": {
+                  "$ref": "#/components/schemas/TokenCounts"
+                }
+              },
+              "required": [
+                "workspaceId",
+                "workspaceName",
+                "tokens"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "tokens",
+          "byWorkspace"
+        ]
+      },
+      "DashboardPeriod": {
+        "type": "string",
+        "enum": [
+          "7d",
+          "30d",
+          "90d",
+          "all"
+        ],
+        "default": "30d"
+      },
+      "RefreshStatus": {
+        "type": "object",
+        "properties": {
+          "isRunning": {
+            "type": "boolean"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "logsDir": {
+            "type": "string"
+          },
+          "lastReport": {
+            "$ref": "#/components/schemas/RefreshReport"
+          }
+        },
+        "required": [
+          "isRunning",
+          "startedAt",
+          "logsDir",
+          "lastReport"
+        ]
+      },
+      "RefreshReport": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed"
+            ]
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RefreshMode"
+          },
+          "sessionsRead": {
+            "type": "integer"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": "integer"
+          },
+          "isLogsDirFound": {
+            "type": "boolean"
+          },
+          "sessionsAdded": {
+            "type": "integer"
+          },
+          "sessionsUpdated": {
+            "type": "integer"
+          },
+          "sessionsArchived": {
+            "type": "integer"
+          },
+          "unreadableLines": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "mode",
+          "sessionsRead",
+          "startedAt",
+          "finishedAt",
+          "durationMs",
+          "isLogsDirFound",
+          "sessionsAdded",
+          "sessionsUpdated",
+          "sessionsArchived",
+          "unreadableLines"
+        ]
+      },
+      "RefreshMode": {
+        "type": "string",
+        "enum": [
+          "incremental",
+          "full"
         ]
       }
     },
     "parameters": {}
   },
   "paths": {
-    "/health": {
-      "get": {
-        "summary": "Liveness of the API",
-        "responses": {
-          "200": {
-            "description": "The API is up",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "time": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "time"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/refresh": {
-      "get": {
-        "summary": "Whether a refresh runs, and the report of the last one",
-        "responses": {
-          "200": {
-            "description": "The refresh status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshStatus"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Start a refresh, or return the one already running",
-        "responses": {
-          "202": {
-            "description": "The refresh runs",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshStatus"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/workspaces": {
       "get": {
         "summary": "Workspaces, most recent activity first, with their totals",
@@ -593,7 +1015,7 @@
     },
     "/v1/sessions/{sessionId}": {
       "get": {
-        "summary": "A session with its token usage per model and its prompts",
+        "summary": "A session with its token usage per model, its activity, its subagents and its tools",
         "parameters": [
           {
             "schema": {
@@ -618,6 +1040,160 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard": {
+      "get": {
+        "summary": "Statistics of a period, over all workspaces or one: totals, rankings and activity per day",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/DashboardPeriod"
+            },
+            "required": false,
+            "name": "period",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "required": false,
+            "name": "workspaceId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false"
+            },
+            "required": false,
+            "name": "includeScratch",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "default": "UTC"
+            },
+            "required": false,
+            "name": "timeZone",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The dashboard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Liveness of the API",
+        "responses": {
+          "200": {
+            "description": "The API is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    },
+                    "time": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "time"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/refresh": {
+      "get": {
+        "summary": "Whether a refresh runs, and the report of the last one",
+        "responses": {
+          "200": {
+            "description": "The refresh status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Start a refresh, or return the one already running; a full refresh re-reads every log file",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/RefreshMode"
+            },
+            "required": false,
+            "name": "mode",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The refresh runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
             "content": {
               "application/problem+json": {
                 "schema": {

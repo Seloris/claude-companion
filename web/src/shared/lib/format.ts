@@ -49,3 +49,11 @@ export function formatDuration(ms: number): string {
   const minutes = String(totalMinutes % 60).padStart(2, "0");
   return t("format.duration.hours", { hours, minutes });
 }
+
+const dayFormat = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short" });
+
+// A calendar day as the API sends it (`YYYY-MM-DD`), read as that day, not as a UTC midnight.
+export function formatDay(day: string): string {
+  const [year = 0, month = 1, date = 1] = day.split("-").map(Number);
+  return dayFormat.format(new Date(year, month - 1, date));
+}

@@ -1,0 +1,83 @@
+.chart {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.readout {
+  color: var(--text-muted);
+  font-size: 0.86em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Long periods scroll on their own instead of widening the page. */
+.scroll {
+  overflow-x: auto;
+}
+
+/* The baseline is the bottom rule; the bars stand on it, 2px apart. */
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 120px;
+  min-width: calc(var(--days) * 6px);
+  border-bottom: var(--border-width) solid var(--border);
+  border-radius: var(--chart-bar-radius) var(--chart-bar-radius) 0 0;
+}
+
+.bars:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+/* The whole column is the hover target, not only the bar. */
+.slot {
+  display: flex;
+  align-items: flex-end;
+  flex: 1 1 0;
+  min-width: 4px;
+  height: 100%;
+  cursor: default;
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  background: var(--chart-bar);
+  border-radius: var(--chart-bar-radius) var(--chart-bar-radius) 0 0;
+  transition: background-color 120ms;
+}
+
+.isActive {
+  background: var(--chart-bar-active);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}

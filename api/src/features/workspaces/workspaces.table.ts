@@ -1,4 +1,15 @@
-import { bigint, boolean, index, integer, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  serial,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const workspaces = pgTable("workspaces", {
   id: serial().primaryKey(),
@@ -24,6 +35,11 @@ export const sessions = pgTable(
     promptCount: integer().notNull(),
     subagentCount: integer().notNull(),
     isArchived: boolean().notNull().default(false),
+    // Defaults: the sessions stored before the activity was read get it from a full refresh.
+    toolCallCount: integer().notNull().default(0),
+    failedToolCallCount: integer().notNull().default(0),
+    skillCallCount: integer().notNull().default(0),
+    agentTypes: text().array().notNull().default([]),
   },
   (table) => [index().on(table.workspaceId, table.startedAt)],
 );
@@ -54,4 +70,76 @@ export const prompts = pgTable(
     sentAt: timestamp({ withTimezone: true }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.sessionId, table.position] })],
+);
+
+export const toolCalls = pgTable(
+  "tool_calls",
+  {
+    sessionId: text()
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    toolUseId: text().notNull(),
+    // Null: the session itself made the call, not one of its subagents.
+    agentId: text(),
+    name: text().notNull(),
+    mcpServer: text(),
+    calledAt: timestamp({ withTimezone: true }).notNull(),
+    // Null: no result came (BR-08), neither a success nor a failure.
+    isError: boolean(),
+  },
+  (table) => [primaryKey({ columns: [table.sessionId, table.toolUseId] }), index().on(table.name)],
+);
+
+export const skillCalls = pgTable(
+  "skill_calls",
+  {
+    sessionId: text()
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    position: integer().notNull(),
+    name: text().notNull(),
+    args: text(),
+    calledAt: timestamp({ withTimezone: true }).notNull(),
+    isTyped: boolean().notNull(),
+    agentId: text(),
+    // The prompt a typed skill call is: the timeline shows it once.
+    promptPosition: integer(),
+  },
+  (table) => [primaryKey({ columns: [table.sessionId, table.position] })],
+);
+
+export const subagents = pgTable(
+  "subagents",
+  {
+    sessionId: text()
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    agentId: text().notNull(),
+    agentType: text().notNull(),
+    model: text(),
+    description: text().notNull(),
+    launchedAt: timestamp({ withTimezone: true }).notNull(),
+    toolCallCount: integer().notNull(),
+    isLogMissing: boolean().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.sessionId, table.agentId] })],
+);
+
+export const subagentModelUsages = pgTable(
+  "subagent_model_usages",
+  {
+    sessionId: text().notNull(),
+    agentId: text().notNull(),
+    model: text().notNull(),
+    inputTokens: bigint({ mode: "number" }).notNull(),
+    outputTokens: bigint({ mode: "number" }).notNull(),
+    cacheReadTokens: bigint({ mode: "number" }).notNull(),
+    cacheWriteTokens: bigint({ mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sessionId, table.agentId, table.model] }),
+    foreignKey({ columns: [table.sessionId, table.agentId], foreignColumns: [subagents.sessionId, subagents.agentId] }).onDelete(
+      "cascade",
+    ),
+  ],
 );

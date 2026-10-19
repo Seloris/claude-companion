@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { api, unwrap } from "../../../api/client.ts";
+import { dashboardKeys } from "../../dashboard/data/dashboardKeys.ts";
 import { workspacesKeys } from "../../workspaces/data/workspacesKeys.ts";
 import { refreshKeys } from "./refreshKeys.ts";
 
@@ -20,6 +21,7 @@ export function useRefreshStatusQuery() {
   useEffect(() => {
     if (wasRunning.current && !isRunning) {
       void queryClient.invalidateQueries({ queryKey: workspacesKeys.all });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
     }
     wasRunning.current = isRunning;
   }, [isRunning, queryClient]);

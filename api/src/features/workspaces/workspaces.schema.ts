@@ -51,6 +51,10 @@ export const sessionSummarySchema = z
     subagentCount: z.number().int(),
     isArchived: z.boolean(),
     tokens: tokenCountsSchema,
+    toolCallCount: z.number().int(),
+    failedToolCallCount: z.number().int(),
+    skillCallCount: z.number().int(),
+    agentTypes: z.array(z.string()),
   })
   .meta({ id: "SessionSummary" });
 
@@ -68,11 +72,59 @@ export const workspaceDetailSchema = z
 
 export const sessionParamsSchema = z.object({ sessionId: z.string().min(1) });
 
+// FR-06: what happened in the session, in time order; a typed skill call shows once, as the skill call.
+export const activityEntrySchema = z
+  .discriminatedUnion("kind", [
+    z.object({ kind: z.literal("prompt"), at: z.iso.datetime(), position: z.number().int(), text: z.string() }),
+    z.object({
+      kind: z.literal("skill"),
+      at: z.iso.datetime(),
+      name: z.string(),
+      args: z.string().nullable(),
+      isTyped: z.boolean(),
+      // The type of the subagent that called the skill, null when the session itself did.
+      agentType: z.string().nullable(),
+    }),
+    z.object({
+      kind: z.literal("subagent"),
+      at: z.iso.datetime(),
+      agentId: z.string(),
+      agentType: z.string(),
+      description: z.string(),
+      model: z.string().nullable(),
+    }),
+  ])
+  .meta({ id: "ActivityEntry" });
+
+export const subagentSummarySchema = z
+  .object({
+    agentId: z.string(),
+    agentType: z.string(),
+    model: z.string().nullable(),
+    description: z.string(),
+    launchedAt: z.iso.datetime(),
+    toolCallCount: z.number().int(),
+    isLogMissing: z.boolean(),
+    tokens: tokenCountsSchema,
+  })
+  .meta({ id: "SubagentSummary" });
+
+export const toolUsageSchema = z
+  .object({
+    name: z.string(),
+    mcpServer: z.string().nullable(),
+    callCount: z.number().int(),
+    failedCount: z.number().int(),
+  })
+  .meta({ id: "ToolUsage" });
+
 export const sessionDetailSchema = sessionSummarySchema
   .extend({
     workspace: z.object({ id: z.number().int(), name: z.string() }),
     usages: z.array(z.object({ model: z.string(), tokens: tokenCountsSchema })),
-    prompts: z.array(z.object({ position: z.number().int(), text: z.string(), sentAt: z.iso.datetime() })),
+    activity: z.array(activityEntrySchema),
+    subagents: z.array(subagentSummarySchema),
+    tools: z.array(toolUsageSchema),
   })
   .meta({ id: "SessionDetail" });
 
@@ -82,6 +134,7 @@ export type WorkspaceList = z.infer<typeof workspaceListSchema>;
 export type SessionSummary = z.infer<typeof sessionSummarySchema>;
 export type WorkspaceDetail = z.infer<typeof workspaceDetailSchema>;
 export type SessionDetail = z.infer<typeof sessionDetailSchema>;
+export type ActivityEntry = z.infer<typeof activityEntrySchema>;
 
 const notFound = {
   description: "Not found",
@@ -118,7 +171,7 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/v1/sessions/{sessionId}",
-  summary: "A session with its token usage per model and its prompts",
+  summary: "A session with its token usage per model, its activity, its subagents and its tools",
   request: { params: sessionParamsSchema },
   responses: {
     200: { description: "The session", content: { "application/json": { schema: sessionDetailSchema } } },

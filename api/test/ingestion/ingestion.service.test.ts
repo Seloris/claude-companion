@@ -3,9 +3,17 @@ import { appendFile, mkdir, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { refreshRuns } from "../../src/features/ingestion/ingestion.table.js";
-import { sessionModelUsages, sessions, workspaces } from "../../src/features/workspaces/workspaces.table.js";
+import {
+  sessionModelUsages,
+  sessions,
+  skillCalls,
+  subagentModelUsages,
+  subagents,
+  toolCalls,
+  workspaces,
+} from "../../src/features/workspaces/workspaces.table.js";
 import { createTestContext } from "../setup.js";
-import { assistantLine, toJsonl, userLine, writeSession, type LogLine } from "./log-builders.js";
+import { assistantLine, toJsonl, toolUseBlock, userLine, writeSession, type LogLine } from "./log-builders.js";
 
 const FIRST_ID = "11111111-1111-4111-8111-111111111111";
 const SECOND_ID = "22222222-2222-4222-8222-222222222222";
@@ -58,6 +66,8 @@ describe("IngestionService", () => {
     // Assert
     expect(report).toEqual({
       status: "succeeded",
+      mode: "incremental",
+      sessionsRead: 2,
       startedAt: "2026-10-02T08:00:00.000Z",
       finishedAt: "2026-10-02T08:00:00.000Z",
       durationMs: 0,
@@ -187,9 +197,100 @@ describe("IngestionService", () => {
 
     // Act
     await ctx.ingestion.refresh();
+    await ctx.ingestion.refresh({ mode: "full" });
 
     // Assert
     expect(await snapshot(ctx.logsDir)).toEqual(before);
+  });
+
+  describe("activity", () => {
+    function activeSession(sessionId: string, toolName: string) {
+      return {
+        sessionId,
+        lines: [
+          userLine("Go", { sessionId }),
+          assistantLine("msg_1", "claude-opus-5-5", { output: 1 }, {
+            sessionId,
+            content: [
+              toolUseBlock("toolu_1", toolName),
+              toolUseBlock("toolu_agent", "Agent", { subagent_type: "Explore", description: "Find" }),
+            ],
+          }),
+        ],
+        subagents: [
+          {
+            agentId: "a1",
+            meta: { agentType: "factory:runner", description: "Run the tests", toolUseId: "toolu_agent" },
+            lines: [
+              assistantLine("msg_s1", "claude-haiku-5-5", { input: 3, output: 4 }, {
+                sessionId,
+                content: [toolUseBlock("toolu_s1", "Skill", { skill: "caveman" })],
+              }),
+            ],
+          },
+        ],
+      };
+    }
+
+    it("re-reads every session on a full refresh, and none on an incremental one when nothing changed", async () => {
+      // Arrange
+      await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, "C:\\WS\\demo"));
+      await writeSession(ctx.logsDir, "C--WS-demo", session(SECOND_ID, "C:\\WS\\demo"));
+      await ctx.ingestion.refresh();
+
+      // Act
+      const incremental = await ctx.ingestion.refresh();
+      const full = await ctx.ingestion.refresh({ mode: "full" });
+
+      // Assert
+      expect(incremental).toMatchObject({ mode: "incremental", sessionsRead: 0, sessionsUpdated: 0 });
+      expect(full).toMatchObject({ mode: "full", sessionsRead: 2, sessionsAdded: 0, sessionsUpdated: 2 });
+      expect(await ctx.db.select({ mode: refreshRuns.mode }).from(refreshRuns)).toContainEqual({ mode: "full" });
+    });
+
+    it("stores the tool calls, skill calls and subagents, the subagent read from its meta file", async () => {
+      // Arrange
+      await writeSession(ctx.logsDir, "C--WS-demo", activeSession(FIRST_ID, "Read"));
+
+      // Act
+      await ctx.ingestion.refresh();
+
+      // Assert
+      expect(await readSession(FIRST_ID)).toMatchObject({
+        toolCallCount: 3,
+        failedToolCallCount: 0,
+        skillCallCount: 1,
+        subagentCount: 1,
+        agentTypes: ["factory:runner"],
+      });
+      const storedSubagents = await ctx.db.select().from(subagents).where(eq(subagents.sessionId, FIRST_ID));
+      expect(storedSubagents).toMatchObject([
+        { agentId: "a1", agentType: "factory:runner", description: "Run the tests", model: "claude-haiku-5-5", toolCallCount: 1 },
+      ]);
+      expect(await ctx.db.select().from(subagentModelUsages)).toMatchObject([
+        { agentId: "a1", model: "claude-haiku-5-5", inputTokens: 3, outputTokens: 4 },
+      ]);
+      expect(await ctx.db.select({ name: skillCalls.name, agentId: skillCalls.agentId }).from(skillCalls)).toEqual([
+        { name: "caveman", agentId: "a1" },
+      ]);
+    });
+
+    it("replaces the stored activity of a session read again", async () => {
+      // Arrange
+      await writeSession(ctx.logsDir, "C--WS-demo", activeSession(FIRST_ID, "Read"));
+      await ctx.ingestion.refresh();
+      await writeSession(ctx.logsDir, "C--WS-demo", activeSession(FIRST_ID, "Write"));
+
+      // Act
+      await ctx.ingestion.refresh({ mode: "full" });
+
+      // Assert
+      const names = await ctx.db.select({ name: toolCalls.name }).from(toolCalls).where(eq(toolCalls.sessionId, FIRST_ID));
+      expect(names.map((row) => row.name).sort()).toEqual(["Agent", "Skill", "Write"]);
+      expect(await ctx.db.select().from(subagents)).toHaveLength(1);
+      expect(await ctx.db.select().from(skillCalls)).toHaveLength(1);
+      expect(await ctx.db.select().from(subagentModelUsages)).toHaveLength(1);
+    });
   });
 
   it("puts a session of a repository subfolder and one of its worktree in the repository's workspace", async () => {

@@ -6,7 +6,15 @@ import {
   workspaceListSchema,
 } from "../../src/features/workspaces/workspaces.schema.js";
 import type { ProblemDetails } from "../../src/shared/errors.js";
-import { buildPrompt, buildSession, buildUsage, buildWorkspace } from "../factories.js";
+import {
+  buildPrompt,
+  buildSession,
+  buildSkillCall,
+  buildSubagent,
+  buildToolCall,
+  buildUsage,
+  buildWorkspace,
+} from "../factories.js";
 import { createTestContext } from "../setup.js";
 
 describe("workspaces routes", () => {
@@ -146,6 +154,9 @@ describe("workspaces routes", () => {
         endedAt: new Date("2026-10-01T12:00:00.000Z"),
         gitBranch: "feat/cart",
         subagentCount: 2,
+        toolCalls: [buildToolCall({ isError: true }), buildToolCall()],
+        skillCalls: [buildSkillCall()],
+        agentTypes: ["Explore", "factory:reviewer"],
         usages: [buildUsage({ model: "claude-haiku-5-5" }), buildUsage({ model: "claude-opus-5-5" })],
       });
       await ctx.seed.session(workspace, older, { isArchived: true });
@@ -173,6 +184,10 @@ describe("workspaces routes", () => {
         subagentCount: 2,
         isArchived: false,
         tokens: { input: 200, output: 400, cacheRead: 600, cacheWrite: 800 },
+        toolCallCount: 2,
+        failedToolCallCount: 1,
+        skillCallCount: 1,
+        agentTypes: ["Explore", "factory:reviewer"],
       });
       expect(body.sessions[1]).toMatchObject({ isArchived: true, durationMs: 30 * 60 * 1000 });
     });
@@ -197,7 +212,7 @@ describe("workspaces routes", () => {
   });
 
   describe("GET /v1/sessions/:sessionId", () => {
-    it("returns the session with its usages per model and its prompts in order", async () => {
+    it("returns the session with its usages per model and its prompts in its activity, in order", async () => {
       // Arrange
       const workspace = buildWorkspace({ name: "shop" });
       const session = buildSession({
@@ -223,10 +238,124 @@ describe("workspaces routes", () => {
         { model: "claude-haiku-5-5", tokens: { input: 5, output: 200, cacheRead: 300, cacheWrite: 400 } },
         { model: "claude-opus-5-5", tokens: { input: 100, output: 200, cacheRead: 300, cacheWrite: 400 } },
       ]);
-      expect(body.prompts).toEqual([
-        { position: 0, text: "First", sentAt: "2026-10-01T10:00:00.000Z" },
-        { position: 1, text: "/review src", sentAt: "2026-10-01T10:05:00.000Z" },
-        { position: 2, text: "Third\nwith a line break", sentAt: "2026-10-01T10:10:00.000Z" },
+      expect(body.activity).toEqual([
+        { kind: "prompt", at: "2026-10-01T10:00:00.000Z", position: 0, text: "First" },
+        { kind: "prompt", at: "2026-10-01T10:05:00.000Z", position: 1, text: "/review src" },
+        { kind: "prompt", at: "2026-10-01T10:10:00.000Z", position: 2, text: "Third\nwith a line break" },
+      ]);
+    });
+
+    it("interleaves the prompts, skill calls and subagents by time, a typed skill call shown once", async () => {
+      // Arrange
+      const workspace = buildWorkspace({ name: "shop" });
+      const reviewer = buildSubagent({ agentId: "a1", launchedAt: new Date("2026-10-01T10:06:00.000Z") });
+      const session = buildSession({
+        prompts: [
+          buildPrompt({ text: "Plan it", sentAt: new Date("2026-10-01T10:00:00.000Z") }),
+          buildPrompt({ text: "/factory:implement plan", sentAt: new Date("2026-10-01T10:05:00.000Z") }),
+        ],
+        skillCalls: [
+          buildSkillCall({
+            name: "factory:implement",
+            args: "plan",
+            isTyped: true,
+            promptPosition: 1,
+            calledAt: new Date("2026-10-01T10:05:00.000Z"),
+          }),
+          buildSkillCall({ name: "caveman", agentId: "a1", calledAt: new Date("2026-10-01T10:07:00.000Z") }),
+        ],
+        subagents: [reviewer],
+      });
+      await ctx.seed.session(workspace, session);
+
+      // Act
+      const res = await request(ctx.app).get(`/v1/sessions/${session.sessionId}`);
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect(sessionDetailSchema.parse(res.body).activity).toEqual([
+        { kind: "prompt", at: "2026-10-01T10:00:00.000Z", position: 0, text: "Plan it" },
+        {
+          kind: "skill",
+          at: "2026-10-01T10:05:00.000Z",
+          name: "factory:implement",
+          args: "plan",
+          isTyped: true,
+          agentType: null,
+        },
+        {
+          kind: "subagent",
+          at: "2026-10-01T10:06:00.000Z",
+          agentId: "a1",
+          agentType: "factory:reviewer",
+          description: "Review the stage",
+          model: "claude-opus-5-5",
+        },
+        { kind: "skill", at: "2026-10-01T10:07:00.000Z", name: "caveman", args: null, isTyped: false, agentType: "factory:reviewer" },
+      ]);
+    });
+
+    it("returns the subagents with their tokens and the tool calls summed per tool, failed ones apart", async () => {
+      // Arrange
+      const workspace = buildWorkspace({ name: "shop" });
+      const session = buildSession({
+        subagents: [
+          buildSubagent({
+            agentId: "a1",
+            toolCallCount: 1,
+            usages: [
+              buildUsage({ model: "claude-haiku-5-5", inputTokens: 1, outputTokens: 2, cacheReadTokens: 3, cacheWriteTokens: 4 }),
+              buildUsage({ model: "claude-opus-5-5", inputTokens: 10, outputTokens: 20, cacheReadTokens: 30, cacheWriteTokens: 40 }),
+            ],
+          }),
+          buildSubagent({
+            agentId: "toolu_missing",
+            agentType: "Plan",
+            model: null,
+            usages: [],
+            isLogMissing: true,
+            launchedAt: new Date("2026-10-01T10:04:00.000Z"),
+          }),
+        ],
+        toolCalls: [
+          buildToolCall({ name: "Bash", isError: true }),
+          buildToolCall({ name: "Bash" }),
+          buildToolCall({ name: "Bash", isError: null }),
+          buildToolCall({ name: "mcp__Claude_Browser__navigate", agentId: "a1" }),
+        ],
+      });
+      await ctx.seed.session(workspace, session);
+
+      // Act
+      const res = await request(ctx.app).get(`/v1/sessions/${session.sessionId}`);
+
+      // Assert
+      const body = sessionDetailSchema.parse(res.body);
+      expect(body.subagents).toEqual([
+        {
+          agentId: "a1",
+          agentType: "factory:reviewer",
+          model: "claude-opus-5-5",
+          description: "Review the stage",
+          launchedAt: "2026-10-01T10:03:00.000Z",
+          toolCallCount: 1,
+          isLogMissing: false,
+          tokens: { input: 11, output: 22, cacheRead: 33, cacheWrite: 44 },
+        },
+        {
+          agentId: "toolu_missing",
+          agentType: "Plan",
+          model: null,
+          description: "Review the stage",
+          launchedAt: "2026-10-01T10:04:00.000Z",
+          toolCallCount: 0,
+          isLogMissing: true,
+          tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        },
+      ]);
+      expect(body.tools).toEqual([
+        { name: "Bash", mcpServer: null, callCount: 3, failedCount: 1 },
+        { name: "mcp__Claude_Browser__navigate", mcpServer: "Claude_Browser", callCount: 1, failedCount: 0 },
       ]);
     });
 

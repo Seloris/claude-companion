@@ -1,5 +1,7 @@
 import express from "express";
 import type { Database } from "./db/client.js";
+import { dashboardRoutes } from "./features/dashboard/dashboard.routes.js";
+import type { DashboardService } from "./features/dashboard/dashboard.service.js";
 import { healthRoutes } from "./features/health/health.routes.js";
 import { ingestionRoutes } from "./features/ingestion/ingestion.routes.js";
 import type { IngestionService } from "./features/ingestion/ingestion.service.js";
@@ -13,15 +15,17 @@ export interface AppContext {
   clock: Clock;
   ingestion: IngestionService;
   workspaces: WorkspacesService;
+  dashboard: DashboardService;
 }
 
 // Every route is public: the application is local and single-user, with no sign-in.
-export function createApp({ clock, ingestion, workspaces }: AppContext) {
+export function createApp({ clock, ingestion, workspaces, dashboard }: AppContext) {
   const app = express();
   app.use(express.json());
   app.use(healthRoutes({ clock }));
   app.use(ingestionRoutes({ ingestion }));
   app.use(workspacesRoutes({ workspaces }));
+  app.use(dashboardRoutes({ dashboard }));
   app.use(errorHandler);
   return app;
 }

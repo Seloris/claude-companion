@@ -32,3 +32,11 @@ export function TrashIcon() {
     </svg>
   );
 }
+
+export function ChevronIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}

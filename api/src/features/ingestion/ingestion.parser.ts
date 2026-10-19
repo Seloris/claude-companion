@@ -13,6 +13,45 @@ export interface ParsedPrompt {
   sentAt: Date;
 }
 
+export interface ParsedToolCall {
+  toolUseId: string;
+  // Null: the session itself made the call, not one of its subagents.
+  agentId: string | null;
+  name: string;
+  mcpServer: string | null;
+  calledAt: Date;
+  // Null: no result came (BR-08).
+  isError: boolean | null;
+}
+
+export interface ParsedSkillCall {
+  name: string;
+  args: string | null;
+  calledAt: Date;
+  isTyped: boolean;
+  agentId: string | null;
+  // The index in `prompts` of the prompt a typed skill call is.
+  promptPosition: number | null;
+}
+
+export interface ParsedSubagent {
+  agentId: string;
+  agentType: string;
+  model: string | null;
+  description: string;
+  launchedAt: Date;
+  usages: ModelUsage[];
+  toolCallCount: number;
+  isLogMissing: boolean;
+}
+
+export interface SubagentFile {
+  agentId: string;
+  lines: string[];
+  // The sibling meta.json as read, null when missing or unreadable.
+  meta: unknown;
+}
+
 export interface ParsedSession {
   sessionId: string;
   firstCwd: string;
@@ -25,6 +64,13 @@ export interface ParsedSession {
   subagentCount: number;
   usages: ModelUsage[];
   prompts: ParsedPrompt[];
+  toolCalls: ParsedToolCall[];
+  skillCalls: ParsedSkillCall[];
+  subagents: ParsedSubagent[];
+  toolCallCount: number;
+  failedToolCallCount: number;
+  skillCallCount: number;
+  agentTypes: string[];
   unreadableLines: number;
 }
 
@@ -68,17 +114,110 @@ const userSchema = z.looseObject({
   message: z.looseObject({ content: z.union([z.string(), z.array(contentBlockSchema)]) }),
 });
 
+const toolUseSchema = z.looseObject({ type: z.literal("tool_use"), id: z.string(), name: z.string(), input: z.unknown() });
+const toolResultSchema = z.looseObject({
+  type: z.literal("tool_result"),
+  tool_use_id: z.string(),
+  is_error: z.boolean().optional(),
+});
+
+const assistantBlocksSchema = z.looseObject({
+  type: z.literal("assistant"),
+  message: z.looseObject({ content: z.array(z.looseObject({ type: z.string() })) }),
+});
+
+const userBlocksSchema = z.looseObject({
+  type: z.literal("user"),
+  message: z.looseObject({ content: z.array(z.looseObject({ type: z.string() })) }),
+  toolUseResult: z.unknown().optional(),
+});
+
+const skillInputSchema = z.looseObject({ skill: z.string().min(1), args: z.string().optional() });
+const agentInputSchema = z.looseObject({
+  subagent_type: z.string().optional(),
+  description: z.string().optional(),
+  model: z.string().optional(),
+});
+const agentResultSchema = z.looseObject({ agentId: z.string() });
+const metaSchema = z.looseObject({
+  agentType: z.string().optional(),
+  description: z.string().optional(),
+  toolUseId: z.string().optional(),
+  model: z.string().optional(),
+});
+
 type Line = z.infer<typeof lineSchema>;
 
 const SYNTHETIC_MODEL = "<synthetic>";
 const TITLE_LENGTH = 80;
 // Text blocks Claude Code injects into a user line: not something the person typed.
 const INJECTED_PREFIXES = ["<system-reminder>", "<local-command-", "<task-notification>", "[Request interrupted"];
+const SKILL_TOOL = "Skill";
+// Older logs name the agent tool Task.
+const AGENT_TOOLS = new Set(["Agent", "Task"]);
+const DEFAULT_AGENT_TYPE = "general-purpose";
+// BR-01: Claude Code's own commands are not skills.
+export const BUILT_IN_COMMANDS = new Set([
+  "add-dir",
+  "advisor",
+  "agents",
+  "bashes",
+  "bug",
+  "clear",
+  "compact",
+  "config",
+  "context",
+  "cost",
+  "doctor",
+  "effort",
+  "exit",
+  "export",
+  "extra-usage",
+  "fast",
+  "feedback",
+  "help",
+  "hooks",
+  "ide",
+  "init",
+  "login",
+  "logout",
+  "mcp",
+  "memory",
+  "model",
+  "output-style",
+  "permissions",
+  "plugin",
+  "pr-comments",
+  "privacy-settings",
+  "release-notes",
+  "reload-plugins",
+  "remote-control",
+  "resume",
+  "review",
+  "rewind",
+  "security-review",
+  "status",
+  "statusline",
+  "terminal-setup",
+  "theme",
+  "todos",
+  "upgrade",
+  "usage",
+  "usage-credits",
+  "vim",
+]);
+
+// BR-04: `mcp__{server}__{tool}` belongs to that MCP server, any other name is a built-in tool.
+export function mcpServerOf(toolName: string): string | null {
+  const parts = toolName.split("__");
+  const server = parts[1];
+  return parts.length >= 3 && parts[0] === "mcp" && server !== undefined && server !== "" ? server : null;
+}
 
 export function parseSession(input: {
   sessionId: string;
   mainLines: string[];
-  subagentFiles: string[][];
+  subagentFiles: SubagentFile[];
 }): ParsedSession | null {
   const { sessionId } = input;
   let unreadableLines = 0;
@@ -103,7 +242,7 @@ export function parseSession(input: {
   };
 
   const mainLines = readLines(input.mainLines);
-  const subagentLines = input.subagentFiles.map(readLines);
+  const subagentLines = input.subagentFiles.map((file) => readLines(file.lines));
 
   const firstCwd = mainLines.find((line) => line.cwd !== undefined && line.cwd !== "")?.cwd;
   if (firstCwd === undefined) return null;
@@ -115,6 +254,7 @@ export function parseSession(input: {
   let customTitle: string | undefined;
   let aiTitle: string | undefined;
   const prompts: ParsedPrompt[] = [];
+  const commands: ParsedSkillCall[] = [];
 
   for (const line of mainLines) {
     if (line.timestamp !== undefined) {
@@ -132,11 +272,26 @@ export function parseSession(input: {
 
     const prompt = toPrompt(line);
     if (prompt !== null) prompts.push(prompt);
+    const command = toSkillCommand(line);
+    if (command !== null) {
+      // A typed command is always a prompt too: the one just pushed.
+      const promptPosition = command.isTyped && prompt !== null ? prompts.length - 1 : null;
+      commands.push({ ...command, agentId: null, promptPosition });
+    }
   }
 
   const usages = sumUsages([mainLines, ...subagentLines].flat());
   // A main file with a cwd always has a timestamped line; the fallback only satisfies the type.
   const start = startedAt ?? new Date(0);
+  const activity = readActivity(
+    [
+      { agentId: null, lines: mainLines },
+      ...input.subagentFiles.map((file, index) => ({ agentId: file.agentId, lines: subagentLines[index] ?? [] })),
+    ],
+    start,
+  );
+  const subagents = toSubagents(input.subagentFiles, subagentLines, activity, start);
+  const skillCalls = [...commands, ...activity.skillCalls].sort((a, b) => a.calledAt.getTime() - b.calledAt.getTime());
 
   return {
     sessionId,
@@ -147,33 +302,67 @@ export function parseSession(input: {
     origin,
     title: customTitle ?? aiTitle ?? titleFromPrompt(prompts[0]?.text) ?? sessionId,
     promptCount: prompts.length,
-    subagentCount: input.subagentFiles.length,
+    // BR-09: a subagent whose log is missing still counts as launched.
+    subagentCount: subagents.length,
     usages,
     prompts,
+    toolCalls: activity.toolCalls,
+    skillCalls,
+    subagents,
+    toolCallCount: activity.toolCalls.length,
+    failedToolCallCount: activity.toolCalls.filter((call) => call.isError === true).length,
+    skillCallCount: skillCalls.length,
+    agentTypes: [...new Set(subagents.map((subagent) => subagent.agentType))].sort((a, b) => a.localeCompare(b)),
     unreadableLines,
   };
 }
 
-function toPrompt(line: Line): ParsedPrompt | null {
+// The line passes the filter of the person's prompts, or comes from a plugin when `isPluginAllowed`.
+function readUserLine(line: Line, { isPluginAllowed }: { isPluginAllowed: boolean }) {
   const user = userSchema.safeParse(line);
   if (!user.success) return null;
   const { data } = user;
   if (data.isMeta === true || data.isSidechain === true) return null;
   if (data.isCompactSummary === true || data.isVisibleInTranscriptOnly === true) return null;
-  if (data.origin !== undefined && data.origin.kind !== "human") return null;
-
-  const blocks =
+  const kind = data.origin?.kind ?? "human";
+  if (kind !== "human" && !(isPluginAllowed && kind === "plugin")) return null;
+  const texts =
     typeof data.message.content === "string"
       ? [data.message.content]
       : data.message.content.flatMap((block) => (block.type === "text" && block.text !== undefined ? [block.text] : []));
-  const texts = blocks.flatMap((text) => {
-    if (INJECTED_PREFIXES.some((prefix) => text.trimStart().startsWith(prefix))) return [];
+  return {
+    isHuman: kind === "human",
+    sentAt: new Date(data.timestamp),
+    texts: texts.filter((text) => !INJECTED_PREFIXES.some((prefix) => text.trimStart().startsWith(prefix))),
+  };
+}
+
+function toPrompt(line: Line): ParsedPrompt | null {
+  const user = readUserLine(line, { isPluginAllowed: false });
+  if (user === null) return null;
+  const texts = user.texts.flatMap((text) => {
     const command = toCommand(text);
     const kept = (command ?? text).trim();
     return kept === "" ? [] : [kept];
   });
   if (texts.length === 0) return null;
-  return { text: texts.join("\n\n"), sentAt: new Date(data.timestamp) };
+  return { text: texts.join("\n\n"), sentAt: user.sentAt };
+}
+
+// A command the person typed, or a plugin sent, is a skill call unless it is built-in (BR-01). The skill
+// expansions Claude Code writes after a Skill tool call are meta lines: never one, the tool call already is.
+function toSkillCommand(line: Line): Omit<ParsedSkillCall, "agentId" | "promptPosition"> | null {
+  const user = readUserLine(line, { isPluginAllowed: true });
+  if (user === null) return null;
+  for (const text of user.texts) {
+    // BR-02: the name as called, plugin prefix included; only the slash is dropped.
+    const name = readTag(text, "command-name")?.replace(/^\//, "");
+    if (name === undefined || name === "") continue;
+    if (BUILT_IN_COMMANDS.has(name)) return null;
+    const args = readTag(text, "command-args") ?? "";
+    return { name, args: args === "" ? null : args, calledAt: user.sentAt, isTyped: user.isHuman };
+  }
+  return null;
 }
 
 function toCommand(text: string): string | null {
@@ -191,6 +380,136 @@ function titleFromPrompt(prompt: string | undefined): string | undefined {
   if (prompt === undefined) return undefined;
   const oneLine = prompt.replace(/\s+/g, " ").trim();
   return oneLine.length > TITLE_LENGTH ? `${oneLine.slice(0, TITLE_LENGTH).trimEnd()}…` : oneLine;
+}
+
+interface AgentCall {
+  toolUseId: string;
+  calledAt: Date;
+  subagentType: string | undefined;
+  description: string | undefined;
+  model: string | undefined;
+}
+
+interface Activity {
+  toolCalls: ParsedToolCall[];
+  skillCalls: ParsedSkillCall[];
+  agentCalls: AgentCall[];
+  // The agent id a tool result names, by the id of the agent call it answers.
+  resultAgentIds: Map<string, string>;
+}
+
+function readActivity(files: { agentId: string | null; lines: Line[] }[], start: Date): Activity {
+  const toolCalls = new Map<string, ParsedToolCall>();
+  const skillCalls: ParsedSkillCall[] = [];
+  const agentCalls: AgentCall[] = [];
+  const results = new Map<string, boolean>();
+  const resultAgentIds = new Map<string, string>();
+
+  for (const file of files) {
+    for (const line of file.lines) {
+      const calledAt = line.timestamp === undefined ? start : new Date(line.timestamp);
+      const assistant = assistantBlocksSchema.safeParse(line);
+      if (assistant.success) {
+        for (const block of assistant.data.message.content) {
+          const toolUse = toolUseSchema.safeParse(block);
+          // Claude Code may write one tool call on several lines.
+          if (!toolUse.success || toolCalls.has(toolUse.data.id)) continue;
+          const { id, name, input } = toolUse.data;
+          toolCalls.set(id, { toolUseId: id, agentId: file.agentId, name, mcpServer: mcpServerOf(name), calledAt, isError: null });
+          if (name === SKILL_TOOL) {
+            const skill = skillInputSchema.safeParse(input);
+            if (skill.success) {
+              const args = skill.data.args?.trim() ?? "";
+              skillCalls.push({
+                name: skill.data.skill,
+                args: args === "" ? null : args,
+                calledAt,
+                isTyped: false,
+                agentId: file.agentId,
+                promptPosition: null,
+              });
+            }
+          }
+          if (AGENT_TOOLS.has(name)) {
+            const agent = agentInputSchema.safeParse(input);
+            agentCalls.push({
+              toolUseId: id,
+              calledAt,
+              subagentType: agent.success ? agent.data.subagent_type : undefined,
+              description: agent.success ? agent.data.description : undefined,
+              model: agent.success ? agent.data.model : undefined,
+            });
+          }
+        }
+        continue;
+      }
+      const user = userBlocksSchema.safeParse(line);
+      if (!user.success) continue;
+      for (const block of user.data.message.content) {
+        const result = toolResultSchema.safeParse(block);
+        if (!result.success) continue;
+        results.set(result.data.tool_use_id, result.data.is_error === true);
+        const agentResult = agentResultSchema.safeParse(user.data.toolUseResult);
+        if (agentResult.success) resultAgentIds.set(result.data.tool_use_id, agentResult.data.agentId);
+      }
+    }
+  }
+
+  const calls = [...toolCalls.values()].map((call) => ({ ...call, isError: results.get(call.toolUseId) ?? null }));
+  return { toolCalls: calls, skillCalls, agentCalls, resultAgentIds };
+}
+
+function toSubagents(files: SubagentFile[], linesByFile: Line[][], activity: Activity, start: Date): ParsedSubagent[] {
+  const callsById = new Map(activity.agentCalls.map((call) => [call.toolUseId, call]));
+  const callIdByAgentId = new Map([...activity.resultAgentIds].map(([toolUseId, agentId]) => [agentId, toolUseId]));
+  const linkedCallIds = new Set<string>();
+
+  const subagents = files.map((file, index): ParsedSubagent => {
+    const lines = linesByFile[index] ?? [];
+    const meta = metaSchema.safeParse(file.meta);
+    const { agentType, description, toolUseId, model } = meta.success ? meta.data : {};
+    const callId = toolUseId !== undefined && callsById.has(toolUseId) ? toolUseId : callIdByAgentId.get(file.agentId);
+    const call = callId === undefined ? undefined : callsById.get(callId);
+    if (call !== undefined) linkedCallIds.add(call.toolUseId);
+    const usages = sumUsages(lines);
+    const firstTimestamp = lines.find((line) => line.timestamp !== undefined)?.timestamp;
+    return {
+      agentId: file.agentId,
+      agentType: agentType ?? call?.subagentType ?? DEFAULT_AGENT_TYPE,
+      model: dominantModel(usages) ?? model ?? call?.model ?? null,
+      description: description ?? call?.description ?? "",
+      launchedAt: call?.calledAt ?? (firstTimestamp === undefined ? start : new Date(firstTimestamp)),
+      usages,
+      toolCallCount: activity.toolCalls.filter((toolCall) => toolCall.agentId === file.agentId).length,
+      isLogMissing: false,
+    };
+  });
+
+  // BR-09: an agent call no log file answers is still a launched subagent, with no tokens and no tool calls.
+  const missing = activity.agentCalls
+    .filter((call) => !linkedCallIds.has(call.toolUseId))
+    .map(
+      (call): ParsedSubagent => ({
+        agentId: call.toolUseId,
+        agentType: call.subagentType ?? DEFAULT_AGENT_TYPE,
+        model: call.model ?? null,
+        description: call.description ?? "",
+        launchedAt: call.calledAt,
+        usages: [],
+        toolCallCount: 0,
+        isLogMissing: true,
+      }),
+    );
+  return [...subagents, ...missing].sort((a, b) => a.launchedAt.getTime() - b.launchedAt.getTime());
+}
+
+// The model a subagent ran on: the one that used the most tokens, when several did.
+function dominantModel(usages: ModelUsage[]): string | null {
+  let best: ModelUsage | null = null;
+  for (const usage of usages) {
+    if (best === null || usage.inputTokens + usage.outputTokens > best.inputTokens + best.outputTokens) best = usage;
+  }
+  return best?.model ?? null;
 }
 
 function sumUsages(lines: Line[]): ModelUsage[] {

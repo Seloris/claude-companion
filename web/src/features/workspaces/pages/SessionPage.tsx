@@ -6,9 +6,11 @@ import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
 import { useSessionQuery } from "../data/useSessionQuery.ts";
-import { PromptList } from "../ui/PromptList.tsx";
+import { ActivityTimeline } from "../ui/ActivityTimeline.tsx";
 import { SessionFacts } from "../ui/SessionFacts.tsx";
+import { SubagentTable } from "../ui/SubagentTable.tsx";
 import { TokenTable } from "../ui/TokenTable.tsx";
+import { ToolTable } from "../ui/ToolTable.tsx";
 import styles from "./pages.module.css";
 
 function SessionPage() {
@@ -36,9 +38,14 @@ function SessionPage() {
     return (
       <>
         <header className={styles.header}>
-          <Link className={styles.back} to={`/workspaces/${session.workspace.id}`}>
-            {t("session.page.back", { workspace: session.workspace.name })}
-          </Link>
+          <span className={styles.links}>
+            <Link className={styles.back} to={`/workspaces/${session.workspace.id}`}>
+              {t("session.page.back", { workspace: session.workspace.name })}
+            </Link>
+            <Link className={styles.back} to={`/dashboard?workspace=${session.workspace.id}`}>
+              {t("session.page.dashboard", { workspace: session.workspace.name })}
+            </Link>
+          </span>
           <PageTitle>{session.title}</PageTitle>
         </header>
         <SessionFacts session={session} />
@@ -47,8 +54,16 @@ function SessionPage() {
           <TokenTable usages={session.usages} />
         </section>
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t("session.prompts.title")}</h2>
-          <PromptList prompts={session.prompts} />
+          <h2 className={styles.sectionTitle}>{t("session.activity.title")}</h2>
+          <ActivityTimeline activity={session.activity} />
+        </section>
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t("session.subagents.title")}</h2>
+          <SubagentTable subagents={session.subagents} />
+        </section>
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t("session.tools.title")}</h2>
+          <ToolTable tools={session.tools} />
         </section>
       </>
     );

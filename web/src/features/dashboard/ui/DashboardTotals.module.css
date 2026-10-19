@@ -1,0 +1,31 @@
+.totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.figure {
+  display: grid;
+  gap: 4px;
+  padding: var(--item-pad);
+  background: var(--surface-2);
+  border-radius: var(--radius-control);
+  min-width: 0;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+}
+
+.value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5em;
+  font-weight: var(--title-weight);
+  font-variant-numeric: tabular-nums;
+}

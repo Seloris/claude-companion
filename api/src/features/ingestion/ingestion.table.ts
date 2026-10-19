@@ -13,11 +13,13 @@ export const refreshRuns = pgTable("refresh_runs", {
   startedAt: timestamp({ withTimezone: true }).notNull(),
   finishedAt: timestamp({ withTimezone: true }).notNull(),
   status: text({ enum: ["succeeded", "failed"] }).notNull(),
+  mode: text({ enum: ["incremental", "full"] }).notNull().default("incremental"),
   logsDir: text().notNull(),
   isLogsDirFound: boolean().notNull(),
   sessionsAdded: integer().notNull(),
   sessionsUpdated: integer().notNull(),
   sessionsArchived: integer().notNull(),
   unreadableLines: integer().notNull(),
+  sessionsRead: integer().notNull().default(0),
   error: text(),
 });

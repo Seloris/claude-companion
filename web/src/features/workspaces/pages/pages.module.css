@@ -52,3 +52,10 @@
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* The back link and the dashboard link side by side, wrapping at narrow widths. */
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}

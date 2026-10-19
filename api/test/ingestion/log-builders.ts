@@ -29,7 +29,20 @@ function base(type: string, options: LineOptions): LogLine {
 export type ContentBlock =
   | { type: "text"; text: string }
   | { type: "image"; source: LogLine }
-  | { type: "tool_result"; tool_use_id: string; content: string };
+  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean };
+
+export function toolUseBlock(id: string, name: string, input: LogLine = {}): LogLine {
+  return { type: "tool_use", id, name, input };
+}
+
+export function toolResultBlock(toolUseId: string, isError?: boolean): ContentBlock {
+  return {
+    type: "tool_result",
+    tool_use_id: toolUseId,
+    content: "done",
+    ...(isError === undefined ? {} : { is_error: isError }),
+  };
+}
 
 export function userLine(content: string | ContentBlock[], options: LineOptions = {}): LogLine {
   return {
@@ -59,14 +72,19 @@ export interface Usage {
   cacheWrite?: number;
 }
 
-export function assistantLine(messageId: string, model: string, usage: Usage, options: LineOptions = {}): LogLine {
+export function assistantLine(
+  messageId: string,
+  model: string,
+  usage: Usage,
+  options: LineOptions & { content?: LogLine[] } = {},
+): LogLine {
   return {
     ...base("assistant", options),
     message: {
       id: messageId,
       model,
       role: "assistant",
-      content: [{ type: "text", text: "ok" }],
+      content: options.content ?? [{ type: "text", text: "ok" }],
       usage: {
         input_tokens: usage.input ?? 0,
         output_tokens: usage.output ?? 0,
@@ -98,10 +116,13 @@ export interface SessionFiles {
   subagentFiles: string[];
 }
 
+// A subagent is its lines, or its lines with the agent id its file is named after and its meta.json content.
+export type SubagentLog = (LogLine | string)[] | { agentId?: string; lines: (LogLine | string)[]; meta?: LogLine | string };
+
 export async function writeSession(
   logsDir: string,
   folder: string,
-  session: { sessionId?: string; lines: (LogLine | string)[]; subagents?: (LogLine | string)[][] },
+  session: { sessionId?: string; lines: (LogLine | string)[]; subagents?: SubagentLog[] },
 ): Promise<SessionFiles> {
   const sessionId = session.sessionId ?? SESSION_ID;
   const folderPath = path.join(logsDir, folder);
@@ -110,12 +131,13 @@ export async function writeSession(
   await writeFile(mainFile, toJsonl(session.lines));
   const subagentFiles: string[] = [];
   const subagentsDir = path.join(folderPath, sessionId, "subagents");
-  for (const [index, lines] of (session.subagents ?? []).entries()) {
+  for (const [index, subagent] of (session.subagents ?? []).entries()) {
+    const { agentId = `a${index}`, lines, meta = {} } = Array.isArray(subagent) ? { lines: subagent } : subagent;
     await mkdir(subagentsDir, { recursive: true });
-    const file = path.join(subagentsDir, `agent-a${index}.jsonl`);
+    const file = path.join(subagentsDir, `agent-${agentId}.jsonl`);
     await writeFile(file, toJsonl(lines));
-    // Real subagent folders hold these beside the log: the scan must ignore them.
-    await writeFile(path.join(subagentsDir, `agent-a${index}.meta.json`), "{}");
+    // Real subagent folders hold these beside the log: the scan must not take them for logs.
+    await writeFile(path.join(subagentsDir, `agent-${agentId}.meta.json`), typeof meta === "string" ? meta : JSON.stringify(meta));
     subagentFiles.push(file);
   }
   return { mainFile, subagentFiles };

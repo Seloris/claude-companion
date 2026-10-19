@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { formatTokens } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
 import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
@@ -60,12 +60,18 @@ function WorkspacesPage() {
   return (
     <main className={styles.page}>
       <Panel>
-        <PageTitle>{t("workspaces.page.title")}</PageTitle>
+        <header className={styles.header}>
+          <PageTitle>{t("workspaces.page.title")}</PageTitle>
+          {/* FR-14: the dashboard follows the Scratch switch. */}
+          <Link className={styles.back} to={includeScratch ? "/dashboard?scratch=1" : "/dashboard"}>
+            {t("workspaces.page.dashboard")}
+          </Link>
+        </header>
         <RefreshBar
           status={status}
           isStarting={startRefresh.isPending}
           startError={startRefresh.isError ? startRefresh.error.message : null}
-          onRefresh={() => startRefresh.mutate()}
+          onRefresh={(mode) => startRefresh.mutate({ mode })}
         />
         <section className={styles.section}>
           <div className={styles.toolbar}>
