@@ -1,0 +1,634 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "claude-companion",
+    "version": "0.0.0"
+  },
+  "components": {
+    "schemas": {
+      "RefreshStatus": {
+        "type": "object",
+        "properties": {
+          "isRunning": {
+            "type": "boolean"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "logsDir": {
+            "type": "string"
+          },
+          "lastReport": {
+            "$ref": "#/components/schemas/RefreshReport"
+          }
+        },
+        "required": [
+          "isRunning",
+          "startedAt",
+          "logsDir",
+          "lastReport"
+        ]
+      },
+      "RefreshReport": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed"
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": "integer"
+          },
+          "isLogsDirFound": {
+            "type": "boolean"
+          },
+          "sessionsAdded": {
+            "type": "integer"
+          },
+          "sessionsUpdated": {
+            "type": "integer"
+          },
+          "sessionsArchived": {
+            "type": "integer"
+          },
+          "unreadableLines": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "startedAt",
+          "finishedAt",
+          "durationMs",
+          "isLogsDirFound",
+          "sessionsAdded",
+          "sessionsUpdated",
+          "sessionsArchived",
+          "unreadableLines"
+        ]
+      },
+      "WorkspaceList": {
+        "type": "object",
+        "properties": {
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceSummary"
+            }
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "sessionCount": {
+                "type": "integer"
+              },
+              "tokens": {
+                "$ref": "#/components/schemas/TokenCounts"
+              }
+            },
+            "required": [
+              "sessionCount",
+              "tokens"
+            ]
+          }
+        },
+        "required": [
+          "workspaces",
+          "totals"
+        ]
+      },
+      "WorkspaceSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "isScratch": {
+            "type": "boolean"
+          },
+          "sessionCount": {
+            "type": "integer"
+          },
+          "lastActivityAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenCounts"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "path",
+          "isScratch",
+          "sessionCount",
+          "lastActivityAt",
+          "tokens"
+        ]
+      },
+      "TokenCounts": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "integer"
+          },
+          "output": {
+            "type": "integer"
+          },
+          "cacheRead": {
+            "type": "integer"
+          },
+          "cacheWrite": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input",
+          "output",
+          "cacheRead",
+          "cacheWrite"
+        ]
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ]
+      },
+      "WorkspaceDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "isScratch": {
+            "type": "boolean"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionSummary"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "path",
+          "isScratch",
+          "sessions"
+        ]
+      },
+      "SessionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": "integer"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gitBranch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "origin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "promptCount": {
+            "type": "integer"
+          },
+          "subagentCount": {
+            "type": "integer"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenCounts"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "startedAt",
+          "endedAt",
+          "durationMs",
+          "models",
+          "gitBranch",
+          "origin",
+          "promptCount",
+          "subagentCount",
+          "isArchived",
+          "tokens"
+        ]
+      },
+      "SessionDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": "integer"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gitBranch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "origin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "promptCount": {
+            "type": "integer"
+          },
+          "subagentCount": {
+            "type": "integer"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenCounts"
+          },
+          "workspace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          },
+          "usages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string"
+                },
+                "tokens": {
+                  "$ref": "#/components/schemas/TokenCounts"
+                }
+              },
+              "required": [
+                "model",
+                "tokens"
+              ]
+            }
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": "integer"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "sentAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "position",
+                "text",
+                "sentAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "startedAt",
+          "endedAt",
+          "durationMs",
+          "models",
+          "gitBranch",
+          "origin",
+          "promptCount",
+          "subagentCount",
+          "isArchived",
+          "tokens",
+          "workspace",
+          "usages",
+          "prompts"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Liveness of the API",
+        "responses": {
+          "200": {
+            "description": "The API is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    },
+                    "time": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "time"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/refresh": {
+      "get": {
+        "summary": "Whether a refresh runs, and the report of the last one",
+        "responses": {
+          "200": {
+            "description": "The refresh status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Start a refresh, or return the one already running",
+        "responses": {
+          "202": {
+            "description": "The refresh runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces": {
+      "get": {
+        "summary": "Workspaces, most recent activity first, with their totals",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false"
+            },
+            "required": false,
+            "name": "includeScratch",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspaces",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}": {
+      "get": {
+        "summary": "A workspace and its sessions, most recent first",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "required": true,
+            "name": "workspaceId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions/{sessionId}": {
+      "get": {
+        "summary": "A session with its token usage per model and its prompts",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

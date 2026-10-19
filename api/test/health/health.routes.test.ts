@@ -1,5 +1,5 @@
 import request from "supertest";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { healthResponseSchema } from "../../src/features/health/health.schema.js";
 import { createTestContext } from "../setup.js";
 
@@ -8,6 +8,10 @@ describe("GET /health", () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+  });
+
+  afterAll(async () => {
+    await ctx.dispose();
   });
 
   beforeEach(async () => {

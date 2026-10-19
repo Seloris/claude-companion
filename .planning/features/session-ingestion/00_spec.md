@@ -61,6 +61,8 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **BR-07** — An unreadable line is skipped and counted, never fails its file; a session still in progress is completed by a later refresh.
 - **BR-08** — A workspace is named after its last folder; two workspaces with the same name stay distinct and are told apart by their path.
 - **BR-09** — A session whose working directory changes along the way belongs, whole, to the workspace of its first working directory, so that no session is counted twice.
+- **BR-10** — A session started in a subfolder of a git repository belongs to that repository's workspace; a folder outside any repository is its own workspace.
+- **BR-11** — A refresh that does not find the logs folder archives no session, so that a misplaced or missing folder never marks the whole history as archived.
 
 ## UX Flow
 

@@ -1,2 +1,2 @@
-// Re-export every feature's tables here: `export * from "../features/{feature}/{feature}.table.js";`
-export {};
+export * from "../features/ingestion/ingestion.table.js";
+export * from "../features/workspaces/workspaces.table.js";
