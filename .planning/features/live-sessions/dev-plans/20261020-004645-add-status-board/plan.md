@@ -40,6 +40,16 @@ Grill not run, to move straight on; the defaults below come from the mockups.
 - Tab title (FR-14) → `AppLayout` sets `document.title` to "(N) claude-companion" when N sessions wait for an answer, else "claude-companion".
 - Phone (FR-22) → below 768 px a tab list shows above the columns, `Question posée` selected by default, and only the selected column is shown; above it the tab list is hidden and every column shows. Pure CSS on a `data-selected` attribute, the selected tab in the page's state.
 
+## Decisions taken autonomously
+
+- Shape of the parser helper → `readAssistantTexts(lines)` returns `{ messageId, text, at }[]` (the plan's `{ text, at }[]` plus the message id the join needs, since the plan's Decisions join the lines by message id; the `<synthetic>` filter lives in it, next to `SYNTHETIC_MODEL`)
+- Assistant line without a timestamp → left out of the last reply (it cannot be dated against the last prompt)
+- Assistant line without a message id → its own text is the reply (no line to join it with)
+- Existing route tests → the full-session `toEqual` and the BR-05 `toMatchObject` gained the two fields; the BR-05 case also has its own `it` as the Tests section names it
+- Review finding: a copied assistant line (same uuid, re-appended before a compaction) → counted once in `readAssistantTexts`; blank text blocks dropped (hardening, one condition each, tested)
+- Review finding: a built-in command (`/model`, `/compact`) counts as a prompt and moves `turnStartedAt` → left as the plan's Decisions say (`prompts.at(-1)`), reported to the person as a plan gap for stage 2 or a plan revision (departing from the plan is not an autonomous call)
+- Review finding: the same copied chains can move `turnStartedAt` back for a few lines around a compaction → left open, same reason
+
 ## api
 
 ### services
@@ -107,9 +117,9 @@ Grill not run, to move straight on; the defaults below come from the mockups.
 
 ### Stage 1 — api
 Commit: `feat(live-sessions): api — last reply and turn start of a live session`
-- [ ] services: `lastReply` and `turnStartedAt` read in `live.log.ts` and passed by `live.service.ts`, with their tests
-- [ ] routes: `liveSessionSchema` fields, route tests
-- [ ] Handoff: `api/openapi.json` exported
+- [x] services: `lastReply` and `turnStartedAt` read in `live.log.ts` and passed by `live.service.ts`, with their tests
+- [x] routes: `liveSessionSchema` fields, route tests
+- [x] Handoff: `api/openapi.json` exported
 
 ### Stage 2 — web
 Commit: `feat(live-sessions): web — status board`

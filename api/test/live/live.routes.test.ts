@@ -198,6 +198,8 @@ describe("live routes", () => {
           isLogFound: true,
           isStored: false,
           lastPrompt: "Fix the login page",
+          lastReply: null,
+          turnStartedAt: at(5),
           question: null,
           questionCount: 0,
           waitingFor: null,
@@ -205,6 +207,42 @@ describe("live routes", () => {
           currentActivity: { kind: "tool", toolName: "Bash", skill: null, since: at(290) },
           runningSubagents: [],
         });
+      });
+
+      it("returns the last reply and the turn start of a session", async () => {
+        // Arrange
+        await startSession({
+          pid: 11,
+          status: { status: "idle" },
+          lines: [
+            promptLine("Fix the login page", 5),
+            assistantLine("m1", "claude-opus-5-5", {}, { timestamp: at(8), content: [{ type: "text", text: "The login page is fixed." }] }),
+          ],
+        });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session).toMatchObject({ lastReply: "The login page is fixed.", turnStartedAt: at(5) });
+      });
+
+      it("has no turn when the last prompt predates the process", async () => {
+        // Arrange
+        await startSession({
+          pid: 11,
+          status: { status: "idle", startedAt: ms(100) },
+          lines: [
+            promptLine("Fix the login page", 5),
+            assistantLine("m1", "claude-opus-5-5", {}, { timestamp: at(8), content: [{ type: "text", text: "The login page is fixed." }] }),
+          ],
+        });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session).toMatchObject({ lastPrompt: "Fix the login page", lastReply: null, turnStartedAt: null });
       });
 
       it("takes the origin of the log when the status file has none", async () => {
@@ -406,10 +444,23 @@ describe("live routes", () => {
           isLogFound: false,
           gitBranch: null,
           lastPrompt: null,
+          lastReply: null,
+          turnStartedAt: null,
           queuedPrompts: [],
           currentActivity: null,
           runningSubagents: [],
         });
+      });
+
+      it("returns no last reply and no turn start for a session too young to have a log", async () => {
+        // Arrange
+        await startSession({ pid: 11, status: { status: "busy" } });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session).toMatchObject({ isLogFound: false, lastReply: null, turnStartedAt: null });
       });
 
       it("is titled by its id when the status file has no name", async () => {

@@ -96,6 +96,9 @@ export function createLiveService({
     const name = (status.name ?? "") === "" ? null : (status.name ?? null);
     // BR-06: the working directory the log opens with, as the stored history; the status file's one before the log exists.
     const workspace = resolveWorkspace(log?.firstCwd ?? status.cwd, { scratchRoot, findRepoRoot });
+    // A last prompt older than the process belongs to a resumed session: no turn has run since it started (BR-09).
+    const turnStartedAt = log?.turnStartedAt ?? null;
+    const hasTurn = turnStartedAt !== null && turnStartedAt.getTime() >= status.startedAt;
     const isRunning = liveStatus === "running";
     const isAwaiting = liveStatus === "awaitingAnswer";
     const activity: CurrentActivityRead | null = isRunning && log !== null ? log.activity : null;
@@ -113,6 +116,8 @@ export function createLiveService({
         isLogFound: log !== null,
         isStored,
         lastPrompt: log?.lastPrompt ?? null,
+        lastReply: hasTurn ? (log?.lastReply ?? null) : null,
+        turnStartedAt: hasTurn ? turnStartedAt.toISOString() : null,
         question: isAwaiting ? (log?.question ?? null) : null,
         questionCount: isAwaiting && log !== null && log.question !== null ? log.questionCount : 0,
         waitingFor: isAwaiting ? (status.waitingFor ?? null) : null,
@@ -222,7 +227,7 @@ function toLiveStatus(status: StatusFile): LiveStatus {
   return reason === null || PERMISSION_WAITS.has(reason) ? "running" : "awaitingAnswer";
 }
 
-// FR-01: sessions by status, then most recent; workspaces holding a question first, then most recent.
+// The api's own order: sessions by status, then most recent; workspaces holding a question first, then most recent.
 function groupByWorkspace(entries: LiveEntry[]): LiveWorkspace[] {
   const groups = new Map<string, { workspace: ResolvedWorkspace; sessions: LiveSession[] }>();
   for (const { workspace, session } of entries) {

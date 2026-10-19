@@ -7,6 +7,7 @@ import {
   isInjectedText,
   parseLogLines,
   parseSession,
+  readAssistantTexts,
   readToolBlocks,
   type ParsedLine,
   type ParsedSession,
@@ -54,6 +55,10 @@ export interface LiveLog {
   origin: string | null;
   startedAt: Date;
   lastPrompt: string | null;
+  // The last prompt's time, null before the first prompt.
+  turnStartedAt: Date | null;
+  // The last text Claude wrote in the main log since the last prompt, shortened; null without a prompt or text.
+  lastReply: string | null;
   lastLineAt: Date | null;
   activity: CurrentActivityRead;
   question: string | null;
@@ -126,6 +131,8 @@ export function readLiveLog(input: { sessionId: string; mainLines: string[]; sub
     origin: session.origin,
     startedAt: session.startedAt,
     lastPrompt: prompt === undefined ? null : shortenText(prompt.text),
+    turnStartedAt: prompt?.sentAt ?? null,
+    lastReply: prompt === undefined ? null : readLastReply(main, prompt.sentAt),
     lastLineAt,
     activity: {
       ...readActivityKind(pending, subagents.some((subagent) => subagent.isRunning)),
@@ -137,6 +144,16 @@ export function readLiveLog(input: { sessionId: string; mainLines: string[]; sub
     queuedPrompts: queue.shown,
     subagents,
   };
+}
+
+// Claude Code writes one line per content block: the reply is the text of every line of the last message that wrote
+// text since the prompt. Only the main log is read, a subagent's text is not Claude's reply to the person.
+function readLastReply(main: ParsedLine[], promptAt: Date): string | null {
+  const texts = readAssistantTexts(main).filter((entry) => entry.at >= promptAt);
+  const last = texts.at(-1);
+  if (last === undefined) return null;
+  const reply = last.messageId === null ? [last] : texts.filter((entry) => entry.messageId === last.messageId);
+  return shortenText(reply.map((entry) => entry.text).join(" "));
 }
 
 // The tool calls of the last assistant message that have no result: the calls in progress. An older call without

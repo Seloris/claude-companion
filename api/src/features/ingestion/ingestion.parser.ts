@@ -134,6 +134,17 @@ const userBlocksSchema = z.looseObject({
   toolUseResult: z.unknown().optional(),
 });
 
+const assistantTextSchema = z.looseObject({
+  type: z.literal("assistant"),
+  uuid: z.string().optional(),
+  timestamp: z.iso.datetime(),
+  message: z.looseObject({
+    id: z.string().nullish(),
+    model: z.string().optional(),
+    content: z.array(contentBlockSchema),
+  }),
+});
+
 const skillInputSchema = z.looseObject({ skill: z.string().min(1), args: z.string().optional() });
 export const agentInputSchema = z.looseObject({
   subagent_type: z.string().optional(),
@@ -477,6 +488,37 @@ export function readToolBlocks(lines: ParsedLine[]): ToolBlocks {
     }
   }
   return { calls: [...calls.values()], results, lastAssistantMessageId };
+}
+
+export interface AssistantText {
+  // Null: the line carries no message id.
+  messageId: string | null;
+  text: string;
+  at: Date;
+}
+
+// The text blocks of the file's assistant lines, in log order, one entry per line that has any. Claude Code writes one
+// line per content block, so a message spans several entries sharing its id. A line with no timestamp cannot be dated
+// and is left out; so are Claude Code's own synthetic messages ("No response requested.", API error notices).
+export function readAssistantTexts(lines: ParsedLine[]): AssistantText[] {
+  const texts: AssistantText[] = [];
+  const seenUuids = new Set<string>();
+  for (const line of lines) {
+    const assistant = assistantTextSchema.safeParse(line);
+    if (!assistant.success || assistant.data.message.model === SYNTHETIC_MODEL) continue;
+    // Claude Code re-appends old chains with the same uuids before a compaction: a copy is not a second line.
+    const uuid = assistant.data.uuid;
+    if (uuid !== undefined) {
+      if (seenUuids.has(uuid)) continue;
+      seenUuids.add(uuid);
+    }
+    const blocks = assistant.data.message.content.flatMap((block) =>
+      block.type === "text" && block.text !== undefined && block.text.trim() !== "" ? [block.text] : [],
+    );
+    if (blocks.length === 0) continue;
+    texts.push({ messageId: assistant.data.message.id ?? null, text: blocks.join(" "), at: new Date(assistant.data.timestamp) });
+  }
+  return texts;
 }
 
 function readActivity(files: { agentId: string | null; lines: ParsedLine[] }[], start: Date): Activity {

@@ -1040,6 +1040,19 @@
               "null"
             ]
           },
+          "lastReply": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "turnStartedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "question": {
             "type": [
               "string",
@@ -1083,6 +1096,8 @@
           "isLogFound",
           "isStored",
           "lastPrompt",
+          "lastReply",
+          "turnStartedAt",
           "question",
           "questionCount",
           "waitingFor",

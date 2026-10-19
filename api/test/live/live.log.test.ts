@@ -544,6 +544,142 @@ describe("readLiveLog", () => {
     });
   });
 
+  describe("turn", () => {
+    const text = (messageId: string, content: string, second: number, model = "claude-opus-5-5") =>
+      assistantLine(messageId, model, {}, { timestamp: at(second), content: [{ type: "text", text: content }] });
+
+    it("dates the turn from the last prompt", () => {
+      // Arrange
+      const lines = [promptLine("First", 0), text("m1", "Done", 3), promptLine("Second", 20)];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.turnStartedAt).toEqual(date(20));
+    });
+
+    it("has no turn before the first prompt", () => {
+      // Act
+      const log = live([userLine("<system-reminder>Context</system-reminder>", { timestamp: at(0) })]);
+
+      // Assert
+      expect(log.turnStartedAt).toBeNull();
+      expect(log.lastReply).toBeNull();
+    });
+
+    it("takes the last text Claude wrote since the last prompt for the last reply", () => {
+      // Arrange
+      const lines = [
+        promptLine("First", 0),
+        text("m1", "Old answer", 3),
+        promptLine("Second", 20),
+        text("m2", "Looking into it", 22),
+        callLine("m3", "toolu_1", "Bash", { command: "npm test" }, 24),
+        answerLine("toolu_1", 26),
+        text("m4", "All tests pass", 28),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBe("All tests pass");
+    });
+
+    it("joins the text blocks of the last reply's lines that share its message id", () => {
+      // Arrange
+      const lines = [
+        promptLine("Go", 0),
+        text("m1", "Other message", 2),
+        text("m2", "First paragraph.", 4),
+        callLine("m2", "toolu_1", "Bash", { command: "ls" }, 5),
+        text("m2", "Second\n\nparagraph.", 6),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBe("First paragraph. Second paragraph.");
+    });
+
+    it("has no last reply when the turn wrote no text", () => {
+      // Arrange
+      const lines = [
+        promptLine("First", 0),
+        text("m1", "Answer of the previous turn", 3),
+        promptLine("Second", 20),
+        callLine("m2", "toolu_1", "Bash", { command: "npm test" }, 22),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBeNull();
+      expect(log.turnStartedAt).toEqual(date(20));
+    });
+
+    it("does not take a subagent's text for the last reply", () => {
+      // Arrange
+      const subagent = { agentId: "a1", lines: [promptLine("Plan", 21), text("s1", "The subagent's report", 25)] };
+      const lines = [promptLine("Go", 20), callLine("m1", "toolu_1", "Agent", { subagent_type: "Plan", description: "Plan it" }, 21)];
+
+      // Act
+      const log = live(lines, [subagent]);
+
+      // Assert
+      expect(log.lastReply).toBeNull();
+    });
+
+    it("skips Claude Code's synthetic messages for the last reply", () => {
+      // Arrange
+      const lines = [promptLine("Go", 0), text("m1", "The real answer", 3), text("m2", "No response requested.", 5, "<synthetic>")];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBe("The real answer");
+    });
+
+    it("counts a copied line once for the last reply", () => {
+      // Arrange
+      const reply = { ...text("m1", "All done", 3), uuid: "u1" };
+      const lines = [promptLine("Go", 0), reply, reply];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBe("All done");
+    });
+
+    it("has no last reply when the turn wrote blank text only", () => {
+      // Arrange
+      const lines = [promptLine("Go", 0), text("m1", "  ", 3)];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBeNull();
+    });
+
+    it("caps the last reply at 300 characters", () => {
+      // Arrange
+      const lines = [promptLine("Go", 0), text("m1", "word ".repeat(120), 3)];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply?.length).toBeLessThanOrEqual(301);
+      expect(log.lastReply?.endsWith("…")).toBe(true);
+    });
+  });
+
   describe("texts", () => {
     it("takes the last prompt of the person, not a meta line", () => {
       // Arrange
