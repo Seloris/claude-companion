@@ -154,14 +154,21 @@ None: the plan follows the components' `CLAUDE.md` as they are.
 
 **web**: none (no unit tests on the front, per its `CLAUDE.md`); checked in the browser (Validation).
 
+## Deviations
+
+- `start(): RefreshStatus` → `start(): Promise<RefreshStatus>` (the last report is read from `refresh_runs`; the running flag is still set before any `await`, so BR-06 holds).
+- `start()` records a `failed` run → `refresh()` records it itself, with the counts reached so far; `start()` only logs an error the recording itself raises.
+- `listSessionIds()` → `listSessionIds({ isArchived })` (the refresh archives only the sessions not archived yet, so `sessionsArchived` counts each session once).
+- A session `parseSession` returns `null` for is skipped → skipped, but its log files are still recorded in `log_files`, so it is re-read only once it changes (FR-02).
+
 ## Progress
 
 ### Stage 1 — api
 Commit: `feat(session-ingestion): api — log ingestion, refresh and recap endpoints`
-- [ ] db: workspaces, sessions, usages, prompts, log files and refresh runs tables; migration `session_ingestion`
-- [ ] services: config, parser, workspace resolver, log source, repositories, ingestion and workspaces services, with their tests
-- [ ] routes: refresh and recap contracts and routers, start-up refresh, route tests
-- [ ] Handoff: `api/openapi.json` exported
+- [x] db: workspaces, sessions, usages, prompts, log files and refresh runs tables; migration `session_ingestion`
+- [x] services: config, parser, workspace resolver, log source, repositories, ingestion and workspaces services, with their tests
+- [x] routes: refresh and recap contracts and routers, start-up refresh, route tests
+- [x] Handoff: `api/openapi.json` exported
 
 ### Stage 2 — web
 Commit: `feat(session-ingestion): web — workspaces, sessions and refresh pages`
