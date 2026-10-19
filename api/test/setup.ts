@@ -65,5 +65,10 @@ export async function createTestContext(options: { logsDir?: string } = {}) {
     clock.set(EPOCH);
   };
 
-  return { app, db, clock, seed, reset, ingestion, workspaces, logsDir, scratchRoot, tempRoot };
+  const dispose = async () => {
+    await ingestion.whenIdle();
+    await rm(tempRoot, { recursive: true, force: true });
+  };
+
+  return { app, db, clock, seed, reset, dispose, ingestion, workspaces, logsDir, scratchRoot, tempRoot };
 }

@@ -31,6 +31,11 @@ function WorkspacesPage() {
     }
     const { workspaces, totals } = workspacesQuery.data;
     if (workspaces.length === 0) {
+      // The empty state names the logs folder: it waits for the status that carries it.
+      if (statusQuery.isPending) return <LoadingState>{t("common.state.loading")}</LoadingState>;
+      if (statusQuery.isError) {
+        return <ErrorMessage>{t("common.state.error", { message: statusQuery.error.message })}</ErrorMessage>;
+      }
       if (status?.isRunning) return <LoadingState>{t("workspaces.empty.reading", { logsDir })}</LoadingState>;
       const isLogsDirMissing = status?.lastReport?.isLogsDirFound === false;
       return (

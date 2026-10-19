@@ -29,7 +29,13 @@ export function RefreshBar({
         ? status !== undefined && <p className={styles.report}>{t("refresh.report.none")}</p>
         : report.status === "failed"
           ? <ErrorMessage>{t("refresh.report.failed", { when: formatRelative(report.finishedAt) })}</ErrorMessage>
-          : (
+          : !report.isLogsDirFound
+            ? (
+              <ErrorMessage>
+                {t("refresh.report.notFound", { when: formatRelative(report.finishedAt), logsDir: status?.logsDir ?? "" })}
+              </ErrorMessage>
+            )
+            : (
             <p className={styles.report}>
               {t("refresh.report.summary", {
                 when: formatRelative(report.finishedAt),

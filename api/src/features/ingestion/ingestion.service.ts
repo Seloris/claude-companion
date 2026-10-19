@@ -40,11 +40,17 @@ export function createIngestionService({
 
       for (const session of scan.sessions) {
         if (!hasChanged(session, stored.get(session.sessionId) ?? [])) continue;
-        const parsed = parseSession({
-          sessionId: session.sessionId,
-          mainLines: await readLines(session.mainFile.path),
-          subagentFiles: await Promise.all(session.subagentFiles.map((file) => readLines(file.path))),
-        });
+        let mainLines: string[];
+        let subagentFiles: string[][];
+        try {
+          mainLines = await readLines(session.mainFile.path);
+          subagentFiles = await Promise.all(session.subagentFiles.map((file) => readLines(file.path)));
+        } catch (caught) {
+          // A file removed or locked since the scan: its stored files stay as they were, so the next refresh retries it.
+          console.error(`session ${session.sessionId} could not be read`, caught);
+          continue;
+        }
+        const parsed = parseSession({ sessionId: session.sessionId, mainLines, subagentFiles });
         if (parsed !== null) {
           counts.unreadableLines += parsed.unreadableLines;
           const workspace = resolveWorkspace(parsed.firstCwd, { scratchRoot, findRepoRoot });
@@ -56,12 +62,14 @@ export function createIngestionService({
         await ingestionRepo.replaceLogFiles(session.sessionId, [session.mainFile, ...session.subagentFiles]);
       }
 
-      // BR-05: a session whose log file is gone is archived, never deleted.
-      const scannedIds = new Set(scan.sessions.map((session) => session.sessionId));
-      const gone = (await workspacesRepo.listSessionIds({ isArchived: false })).filter((id) => !scannedIds.has(id));
-      await workspacesRepo.archiveSessions(gone);
-      for (const id of gone) await ingestionRepo.deleteLogFiles(id);
-      counts.sessionsArchived = gone.length;
+      // BR-05: a session whose log file is gone is archived, never deleted. BR-11: a missing folder archives none.
+      if (scan.isLogsDirFound) {
+        const scannedIds = new Set(scan.sessions.map((session) => session.sessionId));
+        const gone = (await workspacesRepo.listSessionIds({ isArchived: false })).filter((id) => !scannedIds.has(id));
+        await workspacesRepo.archiveSessions(gone);
+        for (const id of gone) await ingestionRepo.deleteLogFiles(id);
+        counts.sessionsArchived = gone.length;
+      }
     } catch (caught) {
       console.error("refresh failed", caught);
       error = caught instanceof Error ? caught.message : String(caught);

@@ -104,6 +104,23 @@ describe("parseSession", () => {
       expect(session.subagentCount).toBe(1);
     });
 
+    it("keeps the largest counters of a message whose lines carry growing usage", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        assistantLine("msg_1", "claude-opus-5-5", { input: 10, output: 5 }),
+        assistantLine("msg_1", "claude-opus-5-5", { input: 10, output: 120 }),
+      ];
+
+      // Act
+      const session = parsed(main);
+
+      // Assert
+      expect(session.usages).toEqual([
+        { model: "claude-opus-5-5", inputTokens: 10, outputTokens: 120, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      ]);
+    });
+
     it("skips the synthetic model", () => {
       // Act
       const session = parsed([userLine("Go"), assistantLine("msg_1", "<synthetic>", { output: 9 })]);

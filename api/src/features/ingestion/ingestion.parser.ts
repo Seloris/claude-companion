@@ -194,27 +194,37 @@ function titleFromPrompt(prompt: string | undefined): string | undefined {
 }
 
 function sumUsages(lines: Line[]): ModelUsage[] {
-  const seen = new Set<string>();
-  const byModel = new Map<string, ModelUsage>();
+  // Claude Code repeats the message's usage on every content-block line, the output count growing as it streams:
+  // each message counts once, with its largest counters.
+  const byMessage = new Map<string, ModelUsage>();
   for (const line of lines) {
     const assistant = assistantSchema.safeParse(line);
     if (!assistant.success) continue;
     const { id, model, usage } = assistant.data.message;
-    // Claude Code repeats the message's usage on every content-block line.
-    if (model === SYNTHETIC_MODEL || seen.has(id)) continue;
-    seen.add(id);
-    const total = byModel.get(model) ?? {
+    if (model === SYNTHETIC_MODEL) continue;
+    const previous = byMessage.get(id);
+    byMessage.set(id, {
       model,
+      inputTokens: Math.max(previous?.inputTokens ?? 0, usage.input_tokens),
+      outputTokens: Math.max(previous?.outputTokens ?? 0, usage.output_tokens),
+      cacheReadTokens: Math.max(previous?.cacheReadTokens ?? 0, usage.cache_read_input_tokens ?? 0),
+      cacheWriteTokens: Math.max(previous?.cacheWriteTokens ?? 0, usage.cache_creation_input_tokens ?? 0),
+    });
+  }
+  const byModel = new Map<string, ModelUsage>();
+  for (const message of byMessage.values()) {
+    const total = byModel.get(message.model) ?? {
+      model: message.model,
       inputTokens: 0,
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
-    total.inputTokens += usage.input_tokens;
-    total.outputTokens += usage.output_tokens;
-    total.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
-    total.cacheWriteTokens += usage.cache_creation_input_tokens ?? 0;
-    byModel.set(model, total);
+    total.inputTokens += message.inputTokens;
+    total.outputTokens += message.outputTokens;
+    total.cacheReadTokens += message.cacheReadTokens;
+    total.cacheWriteTokens += message.cacheWriteTokens;
+    byModel.set(message.model, total);
   }
   return [...byModel.values()].sort((a, b) => a.model.localeCompare(b.model));
 }

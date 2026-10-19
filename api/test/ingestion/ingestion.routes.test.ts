@@ -17,7 +17,7 @@ describe("refresh routes", () => {
   });
 
   afterAll(async () => {
-    await ctx.reset();
+    await ctx.dispose();
   });
 
   describe("GET /v1/refresh", () => {

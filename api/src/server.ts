@@ -22,8 +22,9 @@ const ingestion = createIngestionService({
 });
 const workspaces = createWorkspacesService({ workspacesRepo });
 
-createApp({ db, clock: systemClock, ingestion, workspaces }).listen(config.PORT, () => {
-  console.log(`api listening on http://localhost:${config.PORT}`);
+// Loopback only: the recap holds the whole prompt history, never served to the network.
+createApp({ db, clock: systemClock, ingestion, workspaces }).listen(config.PORT, "127.0.0.1", () => {
+  console.log(`api listening on http://127.0.0.1:${config.PORT}`);
   // FR-01: the start-up refresh runs in the background; the stored recap is served meanwhile.
   ingestion.start().catch((error: unknown) => console.error("start-up refresh failed", error));
 });

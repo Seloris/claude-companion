@@ -161,6 +161,11 @@ None: the plan follows the components' `CLAUDE.md` as they are.
 - `listSessionIds()` → `listSessionIds({ isArchived })` (the refresh archives only the sessions not archived yet, so `sessionsArchived` counts each session once).
 - A session `parseSession` returns `null` for is skipped → skipped, but its log files are still recorded in `log_files`, so it is re-read only once it changes (FR-02).
 - Local ports 3000 (api) and 5173 (web) → 3100 and 5180, in `api/src/config.ts`, `web/vite.config.ts` (`strictPort`), `factory.yaml` and the `CLAUDE.md` files (other local projects hold 3000 and 5173; asked by the person during the browser test).
+- Final review: sessions no longer scanned are archived on every refresh → only when the logs folder is found (BR-11, added to the spec at the person's request: a missing folder archived the whole history).
+- Final review: usage counted from the first line of each `message.id` → from its largest counters (the real logs repeat a growing `output_tokens` on a message's lines: the first line undercounted output by about 8.5%).
+- Final review: a file that fails to read failed the whole refresh → that session is skipped and logged, its stored files unchanged so the next refresh retries it (no test: a read failure after the scan cannot be produced from a temp folder without injecting the log source).
+- Final review: the api listened on every interface → on `127.0.0.1` only, the Vite proxy targeting `127.0.0.1:3100` (the recap holds the whole prompt history).
+- Final review: `listWorkspaces` returned workspaces left without a session (a session moved by a re-read) → left out.
 
 ## Progress
 
@@ -180,6 +185,6 @@ Commit: `feat(session-ingestion): web — workspaces, sessions and refresh pages
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled (left open with the person's agreement: a line field of an unexpected type drops the line, and bash-mode output lines are not filtered from prompts, neither seen in the 474 local log files; the API's English problem details shown in French messages, as `web/CLAUDE.md` asks)
 - [x] Tests: the full `test` command of `api` green on the plan's final code
-- [x] Browser test: the change tested in `web` (`test-in-browser` skill): workspaces listed after the start-up refresh, Scratch switch and totals, a workspace's sessions, a session's prompts, a refresh with its report, the empty state with a missing `CLAUDE_PROJECTS_DIR`
+- [x] Browser test: the change tested in `web` (`test-in-browser` skill): workspaces listed after the start-up refresh, Scratch switch and totals, a workspace's sessions, a session's prompts, a refresh with its report, the empty state with a missing `CLAUDE_PROJECTS_DIR`; re-run after the final review's fixes, plus the refresh bar's not-found line with no session archived (BR-11)

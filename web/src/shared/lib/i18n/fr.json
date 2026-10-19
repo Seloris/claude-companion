@@ -20,6 +20,7 @@
   "refresh.report.unreadable.one": "{count} ligne illisible",
   "refresh.report.unreadable.other": "{count} lignes illisibles",
   "refresh.report.failed": "La dernière actualisation a échoué ({when}).",
+  "refresh.report.notFound": "Dernière actualisation {when} : le dossier {logsDir} est introuvable, aucune session n'a été lue ni archivée.",
   "refresh.report.none": "Aucune actualisation pour l'instant.",
   "refresh.start.failed": "L'actualisation n'a pas pu démarrer : {message}",
   "workspaces.page.title": "Espaces de travail",

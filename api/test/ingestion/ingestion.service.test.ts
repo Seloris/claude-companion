@@ -22,8 +22,13 @@ describe("IngestionService", () => {
   });
 
   afterAll(async () => {
-    await ctx.reset();
+    await ctx.dispose();
   });
+
+  // Under the temp root: the repository-root walk never meets a .git folder of the host disk.
+  function demo() {
+    return path.join(ctx.tempRoot, "demo");
+  }
 
   function session(sessionId: string, cwd: string, extra: LogLine[] = []) {
     return {
@@ -43,8 +48,8 @@ describe("IngestionService", () => {
 
   it("adds the new sessions and records the report", async () => {
     // Arrange
-    await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, "C:\\WS\\demo"));
-    await writeSession(ctx.logsDir, "C--WS-demo", session(SECOND_ID, "C:\\WS\\demo"));
+    await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+    await writeSession(ctx.logsDir, "C--WS-demo", session(SECOND_ID, demo()));
     ctx.clock.set("2026-10-02T08:00:00.000Z");
 
     // Act
@@ -68,7 +73,7 @@ describe("IngestionService", () => {
 
   it("re-reads nothing when no file changed", async () => {
     // Arrange
-    await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, "C:\\WS\\demo"));
+    await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
     await ctx.ingestion.refresh();
 
     // Act
@@ -80,7 +85,7 @@ describe("IngestionService", () => {
 
   it("updates a session whose log file grew", async () => {
     // Arrange
-    const { mainFile } = await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, "C:\\WS\\demo"));
+    const { mainFile } = await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
     await ctx.ingestion.refresh();
     await appendFile(
       mainFile,
@@ -100,7 +105,7 @@ describe("IngestionService", () => {
 
   it("updates a session when a subagent file appears and adds its tokens", async () => {
     // Arrange
-    const first = session(FIRST_ID, "C:\\WS\\demo");
+    const first = session(FIRST_ID, demo());
     await writeSession(ctx.logsDir, "C--WS-demo", first);
     await ctx.ingestion.refresh();
     const subagent = [assistantLine("msg_sub", "claude-haiku-5-5", { input: 1, output: 2 }, { sessionId: FIRST_ID })];
@@ -125,7 +130,7 @@ describe("IngestionService", () => {
 
   it("archives a session whose log file is gone and keeps it", async () => {
     // Arrange
-    const { mainFile } = await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, "C:\\WS\\demo"));
+    const { mainFile } = await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
     await ctx.ingestion.refresh();
     await rm(mainFile);
 
@@ -141,7 +146,7 @@ describe("IngestionService", () => {
 
   it("restores an archived session whose file came back, counted as updated", async () => {
     // Arrange
-    const first = session(FIRST_ID, "C:\\WS\\demo");
+    const first = session(FIRST_ID, demo());
     const { mainFile } = await writeSession(ctx.logsDir, "C--WS-demo", first);
     await ctx.ingestion.refresh();
     await rm(mainFile);
@@ -158,11 +163,10 @@ describe("IngestionService", () => {
 
   it("ignores a refresh asked for while one runs", async () => {
     // Arrange
-    await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, "C:\\WS\\demo"));
+    await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
 
     // Act
-    const first = await ctx.ingestion.start();
-    const second = await ctx.ingestion.start();
+    const [first, second] = await Promise.all([ctx.ingestion.start(), ctx.ingestion.start()]);
     await ctx.ingestion.whenIdle();
 
     // Assert
@@ -175,7 +179,7 @@ describe("IngestionService", () => {
   it("leaves every file of the logs folder as it was", async () => {
     // Arrange
     await writeSession(ctx.logsDir, "C--WS-demo", {
-      ...session(FIRST_ID, "C:\\WS\\demo"),
+      ...session(FIRST_ID, demo()),
       subagents: [[assistantLine("msg_sub", "claude-haiku-5-5", { output: 1 }, { sessionId: FIRST_ID })]],
     });
     await mkdir(path.join(ctx.logsDir, "C--scratch", "memory"), { recursive: true });
@@ -215,7 +219,9 @@ describe("IngestionService", () => {
     await writeSession(
       ctx.logsDir,
       "C--WS-demo",
-      session(FIRST_ID, "C:\\WS\\demo", [userLine("Elsewhere", { sessionId: FIRST_ID, cwd: "C:\\WS\\other" })]),
+      session(FIRST_ID, demo(), [
+        userLine("Elsewhere", { sessionId: FIRST_ID, cwd: path.join(ctx.tempRoot, "other") }),
+      ]),
     );
 
     // Act
@@ -245,6 +251,10 @@ describe("IngestionService", () => {
       missing = await createTestContext({ logsDir: path.join(ctx.tempRoot, "does-not-exist") });
     });
 
+    afterAll(async () => {
+      await missing.dispose();
+    });
+
     it("reports the folder as not found", async () => {
       // Act
       const report = await missing.ingestion.refresh();
@@ -252,6 +262,20 @@ describe("IngestionService", () => {
       // Assert
       expect(report).toMatchObject({ status: "succeeded", isLogsDirFound: false, sessionsAdded: 0 });
     });
+  });
+
+  it("archives no session when the logs folder is not found", async () => {
+    // Arrange
+    await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+    await ctx.ingestion.refresh();
+    await rm(ctx.logsDir, { recursive: true });
+
+    // Act
+    const report = await ctx.ingestion.refresh();
+
+    // Assert
+    expect(report).toMatchObject({ isLogsDirFound: false, sessionsArchived: 0 });
+    expect(await readSession(FIRST_ID)).toMatchObject({ isArchived: false });
   });
 });
 

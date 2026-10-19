@@ -14,5 +14,7 @@ export function t(key: string, params: Record<string, string | number> = {}): st
 
 // `{key}.one` or `{key}.other` after the French plural rule of `count`, which it receives as `{count}`.
 export function tp(key: string, count: number, params: Record<string, string | number> = {}): string {
-  return t(`${key}.${pluralRules.select(count)}`, { count: countFormat.format(count), ...params });
+  // French also has a `many` category (exact millions): its wording is the `other` one.
+  const category = pluralRules.select(count) === "one" ? "one" : "other";
+  return t(`${key}.${category}`, { count: countFormat.format(count), ...params });
 }

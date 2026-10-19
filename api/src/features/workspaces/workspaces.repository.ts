@@ -1,4 +1,4 @@
-import { asc, countDistinct, eq, inArray, max, sum } from "drizzle-orm";
+import { asc, countDistinct, eq, gt, inArray, max, sum } from "drizzle-orm";
 import type { Database } from "../../db/client.js";
 import type { ModelUsage, ParsedSession } from "../ingestion/ingestion.parser.js";
 import type { ResolvedWorkspace } from "../ingestion/ingestion.workspace.js";
@@ -135,7 +135,9 @@ export function createWorkspacesRepository(db: Database) {
         .leftJoin(sessions, eq(sessions.workspaceId, workspaces.id))
         .leftJoin(sessionModelUsages, eq(sessionModelUsages.sessionId, sessions.id))
         .where(filter.includeScratch ? undefined : eq(workspaces.isScratch, false))
-        .groupBy(workspaces.id);
+        .groupBy(workspaces.id)
+        // A re-read session can move to another workspace (a repository created or removed since): the one it left may hold none.
+        .having(gt(countDistinct(sessions.id), 0));
       return rows.map((row) => ({
         ...row,
         inputTokens: Number(row.inputTokens ?? 0),

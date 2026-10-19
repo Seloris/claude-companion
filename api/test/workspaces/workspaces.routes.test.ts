@@ -1,5 +1,5 @@
 import request from "supertest";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   sessionDetailSchema,
   workspaceDetailSchema,
@@ -14,6 +14,10 @@ describe("workspaces routes", () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+  });
+
+  afterAll(async () => {
+    await ctx.dispose();
   });
 
   beforeEach(async () => {
@@ -101,6 +105,20 @@ describe("workspaces routes", () => {
         workspaces: [],
         totals: { sessionCount: 0, tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } },
       });
+    });
+
+    it("leaves out a workspace whose only session moved to another one", async () => {
+      // Arrange
+      const session = buildSession();
+      await ctx.seed.session(buildWorkspace({ name: "before" }), session);
+      await ctx.seed.session(buildWorkspace({ name: "after" }), session);
+
+      // Act
+      const res = await request(ctx.app).get("/v1/workspaces");
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect(workspaceListSchema.parse(res.body).workspaces.map((workspace) => workspace.name)).toEqual(["after"]);
     });
 
     it("returns 400 when includeScratch is not a boolean", async () => {

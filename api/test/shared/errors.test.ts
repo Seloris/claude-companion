@@ -1,5 +1,5 @@
 import request from "supertest";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { problemDetailsSchema } from "../../src/shared/errors.js";
 import { createTestContext } from "../setup.js";
 
@@ -8,6 +8,10 @@ describe("errorHandler", () => {
 
   beforeAll(async () => {
     ctx = await createTestContext();
+  });
+
+  afterAll(async () => {
+    await ctx.dispose();
   });
 
   it("returns 400 problem details when the JSON body does not parse", async () => {
