@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createApp } from "../src/app.js";
@@ -10,6 +10,7 @@ import type { ParsedSession } from "../src/features/ingestion/ingestion.parser.j
 import { createIngestionRepository } from "../src/features/ingestion/ingestion.repository.js";
 import { createIngestionService } from "../src/features/ingestion/ingestion.service.js";
 import type { ResolvedWorkspace } from "../src/features/ingestion/ingestion.workspace.js";
+import { createLiveService } from "../src/features/live/live.service.js";
 import { createWorkspacesRepository } from "../src/features/workspaces/workspaces.repository.js";
 import { createWorkspacesService } from "../src/features/workspaces/workspaces.service.js";
 import type { Clock } from "../src/shared/clock.js";
@@ -43,7 +44,25 @@ export async function createTestContext(options: { logsDir?: string } = {}) {
   const ingestion = createIngestionService({ ingestionRepo, workspacesRepo, clock, logsDir, scratchRoot });
   const workspaces = createWorkspacesService({ workspacesRepo });
   const dashboard = createDashboardService({ dashboardRepo: createDashboardRepository(db), clock });
-  const app = createApp({ db, clock, ingestion, workspaces, dashboard });
+  // Status files go to a temp folder, never the real ~/.claude/sessions; a pid is alive when the test says so.
+  const sessionsDir = path.join(tempRoot, "sessions");
+  await mkdir(sessionsDir);
+  const alivePids = new Set<number>();
+  const buildLive = () =>
+    createLiveService({
+      workspacesRepo,
+      ingestion,
+      clock,
+      sessionsDir,
+      logsDir,
+      scratchRoot,
+      isPidAlive: (pid) => alivePids.has(pid),
+      findRepoRoot: () => null,
+    });
+  // The service keeps snapshots and caches in memory: reset() swaps it for a fresh one so no test sees another's.
+  let current = buildLive();
+  const live = { getLiveState: () => current.getLiveState() };
+  const app = createApp({ db, clock, ingestion, workspaces, dashboard, live });
 
   const seed = {
     async session(workspace: ResolvedWorkspace, session: ParsedSession, options: { isArchived?: boolean } = {}) {
@@ -65,6 +84,9 @@ export async function createTestContext(options: { logsDir?: string } = {}) {
     for (const entry of await readdir(tempRoot)) {
       await rm(path.join(tempRoot, entry), { recursive: true, force: true });
     }
+    await mkdir(sessionsDir, { recursive: true });
+    alivePids.clear();
+    current = buildLive();
     clock.set(EPOCH);
   };
 
@@ -73,5 +95,5 @@ export async function createTestContext(options: { logsDir?: string } = {}) {
     await rm(tempRoot, { recursive: true, force: true });
   };
 
-  return { app, db, clock, seed, reset, dispose, ingestion, workspaces, logsDir, scratchRoot, tempRoot };
+  return { app, db, clock, seed, reset, dispose, ingestion, workspaces, logsDir, scratchRoot, tempRoot, sessionsDir, alivePids };
 }

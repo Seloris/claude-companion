@@ -43,6 +43,8 @@ export interface ParsedSubagent {
   usages: ModelUsage[];
   toolCallCount: number;
   isLogMissing: boolean;
+  // The id of the Agent call that launched it, null when no call is known. Not stored.
+  launchToolUseId: string | null;
 }
 
 export interface SubagentFile {
@@ -123,7 +125,7 @@ const toolResultSchema = z.looseObject({
 
 const assistantBlocksSchema = z.looseObject({
   type: z.literal("assistant"),
-  message: z.looseObject({ content: z.array(z.looseObject({ type: z.string() })) }),
+  message: z.looseObject({ id: z.string().nullish(), content: z.array(z.looseObject({ type: z.string() })) }),
 });
 
 const userBlocksSchema = z.looseObject({
@@ -133,12 +135,17 @@ const userBlocksSchema = z.looseObject({
 });
 
 const skillInputSchema = z.looseObject({ skill: z.string().min(1), args: z.string().optional() });
-const agentInputSchema = z.looseObject({
+export const agentInputSchema = z.looseObject({
   subagent_type: z.string().optional(),
   description: z.string().optional(),
   model: z.string().optional(),
 });
-const agentResultSchema = z.looseObject({ agentId: z.string() });
+// The result of an Agent call: the agent it started and, for a background launch, the status "async_launched".
+// Each field is read on its own: a status that is not a string must not hide the agent id.
+const toolUseResultSchema = z.looseObject({
+  agentId: z.string().optional().catch(undefined),
+  status: z.string().optional().catch(undefined),
+});
 const metaSchema = z.looseObject({
   agentType: z.string().optional(),
   description: z.string().optional(),
@@ -146,16 +153,16 @@ const metaSchema = z.looseObject({
   model: z.string().optional(),
 });
 
-type Line = z.infer<typeof lineSchema>;
+export type ParsedLine = z.infer<typeof lineSchema>;
 
 const SYNTHETIC_MODEL = "<synthetic>";
 const TITLE_LENGTH = 80;
 // Text blocks Claude Code injects into a user line: not something the person typed.
 const INJECTED_PREFIXES = ["<system-reminder>", "<local-command-", "<task-notification>", "[Request interrupted"];
-const SKILL_TOOL = "Skill";
+export const SKILL_TOOL = "Skill";
 // Older logs name the agent tool Task.
-const AGENT_TOOLS = new Set(["Agent", "Task"]);
-const DEFAULT_AGENT_TYPE = "general-purpose";
+export const AGENT_TOOLS = new Set(["Agent", "Task"]);
+export const DEFAULT_AGENT_TYPE = "general-purpose";
 // BR-01: Claude Code's own commands are not skills.
 export const BUILT_IN_COMMANDS = new Set([
   "add-dir",
@@ -220,29 +227,11 @@ export function parseSession(input: {
   subagentFiles: SubagentFile[];
 }): ParsedSession | null {
   const { sessionId } = input;
-  let unreadableLines = 0;
-  const readLines = (rawLines: string[]): Line[] => {
-    const lines: Line[] = [];
-    for (const raw of rawLines) {
-      if (raw.trim() === "") continue;
-      let value: unknown;
-      try {
-        value = JSON.parse(raw);
-      } catch {
-        unreadableLines += 1;
-        continue;
-      }
-      const line = lineSchema.safeParse(value);
-      // A copied line of a forked or resumed session belongs to that other session.
-      if (line.success && (line.data.sessionId === undefined || line.data.sessionId === sessionId)) {
-        lines.push(line.data);
-      }
-    }
-    return lines;
-  };
-
-  const mainLines = readLines(input.mainLines);
-  const subagentLines = input.subagentFiles.map((file) => readLines(file.lines));
+  const main = parseLogLines(input.mainLines, sessionId);
+  const subagentFiles = input.subagentFiles.map((file) => parseLogLines(file.lines, sessionId));
+  const mainLines = main.lines;
+  const subagentLines = subagentFiles.map((file) => file.lines);
+  const unreadableLines = [main, ...subagentFiles].reduce((total, file) => total + file.unreadableLines, 0);
 
   const firstCwd = mainLines.find((line) => line.cwd !== undefined && line.cwd !== "")?.cwd;
   if (firstCwd === undefined) return null;
@@ -317,8 +306,35 @@ export function parseSession(input: {
   };
 }
 
+// The lines of one log file that belong to the session. Blank lines are skipped, unparsable ones counted.
+export function parseLogLines(rawLines: string[], sessionId: string): { lines: ParsedLine[]; unreadableLines: number } {
+  const lines: ParsedLine[] = [];
+  let unreadableLines = 0;
+  for (const raw of rawLines) {
+    if (raw.trim() === "") continue;
+    let value: unknown;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      unreadableLines += 1;
+      continue;
+    }
+    const line = lineSchema.safeParse(value);
+    // A copied line of a forked or resumed session belongs to that other session.
+    if (line.success && (line.data.sessionId === undefined || line.data.sessionId === sessionId)) {
+      lines.push(line.data);
+    }
+  }
+  return { lines, unreadableLines };
+}
+
+// Text Claude Code injected into a user line: not something the person typed.
+export function isInjectedText(text: string): boolean {
+  return INJECTED_PREFIXES.some((prefix) => text.trimStart().startsWith(prefix));
+}
+
 // The line passes the filter of the person's prompts, or comes from a plugin when `isPluginAllowed`.
-function readUserLine(line: Line, { isPluginAllowed }: { isPluginAllowed: boolean }) {
+function readUserLine(line: ParsedLine, { isPluginAllowed }: { isPluginAllowed: boolean }) {
   const user = userSchema.safeParse(line);
   if (!user.success) return null;
   const { data } = user;
@@ -333,11 +349,11 @@ function readUserLine(line: Line, { isPluginAllowed }: { isPluginAllowed: boolea
   return {
     isHuman: kind === "human",
     sentAt: new Date(data.timestamp),
-    texts: texts.filter((text) => !INJECTED_PREFIXES.some((prefix) => text.trimStart().startsWith(prefix))),
+    texts: texts.filter((text) => !isInjectedText(text)),
   };
 }
 
-function toPrompt(line: Line): ParsedPrompt | null {
+function toPrompt(line: ParsedLine): ParsedPrompt | null {
   const user = readUserLine(line, { isPluginAllowed: false });
   if (user === null) return null;
   const texts = user.texts.flatMap((text) => {
@@ -351,7 +367,7 @@ function toPrompt(line: Line): ParsedPrompt | null {
 
 // A command the person typed, or a plugin sent, is a skill call unless it is built-in (BR-01). The skill
 // expansions Claude Code writes after a Skill tool call are meta lines: never one, the tool call already is.
-function toSkillCommand(line: Line): Omit<ParsedSkillCall, "agentId" | "promptPosition"> | null {
+function toSkillCommand(line: ParsedLine): Omit<ParsedSkillCall, "agentId" | "promptPosition"> | null {
   const user = readUserLine(line, { isPluginAllowed: true });
   if (user === null) return null;
   for (const text of user.texts) {
@@ -398,7 +414,72 @@ interface Activity {
   resultAgentIds: Map<string, string>;
 }
 
-function readActivity(files: { agentId: string | null; lines: Line[] }[], start: Date): Activity {
+export interface ToolUseBlock {
+  toolUseId: string;
+  name: string;
+  input: unknown;
+  messageId: string | null;
+  // Null: the line has no timestamp.
+  calledAt: Date | null;
+}
+
+export interface ToolResultInfo {
+  isError: boolean;
+  agentId: string | null;
+  resultStatus: string | null;
+}
+
+export interface ToolBlocks {
+  calls: ToolUseBlock[];
+  results: Map<string, ToolResultInfo>;
+  // The message id of the file's last assistant line, whatever its content.
+  lastAssistantMessageId: string | null;
+}
+
+// The tool calls and results of one file, in log order.
+export function readToolBlocks(lines: ParsedLine[]): ToolBlocks {
+  const calls = new Map<string, ToolUseBlock>();
+  const results = new Map<string, ToolResultInfo>();
+  let lastAssistantMessageId: string | null = null;
+  for (const line of lines) {
+    const assistant = assistantBlocksSchema.safeParse(line);
+    if (assistant.success) {
+      const messageId = assistant.data.message.id ?? null;
+      lastAssistantMessageId = messageId;
+      for (const block of assistant.data.message.content) {
+        const toolUse = toolUseSchema.safeParse(block);
+        // Claude Code may write one tool call on several lines.
+        if (!toolUse.success || calls.has(toolUse.data.id)) continue;
+        const { id, name, input } = toolUse.data;
+        calls.set(id, {
+          toolUseId: id,
+          name,
+          input,
+          messageId,
+          calledAt: line.timestamp === undefined ? null : new Date(line.timestamp),
+        });
+      }
+      continue;
+    }
+    const user = userBlocksSchema.safeParse(line);
+    if (!user.success) continue;
+    const toolUseResult = toolUseResultSchema.safeParse(user.data.toolUseResult);
+    for (const block of user.data.message.content) {
+      const result = toolResultSchema.safeParse(block);
+      if (!result.success) continue;
+      const id = result.data.tool_use_id;
+      results.set(id, {
+        isError: result.data.is_error === true,
+        // A later result without an agent id keeps the one an earlier result of the call named.
+        agentId: (toolUseResult.success ? toolUseResult.data.agentId : undefined) ?? results.get(id)?.agentId ?? null,
+        resultStatus: toolUseResult.success ? (toolUseResult.data.status ?? null) : null,
+      });
+    }
+  }
+  return { calls: [...calls.values()], results, lastAssistantMessageId };
+}
+
+function readActivity(files: { agentId: string | null; lines: ParsedLine[] }[], start: Date): Activity {
   const toolCalls = new Map<string, ParsedToolCall>();
   const skillCalls: ParsedSkillCall[] = [];
   const agentCalls: AgentCall[] = [];
@@ -406,52 +487,41 @@ function readActivity(files: { agentId: string | null; lines: Line[] }[], start:
   const resultAgentIds = new Map<string, string>();
 
   for (const file of files) {
-    for (const line of file.lines) {
-      const calledAt = line.timestamp === undefined ? start : new Date(line.timestamp);
-      const assistant = assistantBlocksSchema.safeParse(line);
-      if (assistant.success) {
-        for (const block of assistant.data.message.content) {
-          const toolUse = toolUseSchema.safeParse(block);
-          // Claude Code may write one tool call on several lines.
-          if (!toolUse.success || toolCalls.has(toolUse.data.id)) continue;
-          const { id, name, input } = toolUse.data;
-          toolCalls.set(id, { toolUseId: id, agentId: file.agentId, name, mcpServer: mcpServerOf(name), calledAt, isError: null });
-          if (name === SKILL_TOOL) {
-            const skill = skillInputSchema.safeParse(input);
-            if (skill.success) {
-              const args = skill.data.args?.trim() ?? "";
-              skillCalls.push({
-                name: skill.data.skill,
-                args: args === "" ? null : args,
-                calledAt,
-                isTyped: false,
-                agentId: file.agentId,
-                promptPosition: null,
-              });
-            }
-          }
-          if (AGENT_TOOLS.has(name)) {
-            const agent = agentInputSchema.safeParse(input);
-            agentCalls.push({
-              toolUseId: id,
-              calledAt,
-              subagentType: agent.success ? agent.data.subagent_type : undefined,
-              description: agent.success ? agent.data.description : undefined,
-              model: agent.success ? agent.data.model : undefined,
-            });
-          }
+    const blocks = readToolBlocks(file.lines);
+    for (const call of blocks.calls) {
+      // A call seen in an earlier file wins.
+      if (toolCalls.has(call.toolUseId)) continue;
+      const { toolUseId: id, name, input } = call;
+      const calledAt = call.calledAt ?? start;
+      toolCalls.set(id, { toolUseId: id, agentId: file.agentId, name, mcpServer: mcpServerOf(name), calledAt, isError: null });
+      if (name === SKILL_TOOL) {
+        const skill = skillInputSchema.safeParse(input);
+        if (skill.success) {
+          const args = skill.data.args?.trim() ?? "";
+          skillCalls.push({
+            name: skill.data.skill,
+            args: args === "" ? null : args,
+            calledAt,
+            isTyped: false,
+            agentId: file.agentId,
+            promptPosition: null,
+          });
         }
-        continue;
       }
-      const user = userBlocksSchema.safeParse(line);
-      if (!user.success) continue;
-      for (const block of user.data.message.content) {
-        const result = toolResultSchema.safeParse(block);
-        if (!result.success) continue;
-        results.set(result.data.tool_use_id, result.data.is_error === true);
-        const agentResult = agentResultSchema.safeParse(user.data.toolUseResult);
-        if (agentResult.success) resultAgentIds.set(result.data.tool_use_id, agentResult.data.agentId);
+      if (AGENT_TOOLS.has(name)) {
+        const agent = agentInputSchema.safeParse(input);
+        agentCalls.push({
+          toolUseId: id,
+          calledAt,
+          subagentType: agent.success ? agent.data.subagent_type : undefined,
+          description: agent.success ? agent.data.description : undefined,
+          model: agent.success ? agent.data.model : undefined,
+        });
       }
+    }
+    for (const [id, result] of blocks.results) {
+      results.set(id, result.isError);
+      if (result.agentId !== null) resultAgentIds.set(id, result.agentId);
     }
   }
 
@@ -459,7 +529,7 @@ function readActivity(files: { agentId: string | null; lines: Line[] }[], start:
   return { toolCalls: calls, skillCalls, agentCalls, resultAgentIds };
 }
 
-function toSubagents(files: SubagentFile[], linesByFile: Line[][], activity: Activity, start: Date): ParsedSubagent[] {
+function toSubagents(files: SubagentFile[], linesByFile: ParsedLine[][], activity: Activity, start: Date): ParsedSubagent[] {
   const callsById = new Map(activity.agentCalls.map((call) => [call.toolUseId, call]));
   const callIdByAgentId = new Map([...activity.resultAgentIds].map(([toolUseId, agentId]) => [agentId, toolUseId]));
   const linkedCallIds = new Set<string>();
@@ -482,6 +552,7 @@ function toSubagents(files: SubagentFile[], linesByFile: Line[][], activity: Act
       usages,
       toolCallCount: activity.toolCalls.filter((toolCall) => toolCall.agentId === file.agentId).length,
       isLogMissing: false,
+      launchToolUseId: callId ?? null,
     };
   });
 
@@ -498,6 +569,7 @@ function toSubagents(files: SubagentFile[], linesByFile: Line[][], activity: Act
         usages: [],
         toolCallCount: 0,
         isLogMissing: true,
+        launchToolUseId: call.toolUseId,
       }),
     );
   return [...subagents, ...missing].sort((a, b) => a.launchedAt.getTime() - b.launchedAt.getTime());
@@ -512,7 +584,7 @@ function dominantModel(usages: ModelUsage[]): string | null {
   return best?.model ?? null;
 }
 
-function sumUsages(lines: Line[]): ModelUsage[] {
+function sumUsages(lines: ParsedLine[]): ModelUsage[] {
   // Claude Code repeats the message's usage on every content-block line, the output count growing as it streams:
   // each message counts once, with its largest counters.
   const byMessage = new Map<string, ModelUsage>();

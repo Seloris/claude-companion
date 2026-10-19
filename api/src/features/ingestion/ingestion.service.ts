@@ -3,7 +3,7 @@ import type { WorkspacesRepository } from "../workspaces/workspaces.repository.j
 import { parseSession, type SubagentFile } from "./ingestion.parser.js";
 import type { IngestionRepository, RefreshRun, StoredLogFile } from "./ingestion.repository.js";
 import type { RefreshMode, RefreshReport, RefreshStatus } from "./ingestion.schema.js";
-import { readLines, readMeta, scanLogs, type FileStat, type ScannedSession } from "./ingestion.source.js";
+import { haveFilesChanged, readLines, readMeta, scanLogs, type ScannedSession } from "./ingestion.source.js";
 import { findRepoRoot, resolveWorkspace } from "./ingestion.workspace.js";
 
 export function createIngestionService({
@@ -151,17 +151,7 @@ function groupBySession(files: StoredLogFile[]): Map<string, StoredLogFile[]> {
 
 // FR-02: a session is re-read when one of its files is new, changed or gone since the last refresh.
 function hasChanged(session: ScannedSession, stored: StoredLogFile[]): boolean {
-  const scanned: FileStat[] = [session.mainFile, ...session.subagentFiles];
-  if (scanned.length !== stored.length) return true;
-  const storedByPath = new Map(stored.map((file) => [file.path, file]));
-  return scanned.some((file) => {
-    const previous = storedByPath.get(file.path);
-    return (
-      previous === undefined ||
-      previous.sizeBytes !== file.sizeBytes ||
-      previous.modifiedAt.getTime() !== file.modifiedAt.getTime()
-    );
-  });
+  return haveFilesChanged([session.mainFile, ...session.subagentFiles], stored);
 }
 
 function toReport(run: RefreshRun): RefreshReport {

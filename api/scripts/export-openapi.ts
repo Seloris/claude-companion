@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import "../src/features/dashboard/dashboard.schema.js";
 import "../src/features/health/health.schema.js";
 import "../src/features/ingestion/ingestion.schema.js";
+import "../src/features/live/live.schema.js";
 import "../src/features/workspaces/workspaces.schema.js";
 import { buildOpenApiDocument } from "../src/shared/openapi.js";
 

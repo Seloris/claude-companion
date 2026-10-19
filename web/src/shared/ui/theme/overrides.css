@@ -8,4 +8,6 @@
   --chart-bar-active: var(--accent);
   /* The rounded top of a chart's bar: thinner than any control, so the skin's control radius is too large. */
   --chart-bar-radius: 4px;
+  /* The width of the page's content: the panel and the navigation above it line up on it. */
+  --content-width: 680px;
 }

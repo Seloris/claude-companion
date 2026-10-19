@@ -1,0 +1,33 @@
+/* The texts of the live cards, shared by their components. */
+
+/* FR-06: a long text is cut at two lines (the API already caps it); the full text is its title. */
+.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.86em;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+}
+
+.link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

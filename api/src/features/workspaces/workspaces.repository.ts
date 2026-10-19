@@ -161,6 +161,13 @@ export function createWorkspacesRepository(db: Database) {
       return rows.map((row) => row.id);
     },
 
+    // The ids among `ids` that the history holds, archived sessions included.
+    async findStoredSessionIds(ids: string[]): Promise<Set<string>> {
+      if (ids.length === 0) return new Set();
+      const rows = await db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.id, ids));
+      return new Set(rows.map((row) => row.id));
+    },
+
     async listWorkspaces(filter: { includeScratch: boolean }): Promise<WorkspaceRow[]> {
       const rows = await db
         .select({

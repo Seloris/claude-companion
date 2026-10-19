@@ -1,0 +1,15 @@
+/* The page gutter around the panel, down to narrow widths. */
+.page {
+  padding: 40px 16px;
+}
+
+.counts {
+  margin: 0;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.workspaces {
+  display: grid;
+  gap: 28px;
+}

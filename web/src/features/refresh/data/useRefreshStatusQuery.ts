@@ -26,5 +26,18 @@ export function useRefreshStatusQuery() {
     wasRunning.current = isRunning;
   }, [isRunning, queryClient]);
 
+  // A fast run can start and end between two reads of the status (one started by the API when a live session ends):
+  // no running → idle edge is seen then, but a new report says the recap changed. The first report seen is not a change.
+  const finishedAt = query.data === undefined ? undefined : (query.data.lastReport?.finishedAt ?? null);
+  const lastFinishedAt = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (finishedAt === undefined) return;
+    if (lastFinishedAt.current !== undefined && lastFinishedAt.current !== finishedAt) {
+      void queryClient.invalidateQueries({ queryKey: workspacesKeys.all });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+    }
+    lastFinishedAt.current = finishedAt;
+  }, [finishedAt, queryClient]);
+
   return query;
 }

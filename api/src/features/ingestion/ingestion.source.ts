@@ -40,22 +40,42 @@ export async function scanLogs(logsDir: string): Promise<LogsScan> {
     for (const file of (await listEntries(folderPath)) ?? []) {
       const sessionId = SESSION_FILE.exec(file.name)?.[1];
       if (!file.isFile() || sessionId === undefined) continue;
-      const subagentsDir = path.join(folderPath, sessionId, "subagents");
-      const subagentFiles: SubagentFileStat[] = [];
-      for (const subagent of (await listEntries(subagentsDir)) ?? []) {
-        const agentId = SUBAGENT_FILE.exec(subagent.name)?.[1];
-        if (subagent.isFile() && agentId !== undefined) {
-          subagentFiles.push({
-            ...(await statFile(path.join(subagentsDir, subagent.name))),
-            agentId,
-            metaPath: path.join(subagentsDir, `agent-${agentId}.meta.json`),
-          });
-        }
-      }
+      const subagentFiles = await scanSubagentFiles(folderPath, sessionId);
       sessions.push({ sessionId, mainFile: await statFile(path.join(folderPath, file.name)), subagentFiles });
     }
   }
   return { isLogsDirFound: true, sessions };
+}
+
+// The `{sessionId}/subagents/agent-*.jsonl` files beside a session's main log.
+export async function scanSubagentFiles(folderPath: string, sessionId: string): Promise<SubagentFileStat[]> {
+  const subagentsDir = path.join(folderPath, sessionId, "subagents");
+  const subagentFiles: SubagentFileStat[] = [];
+  for (const subagent of (await listEntries(subagentsDir)) ?? []) {
+    const agentId = SUBAGENT_FILE.exec(subagent.name)?.[1];
+    if (subagent.isFile() && agentId !== undefined) {
+      subagentFiles.push({
+        ...(await statFile(path.join(subagentsDir, subagent.name))),
+        agentId,
+        metaPath: path.join(subagentsDir, `agent-${agentId}.meta.json`),
+      });
+    }
+  }
+  return subagentFiles;
+}
+
+// FR-02: true when a file is new, changed or gone since `stored` was recorded.
+export function haveFilesChanged(scanned: FileStat[], stored: FileStat[]): boolean {
+  if (scanned.length !== stored.length) return true;
+  const storedByPath = new Map(stored.map((file) => [file.path, file]));
+  return scanned.some((file) => {
+    const previous = storedByPath.get(file.path);
+    return (
+      previous === undefined ||
+      previous.sizeBytes !== file.sizeBytes ||
+      previous.modifiedAt.getTime() !== file.modifiedAt.getTime()
+    );
+  });
 }
 
 export async function readLines(file: string): Promise<string[]> {
@@ -81,7 +101,7 @@ async function listEntries(dir: string): Promise<Dirent[] | null> {
   }
 }
 
-async function statFile(file: string): Promise<FileStat> {
+export async function statFile(file: string): Promise<FileStat> {
   const stats = await stat(file);
   return { path: file, sizeBytes: stats.size, modifiedAt: stats.mtime };
 }

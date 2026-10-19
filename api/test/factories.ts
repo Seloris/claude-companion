@@ -74,6 +74,7 @@ export function buildSubagent(overrides: Partial<ParsedSubagent> = {}): ParsedSu
     usages: [buildUsage({ inputTokens: 10, outputTokens: 20, cacheReadTokens: 30, cacheWriteTokens: 40 })],
     toolCallCount: 0,
     isLogMissing: false,
+    launchToolUseId: null,
     ...overrides,
   };
 }

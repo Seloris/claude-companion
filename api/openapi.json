@@ -918,6 +918,340 @@
           "incremental",
           "full"
         ]
+      },
+      "LiveState": {
+        "type": "object",
+        "properties": {
+          "readAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sessionsDir": {
+            "type": "string"
+          },
+          "isSessionsDirReadable": {
+            "type": "boolean"
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "running": {
+                "type": "integer"
+              },
+              "awaitingAnswer": {
+                "type": "integer"
+              },
+              "idle": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "running",
+              "awaitingAnswer",
+              "idle"
+            ]
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveWorkspace"
+            }
+          }
+        },
+        "required": [
+          "readAt",
+          "sessionsDir",
+          "isSessionsDirReadable",
+          "counts",
+          "workspaces"
+        ]
+      },
+      "LiveWorkspace": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isScratch": {
+            "type": "boolean"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveSession"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "isScratch",
+          "sessions"
+        ]
+      },
+      "LiveSession": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LiveStatus"
+          },
+          "statusSince": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastActivityAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "origin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gitBranch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isLogFound": {
+            "type": "boolean"
+          },
+          "isStored": {
+            "type": "boolean"
+          },
+          "lastPrompt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "question": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "waitingFor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queuedPrompts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "currentActivity": {
+            "$ref": "#/components/schemas/CurrentActivity"
+          },
+          "runningSubagents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunningSubagent"
+            }
+          }
+        },
+        "required": [
+          "sessionId",
+          "title",
+          "status",
+          "statusSince",
+          "startedAt",
+          "lastActivityAt",
+          "origin",
+          "gitBranch",
+          "isLogFound",
+          "isStored",
+          "lastPrompt",
+          "question",
+          "questionCount",
+          "waitingFor",
+          "queuedPrompts",
+          "currentActivity",
+          "runningSubagents"
+        ]
+      },
+      "LiveStatus": {
+        "type": "string",
+        "enum": [
+          "running",
+          "awaitingAnswer",
+          "idle"
+        ]
+      },
+      "CurrentActivity": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "tool"
+                ]
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "skill": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "since": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "kind",
+              "toolName",
+              "skill",
+              "since"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "agent"
+                ]
+              },
+              "agentType": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "skill": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "since": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "kind",
+              "agentType",
+              "description",
+              "skill",
+              "since"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "subagents"
+                ]
+              },
+              "skill": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "since": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "kind",
+              "skill",
+              "since"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "thinking"
+                ]
+              },
+              "skill": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "since": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "kind",
+              "skill",
+              "since"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "RunningSubagent": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "agentType": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "currentTool": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "agentId",
+          "agentType",
+          "description",
+          "currentTool",
+          "since"
+        ]
       }
     },
     "parameters": {}
@@ -1198,6 +1532,23 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/live": {
+      "get": {
+        "summary": "The Claude Code sessions running on this machine, grouped by workspace",
+        "responses": {
+          "200": {
+            "description": "The live state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveState"
                 }
               }
             }

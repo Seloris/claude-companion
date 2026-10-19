@@ -57,3 +57,8 @@ export function formatDay(day: string): string {
   const [year = 0, month = 1, date = 1] = day.split("-").map(Number);
   return dayFormat.format(new Date(year, month - 1, date));
 }
+
+// How long ago an instant was, as a duration ("5 min"), for "since" labels; an instant ahead of `now` reads as zero.
+export function formatElapsed(iso: string, now: Date): string {
+  return formatDuration(Math.max(0, now.getTime() - new Date(iso).getTime()));
+}

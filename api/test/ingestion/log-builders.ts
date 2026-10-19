@@ -102,6 +102,38 @@ export function titleLine(kind: "custom" | "ai", title: string, sessionId = SESS
     : { type: "ai-title", aiTitle: title, sessionId };
 }
 
+// Claude Code's queue-operation line: `content` is a string, blocks, or absent.
+export function queueLine(operation: string, content?: unknown, options: LineOptions = {}): LogLine {
+  return {
+    type: "queue-operation",
+    operation,
+    timestamp: options.timestamp ?? "2026-10-01T10:00:00.000Z",
+    sessionId: options.sessionId ?? SESSION_ID,
+    ...(content === undefined ? {} : { content }),
+  };
+}
+
+// The notification Claude Code writes when background agents end: one block per agent.
+export function taskNotificationText(agentIds: string[], status: string): string {
+  return agentIds
+    .map(
+      (agentId) =>
+        `<task-notification>\n<task-id>${agentId}</task-id>\n<status>${status}</status>\n<summary>Agent ended</summary>\n</task-notification>`,
+    )
+    .join("\n");
+}
+
+export function askUserQuestionBlock(id: string, questions: string[]): LogLine {
+  return toolUseBlock(id, "AskUserQuestion", {
+    questions: questions.map((question) => ({
+      question,
+      header: "Choice",
+      multiSelect: false,
+      options: [{ label: "Yes", description: "Go on" }],
+    })),
+  });
+}
+
 export function toJsonl(lines: (LogLine | string)[]): string {
   return lines.map((line) => (typeof line === "string" ? line : JSON.stringify(line))).join("\n") + "\n";
 }

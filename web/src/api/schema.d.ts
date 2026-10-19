@@ -312,6 +312,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Claude Code sessions running on this machine, grouped by workspace */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The live state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiveState"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -537,6 +573,84 @@ export interface components {
         } | null;
         /** @enum {string} */
         RefreshMode: "incremental" | "full";
+        LiveState: {
+            /** Format: date-time */
+            readAt: string;
+            sessionsDir: string;
+            isSessionsDirReadable: boolean;
+            counts: {
+                running: number;
+                awaitingAnswer: number;
+                idle: number;
+            };
+            workspaces: components["schemas"]["LiveWorkspace"][];
+        };
+        LiveWorkspace: {
+            key: string;
+            name: string;
+            isScratch: boolean;
+            sessions: components["schemas"]["LiveSession"][];
+        };
+        LiveSession: {
+            sessionId: string;
+            title: string;
+            status: components["schemas"]["LiveStatus"];
+            /** Format: date-time */
+            statusSince: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            lastActivityAt: string;
+            origin: string | null;
+            gitBranch: string | null;
+            isLogFound: boolean;
+            isStored: boolean;
+            lastPrompt: string | null;
+            question: string | null;
+            questionCount: number;
+            waitingFor: string | null;
+            queuedPrompts: string[];
+            currentActivity: components["schemas"]["CurrentActivity"];
+            runningSubagents: components["schemas"]["RunningSubagent"][];
+        };
+        /** @enum {string} */
+        LiveStatus: "running" | "awaitingAnswer" | "idle";
+        CurrentActivity: {
+            /** @enum {string} */
+            kind: "tool";
+            toolName: string;
+            skill: string | null;
+            /** Format: date-time */
+            since: string;
+        } | {
+            /** @enum {string} */
+            kind: "agent";
+            agentType: string;
+            description: string;
+            skill: string | null;
+            /** Format: date-time */
+            since: string;
+        } | {
+            /** @enum {string} */
+            kind: "subagents";
+            skill: string | null;
+            /** Format: date-time */
+            since: string;
+        } | {
+            /** @enum {string} */
+            kind: "thinking";
+            skill: string | null;
+            /** Format: date-time */
+            since: string;
+        } | null;
+        RunningSubagent: {
+            agentId: string;
+            agentType: string;
+            description: string;
+            currentTool: string | null;
+            /** Format: date-time */
+            since: string;
+        };
     };
     responses: never;
     parameters: never;

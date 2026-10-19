@@ -11,3 +11,16 @@
   border: var(--badge-border);
   border-radius: var(--badge-radius);
 }
+
+/* Something that needs the person: the danger color on its quiet fill, as the ghost button's hover does. */
+.attention {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* A neutral label that does not compete with the content. */
+.muted {
+  color: var(--text-muted);
+  background: transparent;
+  border: var(--border-width) solid var(--border);
+}

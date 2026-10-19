@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mcpServerOf, parseSession } from "../../src/features/ingestion/ingestion.parser.js";
+import { mcpServerOf, parseLogLines, parseSession, readToolBlocks } from "../../src/features/ingestion/ingestion.parser.js";
 import {
   SESSION_ID,
   assistantLine,
@@ -564,6 +564,7 @@ describe("parseSession", () => {
           ],
           toolCallCount: 2,
           isLogMissing: false,
+          launchToolUseId: "toolu_agent",
         },
       ]);
       expect(session.agentTypes).toEqual(["factory:reviewer"]);
@@ -618,6 +619,56 @@ describe("parseSession", () => {
       expect(session.subagents).toMatchObject([{ agentId: "a1", agentType: "Explore", description: "Find the parser" }]);
     });
 
+    it("gives the id of the agent call a subagent is linked to by its meta", () => {
+      // Arrange
+      const main = [userLine("Go"), agentCall("toolu_agent", { subagent_type: "Explore", description: "Find it" })];
+      const subagent = { agentId: "a1", meta: { agentType: "Explore", toolUseId: "toolu_agent" }, lines: [userLine("Find")] };
+
+      // Act
+      const session = parsed(main, [subagent]);
+
+      // Assert
+      expect(session.subagents[0]?.launchToolUseId).toBe("toolu_agent");
+    });
+
+    it("gives the id of the agent call a subagent is linked to by the agent id of its result", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        agentCall("toolu_agent", { subagent_type: "Explore", description: "Find it" }),
+        userLine([toolResultBlock("toolu_agent")], { extra: { toolUseResult: { status: "async_launched", agentId: "a1" } } }),
+      ];
+
+      // Act
+      const session = parsed(main, [{ agentId: "a1", lines: [userLine("Find")] }]);
+
+      // Assert
+      expect(session.subagents[0]?.launchToolUseId).toBe("toolu_agent");
+    });
+
+    it("links a subagent by the agent id of a result whose status is not a string", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        agentCall("toolu_agent", { subagent_type: "Explore", description: "Find it" }),
+        userLine([toolResultBlock("toolu_agent")], { extra: { toolUseResult: { status: 3, agentId: "a1" } } }),
+      ];
+
+      // Act
+      const session = parsed(main, [{ agentId: "a1", lines: [userLine("Find")] }]);
+
+      // Assert
+      expect(session.subagents[0]).toMatchObject({ agentId: "a1", launchToolUseId: "toolu_agent", isLogMissing: false });
+    });
+
+    it("gives no launching call for a subagent whose call is unknown", () => {
+      // Act
+      const session = parsed([userLine("Go")], [{ agentId: "a1", lines: [userLine("Find")] }]);
+
+      // Assert
+      expect(session.subagents[0]?.launchToolUseId).toBeNull();
+    });
+
     it("counts an agent call without a log file as a launched subagent with no tokens", () => {
       // Arrange
       const main = [
@@ -639,6 +690,7 @@ describe("parseSession", () => {
           usages: [],
           toolCallCount: 0,
           isLogMissing: true,
+          launchToolUseId: "toolu_agent",
         },
       ]);
       expect(session.subagentCount).toBe(1);
@@ -676,5 +728,47 @@ describe("parseSession", () => {
       expect(session.agentTypes).toEqual(["Explore", "runner"]);
       expect(session.subagentCount).toBe(3);
     });
+  });
+
+  it("counts a tool call of an assistant message whose id is null", () => {
+    // Arrange
+    const line = assistantLine("msg_1", "claude-opus-5-5", {}, { content: [toolUseBlock("toolu_1", "Bash")] });
+    const lines = [userLine("Go"), { ...line, message: { ...(line.message as LogLine), id: null } }];
+
+    // Act
+    const session = parsed(lines);
+
+    // Assert
+    expect(session.toolCalls.map((call) => call.name)).toEqual(["Bash"]);
+  });
+});
+
+describe("readToolBlocks", () => {
+  const blocksOf = (lines: (LogLine | string)[]) => readToolBlocks(parseLogLines(toLines(lines), SESSION_ID).lines);
+
+  it("keeps the agent id an earlier result named when a later result of the call names none", () => {
+    // Arrange
+    const lines = [
+      userLine([toolResultBlock("toolu_1")], { extra: { toolUseResult: { status: "async_launched", agentId: "a1" } } }),
+      userLine([toolResultBlock("toolu_1")], { extra: { toolUseResult: "plain text" } }),
+    ];
+
+    // Act
+    const blocks = blocksOf(lines);
+
+    // Assert
+    expect(blocks.results.get("toolu_1")).toEqual({ isError: false, agentId: "a1", resultStatus: null });
+  });
+
+  it("gives null as the last assistant message id when that message has no id", () => {
+    // Arrange
+    const line = assistantLine("msg_1", "claude-opus-5-5", {});
+    const withoutId = { ...line, message: { ...(line.message as LogLine), id: null } };
+
+    // Act
+    const blocks = blocksOf([assistantLine("msg_0", "claude-opus-5-5", {}), withoutId]);
+
+    // Assert
+    expect(blocks.lastAssistantMessageId).toBeNull();
   });
 });
