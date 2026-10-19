@@ -1,0 +1,54 @@
+/* The page gutter around the panel, down to narrow widths. */
+.page {
+  padding: 40px 16px;
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+}
+
+.back {
+  justify-self: start;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.content {
+  display: grid;
+  gap: 28px;
+  transition: opacity 120ms;
+}
+
+/* The previous figures stay while the next ones load, dimmed. */
+.isUpdating {
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    transition: none;
+  }
+}
+
+.section {
+  display: grid;
+  gap: 24px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15em;
+  font-weight: var(--title-weight);
+}
+
+.sortRow {
+  max-width: 260px;
+}

@@ -18,6 +18,15 @@ export function SessionFacts({ session }: { session: SessionDetail }) {
     [t("session.facts.origin"), session.origin ?? none],
     [t("session.facts.prompts"), formatNumber(session.promptCount)],
     [t("session.facts.subagents"), formatNumber(session.subagentCount)],
+    [
+      t("session.facts.toolCalls"),
+      t("session.facts.toolCallsValue", {
+        count: formatNumber(session.toolCallCount),
+        failed: formatNumber(session.failedToolCallCount),
+      }),
+    ],
+    [t("session.facts.skillCalls"), formatNumber(session.skillCallCount)],
+    [t("session.facts.agentTypes"), session.agentTypes.length > 0 ? session.agentTypes.join(", ") : none],
     [t("session.facts.tokens"), <TokenCount tokens={session.tokens} />],
   ];
   return (

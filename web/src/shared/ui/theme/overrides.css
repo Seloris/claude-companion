@@ -1,3 +1,11 @@
 /* This application's own values for the skin's variables, loaded after skin.css (the factory plugin's
-   skins/README.md lists them). Empty: the skin applies as is. A dark-only value goes in a
+   skins/README.md lists them), and the tokens it adds. A dark-only value goes in a
    @media (prefers-color-scheme: dark) { :root { ... } } block. */
+
+:root {
+  /* Chart bars: the accent toned down, since the skin keeps the full accent for the primary action. */
+  --chart-bar: color-mix(in srgb, var(--accent) 55%, transparent);
+  --chart-bar-active: var(--accent);
+  /* The rounded top of a chart's bar: thinner than any control, so the skin's control radius is too large. */
+  --chart-bar-radius: 4px;
+}

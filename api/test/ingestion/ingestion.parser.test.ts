@@ -1,20 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { parseSession } from "../../src/features/ingestion/ingestion.parser.js";
+import { mcpServerOf, parseSession } from "../../src/features/ingestion/ingestion.parser.js";
 import {
   SESSION_ID,
   assistantLine,
   commandLine,
   titleLine,
   toLines,
+  toolResultBlock,
+  toolUseBlock,
   userLine,
   type LogLine,
 } from "./log-builders.js";
 
-function parse(main: (LogLine | string)[], subagents: (LogLine | string)[][] = []) {
-  return parseSession({ sessionId: SESSION_ID, mainLines: toLines(main), subagentFiles: subagents.map(toLines) });
+type Subagent = (LogLine | string)[] | { agentId: string; lines: (LogLine | string)[]; meta?: unknown };
+
+function parse(main: (LogLine | string)[], subagents: Subagent[] = []) {
+  return parseSession({
+    sessionId: SESSION_ID,
+    mainLines: toLines(main),
+    subagentFiles: subagents.map((subagent, index) =>
+      Array.isArray(subagent)
+        ? { agentId: `a${index}`, lines: toLines(subagent), meta: null }
+        : { agentId: subagent.agentId, lines: toLines(subagent.lines), meta: subagent.meta ?? null },
+    ),
+  });
 }
 
-function parsed(main: (LogLine | string)[], subagents: (LogLine | string)[][] = []) {
+function parsed(main: (LogLine | string)[], subagents: Subagent[] = []) {
   const session = parse(main, subagents);
   if (session === null) throw new Error("expected a parsed session");
   return session;
@@ -293,6 +305,376 @@ describe("parseSession", () => {
 
       // Assert
       expect(session).toBeNull();
+    });
+  });
+
+  describe("tool calls", () => {
+    function toolLine(messageId: string, blocks: LogLine[], timestamp = "2026-10-01T10:01:00.000Z") {
+      return assistantLine(messageId, "claude-opus-5-5", { output: 1 }, { content: blocks, timestamp });
+    }
+
+    it("records the calls of the session and of its subagents, each with who made it", () => {
+      // Arrange
+      const main = [userLine("Go"), toolLine("msg_1", [toolUseBlock("toolu_1", "Read")])];
+      const subagent = { agentId: "a1", lines: [toolLine("msg_2", [toolUseBlock("toolu_2", "Grep")])] };
+
+      // Act
+      const session = parsed(main, [subagent]);
+
+      // Assert
+      expect(session.toolCalls).toEqual([
+        {
+          toolUseId: "toolu_1",
+          agentId: null,
+          name: "Read",
+          mcpServer: null,
+          calledAt: new Date("2026-10-01T10:01:00.000Z"),
+          isError: null,
+        },
+        {
+          toolUseId: "toolu_2",
+          agentId: "a1",
+          name: "Grep",
+          mcpServer: null,
+          calledAt: new Date("2026-10-01T10:01:00.000Z"),
+          isError: null,
+        },
+      ]);
+      expect(session.toolCallCount).toBe(2);
+    });
+
+    it("counts a call written on several lines once", () => {
+      // Arrange
+      const block = toolUseBlock("toolu_1", "Bash");
+      const lines = [userLine("Go"), toolLine("msg_1", [block]), toolLine("msg_1", [block])];
+
+      // Act
+      const session = parsed(lines);
+
+      // Assert
+      expect(session.toolCalls).toHaveLength(1);
+    });
+
+    it("marks a call failed, succeeded, or neither when no result came", () => {
+      // Arrange
+      const lines = [
+        userLine("Go"),
+        toolLine("msg_1", [toolUseBlock("toolu_1", "Bash"), toolUseBlock("toolu_2", "Bash"), toolUseBlock("toolu_3", "Bash")]),
+        userLine([toolResultBlock("toolu_1", true)]),
+        userLine([toolResultBlock("toolu_2")]),
+      ];
+
+      // Act
+      const session = parsed(lines);
+
+      // Assert
+      expect(session.toolCalls.map((call) => call.isError)).toEqual([true, false, null]);
+      expect(session.failedToolCallCount).toBe(1);
+    });
+
+    it("counts the skill tool and the agent tool as tools", () => {
+      // Arrange
+      const lines = [
+        userLine("Go"),
+        toolLine("msg_1", [
+          toolUseBlock("toolu_1", "Skill", { skill: "write-plan" }),
+          toolUseBlock("toolu_2", "Agent", { subagent_type: "Explore", description: "Find" }),
+        ]),
+      ];
+
+      // Act
+      const session = parsed(lines);
+
+      // Assert
+      expect(session.toolCalls.map((call) => call.name)).toEqual(["Skill", "Agent"]);
+    });
+
+    it("names the MCP server of an MCP tool and none for a built-in tool", () => {
+      // Act & Assert
+      expect(mcpServerOf("mcp__Claude_Browser__computer")).toBe("Claude_Browser");
+      expect(mcpServerOf("mcp__claude-in-chrome__navigate")).toBe("claude-in-chrome");
+      expect(mcpServerOf("mcp__1a59c906-04da-521d-bda7-7f71b9f9e01c__batch")).toBe("1a59c906-04da-521d-bda7-7f71b9f9e01c");
+      expect(mcpServerOf("Bash")).toBeNull();
+      expect(mcpServerOf("mcp__x")).toBeNull();
+    });
+  });
+
+  describe("skill calls", () => {
+    it("records a skill tool call with its arguments, from the session or a subagent", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        assistantLine("msg_1", "claude-opus-5-5", { output: 1 }, {
+          timestamp: "2026-10-01T10:01:00.000Z",
+          content: [toolUseBlock("toolu_1", "Skill", { skill: "factory:write-plan", args: " session-activity " })],
+        }),
+      ];
+      const subagent = {
+        agentId: "a1",
+        lines: [
+          assistantLine("msg_2", "claude-opus-5-5", { output: 1 }, {
+            timestamp: "2026-10-01T10:02:00.000Z",
+            content: [toolUseBlock("toolu_2", "Skill", { skill: "caveman" })],
+          }),
+        ],
+      };
+
+      // Act
+      const session = parsed(main, [subagent]);
+
+      // Assert
+      expect(session.skillCalls).toEqual([
+        {
+          name: "factory:write-plan",
+          args: "session-activity",
+          calledAt: new Date("2026-10-01T10:01:00.000Z"),
+          isTyped: false,
+          agentId: null,
+          promptPosition: null,
+        },
+        {
+          name: "caveman",
+          args: null,
+          calledAt: new Date("2026-10-01T10:02:00.000Z"),
+          isTyped: false,
+          agentId: "a1",
+          promptPosition: null,
+        },
+      ]);
+      expect(session.skillCallCount).toBe(2);
+    });
+
+    it("records a typed slash command as a typed skill call, named without its slash and with its plugin prefix", () => {
+      // Arrange
+      const lines = [
+        userLine("Hello", { timestamp: "2026-10-01T10:00:00.000Z" }),
+        commandLine("/factory:implement", "plan — stage 1", { timestamp: "2026-10-01T10:05:00.000Z" }),
+        commandLine("write-spec", undefined, { timestamp: "2026-10-01T10:06:00.000Z" }),
+      ];
+
+      // Act
+      const session = parsed(lines);
+
+      // Assert
+      expect(session.skillCalls).toEqual([
+        {
+          name: "factory:implement",
+          args: "plan — stage 1",
+          calledAt: new Date("2026-10-01T10:05:00.000Z"),
+          isTyped: true,
+          agentId: null,
+          promptPosition: 1,
+        },
+        {
+          name: "write-spec",
+          args: null,
+          calledAt: new Date("2026-10-01T10:06:00.000Z"),
+          isTyped: true,
+          agentId: null,
+          promptPosition: 2,
+        },
+      ]);
+      expect(session.prompts).toHaveLength(3);
+    });
+
+    it("does not count Claude Code's built-in commands as skills", () => {
+      // Arrange
+      const lines = [userLine("Go"), commandLine("/compact", undefined), commandLine("/model", "opus"), commandLine("/clear", undefined)];
+
+      // Act
+      const session = parsed(lines);
+
+      // Assert
+      expect(session.skillCalls).toEqual([]);
+    });
+
+    it("does not count the skill expansion Claude Code writes after a skill tool call", () => {
+      // Arrange
+      const expansion = commandLine("write-spec", undefined, { extra: { isMeta: true, isSidechain: true } });
+      const subagent = {
+        agentId: "a1",
+        lines: [
+          assistantLine("msg_1", "claude-opus-5-5", { output: 1 }, {
+            content: [toolUseBlock("toolu_1", "Skill", { skill: "write-spec" })],
+          }),
+          expansion,
+        ],
+      };
+
+      // Act
+      const session = parsed([userLine("Go"), expansion], [subagent]);
+
+      // Assert
+      expect(session.skillCalls.map((call) => [call.name, call.agentId])).toEqual([["write-spec", "a1"]]);
+    });
+
+    it("records a command a plugin sent as a skill call not typed by the person", () => {
+      // Arrange
+      const lines = [userLine("Go"), commandLine("/session-debug", undefined, { extra: { origin: { kind: "plugin" } } })];
+
+      // Act
+      const session = parsed(lines);
+
+      // Assert
+      expect(session.skillCalls).toMatchObject([{ name: "session-debug", isTyped: false, promptPosition: null }]);
+      expect(session.prompts).toHaveLength(1);
+    });
+  });
+
+  describe("subagents", () => {
+    function agentCall(id: string, input: LogLine, timestamp = "2026-10-01T10:01:00.000Z") {
+      return assistantLine(`msg_${id}`, "claude-opus-5-5", { output: 1 }, {
+        timestamp,
+        content: [toolUseBlock(id, "Agent", input)],
+      });
+    }
+
+    it("reads a subagent's type and description from its meta and its model, tokens and tool calls from its log", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        agentCall("toolu_agent", { subagent_type: "factory:reviewer", description: "Review", model: "opus" }),
+      ];
+      const subagent = {
+        agentId: "a1",
+        meta: { agentType: "factory:reviewer", description: "Review the stage", toolUseId: "toolu_agent" },
+        lines: [
+          userLine("Review it", { timestamp: "2026-10-01T10:01:05.000Z", extra: { isSidechain: true } }),
+          assistantLine("msg_s1", "claude-haiku-5-5", { input: 1, output: 1 }, { content: [toolUseBlock("toolu_s1", "Read")] }),
+          assistantLine("msg_s2", "claude-opus-5-5", { input: 10, output: 20, cacheRead: 3, cacheWrite: 4 }, {
+            content: [toolUseBlock("toolu_s2", "Grep")],
+          }),
+        ],
+      };
+
+      // Act
+      const session = parsed(main, [subagent]);
+
+      // Assert
+      expect(session.subagents).toEqual([
+        {
+          agentId: "a1",
+          agentType: "factory:reviewer",
+          model: "claude-opus-5-5",
+          description: "Review the stage",
+          launchedAt: new Date("2026-10-01T10:01:00.000Z"),
+          usages: [
+            { model: "claude-haiku-5-5", inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            { model: "claude-opus-5-5", inputTokens: 10, outputTokens: 20, cacheReadTokens: 3, cacheWriteTokens: 4 },
+          ],
+          toolCallCount: 2,
+          isLogMissing: false,
+        },
+      ]);
+      expect(session.agentTypes).toEqual(["factory:reviewer"]);
+      expect(session.subagentCount).toBe(1);
+    });
+
+    it("falls back to the meta's model alias when the subagent's log has no assistant line", () => {
+      // Arrange
+      const subagent = { agentId: "a1", meta: { agentType: "runner", model: "haiku" }, lines: [userLine("Run")] };
+
+      // Act
+      const session = parsed([userLine("Go")], [subagent]);
+
+      // Assert
+      expect(session.subagents[0]).toMatchObject({ agentType: "runner", model: "haiku", usages: [] });
+    });
+
+    it("links a nested subagent to the agent call of the subagent that launched it", () => {
+      // Arrange
+      const parent = {
+        agentId: "a1",
+        meta: { agentType: "general-purpose", toolUseId: "toolu_parent" },
+        lines: [agentCall("toolu_child", { subagent_type: "runner", description: "Nested" }, "2026-10-01T10:02:00.000Z")],
+      };
+      const child = { agentId: "a2", meta: { agentType: "runner", toolUseId: "toolu_child" }, lines: [userLine("Run")] };
+      const main = [userLine("Go"), agentCall("toolu_parent", { subagent_type: "general-purpose", description: "Parent" })];
+
+      // Act
+      const session = parsed(main, [parent, child]);
+
+      // Assert
+      expect(session.subagents.map((subagent) => [subagent.agentId, subagent.description, subagent.isLogMissing])).toEqual([
+        ["a1", "Parent", false],
+        ["a2", "Nested", false],
+      ]);
+      expect(session.subagents[1]?.launchedAt).toEqual(new Date("2026-10-01T10:02:00.000Z"));
+    });
+
+    it("links a subagent without meta to its agent call by the agent id of the call's result", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        agentCall("toolu_agent", { subagent_type: "Explore", description: "Find the parser" }),
+        userLine([toolResultBlock("toolu_agent")], { extra: { toolUseResult: { status: "completed", agentId: "a1" } } }),
+      ];
+      const subagent = { agentId: "a1", lines: [userLine("Find")] };
+
+      // Act
+      const session = parsed(main, [subagent]);
+
+      // Assert
+      expect(session.subagents).toMatchObject([{ agentId: "a1", agentType: "Explore", description: "Find the parser" }]);
+    });
+
+    it("counts an agent call without a log file as a launched subagent with no tokens", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        agentCall("toolu_agent", { subagent_type: "Plan", description: "Plan it", model: "sonnet" }),
+      ];
+
+      // Act
+      const session = parsed(main);
+
+      // Assert
+      expect(session.subagents).toEqual([
+        {
+          agentId: "toolu_agent",
+          agentType: "Plan",
+          model: "sonnet",
+          description: "Plan it",
+          launchedAt: new Date("2026-10-01T10:01:00.000Z"),
+          usages: [],
+          toolCallCount: 0,
+          isLogMissing: true,
+        },
+      ]);
+      expect(session.subagentCount).toBe(1);
+    });
+
+    it("reads the older Task name of the agent tool", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        assistantLine("msg_1", "claude-opus-5-5", { output: 1 }, {
+          content: [toolUseBlock("toolu_task", "Task", { subagent_type: "general-purpose", description: "Old" })],
+        }),
+      ];
+
+      // Act
+      const session = parsed(main);
+
+      // Assert
+      expect(session.subagents).toMatchObject([{ agentType: "general-purpose", description: "Old", isLogMissing: true }]);
+    });
+
+    it("lists the distinct agent types of the session, sorted", () => {
+      // Arrange
+      const main = [
+        userLine("Go"),
+        agentCall("toolu_1", { subagent_type: "runner" }),
+        agentCall("toolu_2", { subagent_type: "Explore" }),
+        agentCall("toolu_3", { subagent_type: "runner" }),
+      ];
+
+      // Act
+      const session = parsed(main);
+
+      // Assert
+      expect(session.agentTypes).toEqual(["Explore", "runner"]);
+      expect(session.subagentCount).toBe(3);
     });
   });
 });

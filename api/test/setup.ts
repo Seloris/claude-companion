@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { createApp } from "../src/app.js";
 import { migrateDatabase, openDatabase, type Database } from "../src/db/client.js";
+import { createDashboardRepository } from "../src/features/dashboard/dashboard.repository.js";
+import { createDashboardService } from "../src/features/dashboard/dashboard.service.js";
 import type { ParsedSession } from "../src/features/ingestion/ingestion.parser.js";
 import { createIngestionRepository } from "../src/features/ingestion/ingestion.repository.js";
 import { createIngestionService } from "../src/features/ingestion/ingestion.service.js";
@@ -40,7 +42,8 @@ export async function createTestContext(options: { logsDir?: string } = {}) {
   const workspacesRepo = createWorkspacesRepository(db);
   const ingestion = createIngestionService({ ingestionRepo, workspacesRepo, clock, logsDir, scratchRoot });
   const workspaces = createWorkspacesService({ workspacesRepo });
-  const app = createApp({ db, clock, ingestion, workspaces });
+  const dashboard = createDashboardService({ dashboardRepo: createDashboardRepository(db), clock });
+  const app = createApp({ db, clock, ingestion, workspaces, dashboard });
 
   const seed = {
     async session(workspace: ResolvedWorkspace, session: ParsedSession, options: { isArchived?: boolean } = {}) {

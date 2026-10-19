@@ -1,9 +1,9 @@
 import type { Clock } from "../../shared/clock.js";
 import type { WorkspacesRepository } from "../workspaces/workspaces.repository.js";
-import { parseSession } from "./ingestion.parser.js";
+import { parseSession, type SubagentFile } from "./ingestion.parser.js";
 import type { IngestionRepository, RefreshRun, StoredLogFile } from "./ingestion.repository.js";
-import type { RefreshReport, RefreshStatus } from "./ingestion.schema.js";
-import { readLines, scanLogs, type FileStat, type ScannedSession } from "./ingestion.source.js";
+import type { RefreshMode, RefreshReport, RefreshStatus } from "./ingestion.schema.js";
+import { readLines, readMeta, scanLogs, type FileStat, type ScannedSession } from "./ingestion.source.js";
 import { findRepoRoot, resolveWorkspace } from "./ingestion.workspace.js";
 
 export function createIngestionService({
@@ -28,9 +28,9 @@ export function createIngestionService({
     return run === null ? null : toReport(run);
   }
 
-  async function refresh(): Promise<RefreshReport> {
+  async function refresh({ mode = "incremental" }: { mode?: RefreshMode } = {}): Promise<RefreshReport> {
     const startedAt = clock.now();
-    const counts = { sessionsAdded: 0, sessionsUpdated: 0, sessionsArchived: 0, unreadableLines: 0 };
+    const counts = { sessionsRead: 0, sessionsAdded: 0, sessionsUpdated: 0, sessionsArchived: 0, unreadableLines: 0 };
     let isLogsDirFound = false;
     let error: string | null = null;
     try {
@@ -39,18 +39,26 @@ export function createIngestionService({
       const stored = groupBySession(await ingestionRepo.listLogFiles());
 
       for (const session of scan.sessions) {
-        if (!hasChanged(session, stored.get(session.sessionId) ?? [])) continue;
+        // FR-05: a full refresh re-reads every session, so the ones stored before an update get the new data.
+        if (mode === "incremental" && !hasChanged(session, stored.get(session.sessionId) ?? [])) continue;
         let mainLines: string[];
-        let subagentFiles: string[][];
+        let subagentFiles: SubagentFile[];
         try {
           mainLines = await readLines(session.mainFile.path);
-          subagentFiles = await Promise.all(session.subagentFiles.map((file) => readLines(file.path)));
+          subagentFiles = await Promise.all(
+            session.subagentFiles.map(async (file) => ({
+              agentId: file.agentId,
+              lines: await readLines(file.path),
+              meta: await readMeta(file.metaPath),
+            })),
+          );
         } catch (caught) {
           // A file removed or locked since the scan: its stored files stay as they were, so the next refresh retries it.
           console.error(`session ${session.sessionId} could not be read`, caught);
           continue;
         }
         const parsed = parseSession({ sessionId: session.sessionId, mainLines, subagentFiles });
+        counts.sessionsRead += 1;
         if (parsed !== null) {
           counts.unreadableLines += parsed.unreadableLines;
           const workspace = resolveWorkspace(parsed.firstCwd, { scratchRoot, findRepoRoot });
@@ -78,6 +86,7 @@ export function createIngestionService({
       startedAt,
       finishedAt: clock.now(),
       status: error === null ? "succeeded" : "failed",
+      mode,
       logsDir,
       isLogsDirFound,
       ...counts,
@@ -88,10 +97,11 @@ export function createIngestionService({
 
   return {
     // BR-06: the running flag is set before any await, so a second call always sees it.
-    async start(): Promise<RefreshStatus> {
+    // A call while a run is in progress returns that run's status, whatever its mode.
+    async start({ mode = "incremental" }: { mode?: RefreshMode } = {}): Promise<RefreshStatus> {
       if (running === null) {
         runningStartedAt = clock.now();
-        running = refresh()
+        running = refresh({ mode })
           .then(
             () => undefined,
             (caught: unknown) => console.error("refresh could not be recorded", caught),
@@ -157,10 +167,12 @@ function hasChanged(session: ScannedSession, stored: StoredLogFile[]): boolean {
 function toReport(run: RefreshRun): RefreshReport {
   return {
     status: run.status,
+    mode: run.mode,
     startedAt: run.startedAt.toISOString(),
     finishedAt: run.finishedAt.toISOString(),
     durationMs: run.finishedAt.getTime() - run.startedAt.getTime(),
     isLogsDirFound: run.isLogsDirFound,
+    sessionsRead: run.sessionsRead,
     sessionsAdded: run.sessionsAdded,
     sessionsUpdated: run.sessionsUpdated,
     sessionsArchived: run.sessionsArchived,

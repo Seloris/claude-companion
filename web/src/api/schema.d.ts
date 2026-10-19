@@ -4,103 +4,6 @@
  */
 
 export interface paths {
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Liveness of the API */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description The API is up */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {string} */
-                            status: "ok";
-                            /** Format: date-time */
-                            time: string;
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Whether a refresh runs, and the report of the last one */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description The refresh status */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["RefreshStatus"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        /** Start a refresh, or return the one already running */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description The refresh runs */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["RefreshStatus"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/workspaces": {
         parameters: {
             query?: never;
@@ -211,7 +114,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A session with its token usage per model and its prompts */
+        /** A session with its token usage per model, its activity, its subagents and its tools */
         get: {
             parameters: {
                 query?: never;
@@ -251,31 +154,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statistics of a period, over all workspaces or one: totals, rankings and activity per day */
+        get: {
+            parameters: {
+                query?: {
+                    period?: components["schemas"]["DashboardPeriod"];
+                    workspaceId?: number;
+                    includeScratch?: "true" | "false";
+                    timeZone?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The dashboard */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Dashboard"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness of the API */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The API is up */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            status: "ok";
+                            /** Format: date-time */
+                            time: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether a refresh runs, and the report of the last one */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The refresh status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefreshStatus"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Start a refresh, or return the one already running; a full refresh re-reads every log file */
+        post: {
+            parameters: {
+                query?: {
+                    mode?: components["schemas"]["RefreshMode"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The refresh runs */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefreshStatus"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        RefreshStatus: {
-            isRunning: boolean;
-            /** Format: date-time */
-            startedAt: string | null;
-            logsDir: string;
-            lastReport: components["schemas"]["RefreshReport"];
-        };
-        RefreshReport: {
-            /** @enum {string} */
-            status: "succeeded" | "failed";
-            /** Format: date-time */
-            startedAt: string;
-            /** Format: date-time */
-            finishedAt: string;
-            durationMs: number;
-            isLogsDirFound: boolean;
-            sessionsAdded: number;
-            sessionsUpdated: number;
-            sessionsArchived: number;
-            unreadableLines: number;
-        } | null;
         WorkspaceList: {
             workspaces: components["schemas"]["WorkspaceSummary"][];
             totals: {
@@ -331,6 +371,10 @@ export interface components {
             subagentCount: number;
             isArchived: boolean;
             tokens: components["schemas"]["TokenCounts"];
+            toolCallCount: number;
+            failedToolCallCount: number;
+            skillCallCount: number;
+            agentTypes: string[];
         };
         SessionDetail: {
             id: string;
@@ -347,6 +391,10 @@ export interface components {
             subagentCount: number;
             isArchived: boolean;
             tokens: components["schemas"]["TokenCounts"];
+            toolCallCount: number;
+            failedToolCallCount: number;
+            skillCallCount: number;
+            agentTypes: string[];
             workspace: {
                 id: number;
                 name: string;
@@ -355,13 +403,140 @@ export interface components {
                 model: string;
                 tokens: components["schemas"]["TokenCounts"];
             }[];
-            prompts: {
-                position: number;
-                text: string;
+            activity: components["schemas"]["ActivityEntry"][];
+            subagents: components["schemas"]["SubagentSummary"][];
+            tools: components["schemas"]["ToolUsage"][];
+        };
+        ActivityEntry: {
+            /** @enum {string} */
+            kind: "prompt";
+            /** Format: date-time */
+            at: string;
+            position: number;
+            text: string;
+        } | {
+            /** @enum {string} */
+            kind: "skill";
+            /** Format: date-time */
+            at: string;
+            name: string;
+            args: string | null;
+            isTyped: boolean;
+            agentType: string | null;
+        } | {
+            /** @enum {string} */
+            kind: "subagent";
+            /** Format: date-time */
+            at: string;
+            agentId: string;
+            agentType: string;
+            description: string;
+            model: string | null;
+        };
+        SubagentSummary: {
+            agentId: string;
+            agentType: string;
+            model: string | null;
+            description: string;
+            /** Format: date-time */
+            launchedAt: string;
+            toolCallCount: number;
+            isLogMissing: boolean;
+            tokens: components["schemas"]["TokenCounts"];
+        };
+        ToolUsage: {
+            name: string;
+            mcpServer: string | null;
+            callCount: number;
+            failedCount: number;
+        };
+        Dashboard: {
+            period: {
                 /** Format: date-time */
-                sentAt: string;
+                since: string | null;
+                /** Format: date-time */
+                until: string;
+            };
+            workspaceId: number | null;
+            totals: {
+                sessionCount: number;
+                promptCount: number;
+                toolCallCount: number;
+                skillCallCount: number;
+                subagentCount: number;
+                tokens: components["schemas"]["TokenCounts"];
+            };
+            agentTypes: components["schemas"]["AgentTypeRanking"][];
+            skills: components["schemas"]["CountRanking"][];
+            tools: components["schemas"]["CountRanking"][];
+            mcpServers: components["schemas"]["CountRanking"][];
+            models: components["schemas"]["ModelRanking"][];
+            days: {
+                /** Format: date */
+                date: string;
+                sessionCount: number;
+                tokens: components["schemas"]["TokenCounts"];
             }[];
         };
+        AgentTypeRanking: {
+            name: string;
+            runCount: number;
+            tokens: components["schemas"]["TokenCounts"];
+            byWorkspace: {
+                workspaceId: number;
+                workspaceName: string;
+                runCount: number;
+                tokens: components["schemas"]["TokenCounts"];
+            }[];
+        };
+        CountRanking: {
+            name: string;
+            count: number;
+            byWorkspace: {
+                workspaceId: number;
+                workspaceName: string;
+                count: number;
+            }[];
+        };
+        ModelRanking: {
+            name: string;
+            tokens: components["schemas"]["TokenCounts"];
+            byWorkspace: {
+                workspaceId: number;
+                workspaceName: string;
+                tokens: components["schemas"]["TokenCounts"];
+            }[];
+        };
+        /**
+         * @default 30d
+         * @enum {string}
+         */
+        DashboardPeriod: "7d" | "30d" | "90d" | "all";
+        RefreshStatus: {
+            isRunning: boolean;
+            /** Format: date-time */
+            startedAt: string | null;
+            logsDir: string;
+            lastReport: components["schemas"]["RefreshReport"];
+        };
+        RefreshReport: {
+            /** @enum {string} */
+            status: "succeeded" | "failed";
+            mode: components["schemas"]["RefreshMode"];
+            sessionsRead: number;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt: string;
+            durationMs: number;
+            isLogsDirFound: boolean;
+            sessionsAdded: number;
+            sessionsUpdated: number;
+            sessionsArchived: number;
+            unreadableLines: number;
+        } | null;
+        /** @enum {string} */
+        RefreshMode: "incremental" | "full";
     };
     responses: never;
     parameters: never;

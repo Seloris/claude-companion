@@ -1,8 +1,17 @@
-import { asc, countDistinct, eq, gt, inArray, max, sum } from "drizzle-orm";
+import { asc, count, countDistinct, desc, eq, gt, inArray, max, sql, sum } from "drizzle-orm";
 import type { Database } from "../../db/client.js";
 import type { ModelUsage, ParsedSession } from "../ingestion/ingestion.parser.js";
 import type { ResolvedWorkspace } from "../ingestion/ingestion.workspace.js";
-import { prompts, sessionModelUsages, sessions, workspaces } from "./workspaces.table.js";
+import {
+  prompts,
+  sessionModelUsages,
+  sessions,
+  skillCalls,
+  subagentModelUsages,
+  subagents,
+  toolCalls,
+  workspaces,
+} from "./workspaces.table.js";
 
 const sessionColumns = {
   id: sessions.id,
@@ -14,7 +23,20 @@ const sessionColumns = {
   promptCount: sessions.promptCount,
   subagentCount: sessions.subagentCount,
   isArchived: sessions.isArchived,
+  toolCallCount: sessions.toolCallCount,
+  failedToolCallCount: sessions.failedToolCallCount,
+  skillCallCount: sessions.skillCallCount,
+  agentTypes: sessions.agentTypes,
 };
+
+// Postgres caps a statement at 65,535 parameters: a long session's rows go in several inserts.
+const INSERT_CHUNK = 500;
+
+function chunks<T>(rows: T[]): T[][] {
+  const result: T[][] = [];
+  for (let start = 0; start < rows.length; start += INSERT_CHUNK) result.push(rows.slice(start, start + INSERT_CHUNK));
+  return result;
+}
 
 const usageColumns = {
   sessionId: sessionModelUsages.sessionId,
@@ -84,22 +106,44 @@ export function createWorkspacesRepository(db: Database) {
           promptCount: session.promptCount,
           subagentCount: session.subagentCount,
           isArchived: false,
+          toolCallCount: session.toolCallCount,
+          failedToolCallCount: session.failedToolCallCount,
+          skillCallCount: session.skillCallCount,
+          agentTypes: session.agentTypes,
         });
-        if (session.usages.length > 0) {
-          await tx
-            .insert(sessionModelUsages)
-            .values(session.usages.map((usage) => ({ sessionId: session.sessionId, ...usage })));
+        const { sessionId } = session;
+        // The delete above cascaded to the session's previous children.
+        for (const rows of chunks(session.usages.map((usage) => ({ sessionId, ...usage })))) {
+          await tx.insert(sessionModelUsages).values(rows);
         }
-        if (session.prompts.length > 0) {
-          await tx.insert(prompts).values(
-            session.prompts.map((prompt, position) => ({
-              sessionId: session.sessionId,
-              position,
-              text: prompt.text,
-              sentAt: prompt.sentAt,
-            })),
-          );
+        const promptRows = session.prompts.map((prompt, position) => ({
+          sessionId,
+          position,
+          text: prompt.text,
+          sentAt: prompt.sentAt,
+        }));
+        for (const rows of chunks(promptRows)) await tx.insert(prompts).values(rows);
+        for (const rows of chunks(session.toolCalls.map((call) => ({ sessionId, ...call })))) {
+          await tx.insert(toolCalls).values(rows);
         }
+        for (const rows of chunks(session.skillCalls.map((call, position) => ({ sessionId, position, ...call })))) {
+          await tx.insert(skillCalls).values(rows);
+        }
+        const subagentRows = session.subagents.map((subagent) => ({
+          sessionId,
+          agentId: subagent.agentId,
+          agentType: subagent.agentType,
+          model: subagent.model,
+          description: subagent.description,
+          launchedAt: subagent.launchedAt,
+          toolCallCount: subagent.toolCallCount,
+          isLogMissing: subagent.isLogMissing,
+        }));
+        for (const rows of chunks(subagentRows)) await tx.insert(subagents).values(rows);
+        const subagentUsageRows = session.subagents.flatMap((subagent) =>
+          subagent.usages.map((usage) => ({ sessionId, agentId: subagent.agentId, ...usage })),
+        );
+        for (const rows of chunks(subagentUsageRows)) await tx.insert(subagentModelUsages).values(rows);
         return deleted.length > 0 ? "updated" : "added";
       });
     },
@@ -174,7 +218,65 @@ export function createWorkspacesRepository(db: Database) {
         .from(prompts)
         .where(eq(prompts.sessionId, id))
         .orderBy(asc(prompts.position));
-      return { ...row, usages: usages.get(id) ?? [], prompts: sessionPrompts };
+      const sessionSkillCalls = await db
+        .select({
+          name: skillCalls.name,
+          args: skillCalls.args,
+          calledAt: skillCalls.calledAt,
+          isTyped: skillCalls.isTyped,
+          agentId: skillCalls.agentId,
+          promptPosition: skillCalls.promptPosition,
+        })
+        .from(skillCalls)
+        .where(eq(skillCalls.sessionId, id))
+        .orderBy(asc(skillCalls.position));
+      const sessionSubagents = await db
+        .select({
+          agentId: subagents.agentId,
+          agentType: subagents.agentType,
+          model: subagents.model,
+          description: subagents.description,
+          launchedAt: subagents.launchedAt,
+          toolCallCount: subagents.toolCallCount,
+          isLogMissing: subagents.isLogMissing,
+        })
+        .from(subagents)
+        .where(eq(subagents.sessionId, id))
+        .orderBy(asc(subagents.launchedAt), asc(subagents.agentId));
+      const subagentUsages = await db
+        .select({
+          agentId: subagentModelUsages.agentId,
+          model: subagentModelUsages.model,
+          inputTokens: subagentModelUsages.inputTokens,
+          outputTokens: subagentModelUsages.outputTokens,
+          cacheReadTokens: subagentModelUsages.cacheReadTokens,
+          cacheWriteTokens: subagentModelUsages.cacheWriteTokens,
+        })
+        .from(subagentModelUsages)
+        .where(eq(subagentModelUsages.sessionId, id));
+      const callCount = count();
+      const tools = await db
+        .select({
+          name: toolCalls.name,
+          mcpServer: toolCalls.mcpServer,
+          callCount,
+          failedCount: sql<number>`count(*) filter (where ${toolCalls.isError})`.mapWith(Number),
+        })
+        .from(toolCalls)
+        .where(eq(toolCalls.sessionId, id))
+        .groupBy(toolCalls.name, toolCalls.mcpServer)
+        .orderBy(desc(callCount), asc(toolCalls.name));
+      return {
+        ...row,
+        usages: usages.get(id) ?? [],
+        prompts: sessionPrompts,
+        skillCalls: sessionSkillCalls,
+        subagents: sessionSubagents.map((subagent) => ({
+          ...subagent,
+          usages: subagentUsages.filter((usage) => usage.agentId === subagent.agentId),
+        })),
+        tools,
+      };
     },
   };
 }

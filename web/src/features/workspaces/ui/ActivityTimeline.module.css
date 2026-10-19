@@ -1,0 +1,46 @@
+/* An entry of the timeline: the time and the kind on top, the content below. */
+.entry {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.time {
+  color: var(--text-muted);
+  font-size: 0.86em;
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.args {
+  font-weight: 400;
+}
+
+.meta {
+  color: var(--text-muted);
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+
+/* Keeps the person's line breaks. */
+.text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

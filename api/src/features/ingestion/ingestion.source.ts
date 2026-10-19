@@ -10,10 +10,16 @@ export interface FileStat {
   modifiedAt: Date;
 }
 
+export interface SubagentFileStat extends FileStat {
+  agentId: string;
+  // The sibling meta.json, which may not exist.
+  metaPath: string;
+}
+
 export interface ScannedSession {
   sessionId: string;
   mainFile: FileStat;
-  subagentFiles: FileStat[];
+  subagentFiles: SubagentFileStat[];
 }
 
 export interface LogsScan {
@@ -22,7 +28,7 @@ export interface LogsScan {
 }
 
 const SESSION_FILE = /^(.+)\.jsonl$/;
-const SUBAGENT_FILE = /^agent-.+\.jsonl$/;
+const SUBAGENT_FILE = /^agent-(.+)\.jsonl$/;
 
 export async function scanLogs(logsDir: string): Promise<LogsScan> {
   const folders = await listEntries(logsDir);
@@ -35,10 +41,15 @@ export async function scanLogs(logsDir: string): Promise<LogsScan> {
       const sessionId = SESSION_FILE.exec(file.name)?.[1];
       if (!file.isFile() || sessionId === undefined) continue;
       const subagentsDir = path.join(folderPath, sessionId, "subagents");
-      const subagentFiles: FileStat[] = [];
+      const subagentFiles: SubagentFileStat[] = [];
       for (const subagent of (await listEntries(subagentsDir)) ?? []) {
-        if (subagent.isFile() && SUBAGENT_FILE.test(subagent.name)) {
-          subagentFiles.push(await statFile(path.join(subagentsDir, subagent.name)));
+        const agentId = SUBAGENT_FILE.exec(subagent.name)?.[1];
+        if (subagent.isFile() && agentId !== undefined) {
+          subagentFiles.push({
+            ...(await statFile(path.join(subagentsDir, subagent.name))),
+            agentId,
+            metaPath: path.join(subagentsDir, `agent-${agentId}.meta.json`),
+          });
         }
       }
       sessions.push({ sessionId, mainFile: await statFile(path.join(folderPath, file.name)), subagentFiles });
@@ -49,6 +60,16 @@ export async function scanLogs(logsDir: string): Promise<LogsScan> {
 
 export async function readLines(file: string): Promise<string[]> {
   return (await readFile(file, "utf8")).split(/\r?\n/);
+}
+
+// The parsed meta.json of a subagent, or null when it cannot be read or is not valid JSON: the meta only adds
+// details, one bad file must not fail the whole refresh.
+export async function readMeta(file: string): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(file, "utf8")) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 async function listEntries(dir: string): Promise<Dirent[] | null> {

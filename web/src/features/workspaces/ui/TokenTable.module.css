@@ -32,3 +32,23 @@
 .table tbody th {
   font-weight: 500;
 }
+
+/* A text column: left-aligned like the row's name. */
+.table .text {
+  text-align: left;
+}
+
+/* A long text column (a description, an MCP tool name) wraps instead of widening the table. */
+.table .wrap {
+  min-width: 160px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

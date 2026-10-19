@@ -1,7 +1,14 @@
 import { NotFoundError } from "../../shared/errors.js";
 import type { ModelUsage } from "../ingestion/ingestion.parser.js";
 import type { SessionRow, WorkspacesRepository } from "./workspaces.repository.js";
-import type { SessionDetail, SessionSummary, TokenCounts, WorkspaceDetail, WorkspaceList } from "./workspaces.schema.js";
+import type {
+  ActivityEntry,
+  SessionDetail,
+  SessionSummary,
+  TokenCounts,
+  WorkspaceDetail,
+  WorkspaceList,
+} from "./workspaces.schema.js";
 
 export function createWorkspacesService({ workspacesRepo }: { workspacesRepo: WorkspacesRepository }) {
   return {
@@ -48,15 +55,60 @@ export function createWorkspacesService({ workspacesRepo }: { workspacesRepo: Wo
     async getSession(id: string): Promise<SessionDetail> {
       const session = await workspacesRepo.findSession(id);
       if (session === null) throw new NotFoundError("Session", id);
+      const agentTypes = new Map(session.subagents.map((subagent) => [subagent.agentId, subagent.agentType]));
+      // A typed skill call is one of the prompts: the timeline shows it once, as the skill call.
+      const typedPositions = new Set(session.skillCalls.flatMap((call) => call.promptPosition ?? []));
+      const entries: { at: Date; order: number; entry: ActivityEntry }[] = [
+        ...session.prompts
+          .filter((prompt) => !typedPositions.has(prompt.position))
+          .map((prompt) => ({
+            at: prompt.sentAt,
+            order: 0,
+            entry: { kind: "prompt" as const, at: prompt.sentAt.toISOString(), position: prompt.position, text: prompt.text },
+          })),
+        ...session.skillCalls.map((call) => ({
+          at: call.calledAt,
+          order: 1,
+          entry: {
+            kind: "skill" as const,
+            at: call.calledAt.toISOString(),
+            name: call.name,
+            args: call.args,
+            isTyped: call.isTyped,
+            agentType: call.agentId === null ? null : (agentTypes.get(call.agentId) ?? null),
+          },
+        })),
+        ...session.subagents.map((subagent) => ({
+          at: subagent.launchedAt,
+          order: 2,
+          entry: {
+            kind: "subagent" as const,
+            at: subagent.launchedAt.toISOString(),
+            agentId: subagent.agentId,
+            agentType: subagent.agentType,
+            description: subagent.description,
+            model: subagent.model,
+          },
+        })),
+      ];
+      // Same time: the prompt first, then the skill it ran, then the agent the skill launched.
+      entries.sort((a, b) => a.at.getTime() - b.at.getTime() || a.order - b.order);
       return {
         ...toSessionSummary(session),
         workspace: session.workspace,
         usages: session.usages.map((usage) => ({ model: usage.model, tokens: toTokens(usage) })),
-        prompts: session.prompts.map((prompt) => ({
-          position: prompt.position,
-          text: prompt.text,
-          sentAt: prompt.sentAt.toISOString(),
+        activity: entries.map(({ entry }) => entry),
+        subagents: session.subagents.map((subagent) => ({
+          agentId: subagent.agentId,
+          agentType: subagent.agentType,
+          model: subagent.model,
+          description: subagent.description,
+          launchedAt: subagent.launchedAt.toISOString(),
+          toolCallCount: subagent.toolCallCount,
+          isLogMissing: subagent.isLogMissing,
+          tokens: addTokens(subagent.usages.map(toTokens)),
         })),
+        tools: session.tools,
       };
     },
   };
@@ -78,6 +130,10 @@ function toSessionSummary(session: SessionRow): SessionSummary {
     subagentCount: session.subagentCount,
     isArchived: session.isArchived,
     tokens: addTokens(session.usages.map(toTokens)),
+    toolCallCount: session.toolCallCount,
+    failedToolCallCount: session.failedToolCallCount,
+    skillCallCount: session.skillCallCount,
+    agentTypes: session.agentTypes,
   };
 }
 
