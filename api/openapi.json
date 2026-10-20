@@ -2206,6 +2206,9 @@
               "session"
             ]
           },
+          "isOffWorkflow": {
+            "type": "boolean"
+          },
           "run": {
             "$ref": "#/components/schemas/FactoryRun"
           },
@@ -2227,6 +2230,7 @@
           "scannedAt",
           "markers",
           "source",
+          "isOffWorkflow",
           "run",
           "feature"
         ]

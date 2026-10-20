@@ -183,11 +183,34 @@ export const DEMO_SESSIONS: readonly DemoSession[] = [
     waitingFor: null,
     statusMin: 10,
   },
+  {
+    sessionId: "3f1c2a4e-5b6d-4e7f-8a9b-1c2d3e4f5a70",
+    situation: "Off-workflow job done",
+    title: "Board export check",
+    cwd: COMPANION,
+    gitBranch: "develop",
+    origin: "desktop",
+    hostSessionId: "local_3f1c2a4e-1111-4222-8333-444455556670",
+    startedMin: 18,
+    status: "idle",
+    waitingFor: null,
+    statusMin: 4,
+  },
 ];
 
-const [AT_WORK, TO_COMMIT, QUESTION, JOB_DONE, FINISHED, INTERRUPTED, OFF_WORKFLOW, CLI_COMMIT, RESUMED] = DEMO_SESSIONS.map(
-  (session) => session.sessionId,
-) as [string, string, string, string, string, string, string, string, string];
+const [AT_WORK, TO_COMMIT, QUESTION, JOB_DONE, FINISHED, INTERRUPTED, OFF_WORKFLOW, CLI_COMMIT, RESUMED, OFF_WORKFLOW_DONE] =
+  DEMO_SESSIONS.map((session) => session.sessionId) as [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
 
 const PENDING_COMMIT = "feat(factory-board): web — drop the factory session list";
 const PENDING_COMMIT_BODY = "The live page's band replaces the list.";
@@ -332,6 +355,14 @@ function linesOf(session: DemoSession, now: number): { lines: LogLine[]; subagen
           reply("resumed-m1", "Here is a first layout.", 89),
         ],
       };
+    case OFF_WORKFLOW_DONE:
+      return {
+        lines: [
+          title,
+          prompt("Check what the board exports for a free request", 18),
+          reply("off-workflow-done-m1", "The export carries the phase and the recap of a free request.", 4),
+        ],
+      };
     default:
       throw new Error(`no log for demo session ${session.sessionId}`);
   }
@@ -424,6 +455,19 @@ function freshBoardOf(now: number): FactoryExportV2 {
     since: ago(6),
     updatedAt: ago(1),
   });
+  // Live-sessions FR-34: a free request whose job is done keeps its phase and recap on the live page.
+  const offWorkflowDone: ExportRun = buildExportRun({
+    sessionId: OFF_WORKFLOW_DONE,
+    feature: null,
+    folder: null,
+    command: "off-workflow",
+    step: "off-workflow",
+    status: "done",
+    phase: "job-done",
+    recap: { text: "The board export of a free request is checked.", commits: [] },
+    since: ago(18),
+    updatedAt: ago(4),
+  });
   const cliCommit: ExportRun = buildExportRun({
     sessionId: CLI_COMMIT,
     feature: "factory-board",
@@ -463,7 +507,7 @@ function freshBoardOf(now: number): FactoryExportV2 {
     scannedAt: now - FRESH_SCAN_AGE_MS,
     root: COMPANION,
     branch: "feat/live-sessions-phases",
-    live: [autopilot, toCommit, offWorkflow, cliCommit],
+    live: [autopilot, toCommit, offWorkflow, cliCommit, offWorkflowDone],
     sessions: [jobDone],
     features: [
       buildExportFeature({

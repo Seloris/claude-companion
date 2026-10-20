@@ -203,6 +203,7 @@ function toJob({ board, run, source }: JobCandidate): FactorySessionJob {
     scannedAt: board.scannedAt,
     markers: board.markers,
     source,
+    isOffWorkflow: run.command === OFF_WORKFLOW,
     run,
     feature:
       feature === undefined
@@ -221,8 +222,8 @@ function toJob({ board, run, source }: JobCandidate): FactorySessionJob {
 // Factory-board FR-31: the factory job of each session, by session id, over every board of every workspace, a stale one
 // included (an unsupported or unreadable board is not in the state). A live run wins over a board's session entry (the
 // fresher one); among live runs the main loop wins over a subagent's, then the latest change; among session entries the
-// latest change. Live-sessions FR-34: when the winning run is off the workflow, the session has no job, so an older
-// factory run of the same session never shows while it works off the workflow.
+// latest change. Live-sessions FR-34: an off-workflow winning run is the session's job too, flagged `isOffWorkflow`, so
+// that its phase and recap show and an older factory run of the same session never shows while it works off the workflow.
 export function matchSessionJobs(state: FactoryState): Map<string, FactorySessionJob> {
   const boards = state.workspaces.flatMap((workspace) => workspace.boards);
   const live = bestBySession(
@@ -236,8 +237,7 @@ export function matchSessionJobs(state: FactoryState): Map<string, FactorySessio
   const jobs = new Map<string, FactorySessionJob>();
   for (const [sessionId, candidate] of [...sessions, ...live]) {
     if (candidate.source === "session" && live.has(sessionId)) continue;
-    if (candidate.run.command === OFF_WORKFLOW) jobs.delete(sessionId);
-    else jobs.set(sessionId, toJob(candidate));
+    jobs.set(sessionId, toJob(candidate));
   }
   return jobs;
 }

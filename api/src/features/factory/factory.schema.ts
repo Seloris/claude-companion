@@ -214,6 +214,9 @@ export const factorySessionJobSchema = z
     markers: z.object({ review: z.string(), browser: z.string() }),
     // `live`: a run of the board's live list; `session`: its sessions list, the phase then always set.
     source: z.enum(["live", "session"]),
+    // The run is the factory-board mod's record of a free request (live-sessions FR-34): it has a phase and a recap,
+    // no feature and no step to draw.
+    isOffWorkflow: z.boolean(),
     run: factoryRunSchema,
     // Null: the run has no feature, or the board does not list it.
     feature: z.union([factoryJobFeatureSchema, z.null()]),

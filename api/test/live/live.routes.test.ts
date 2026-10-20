@@ -822,6 +822,7 @@ describe("live routes", () => {
           scannedAt: iso(NOW - 5_000),
           markers: { review: " — with review", browser: " — with browser test" },
           source: "live",
+          isOffWorkflow: false,
           run: servedRun,
           feature: {
             slug: "demo",
@@ -911,14 +912,25 @@ describe("live routes", () => {
         expect(session.factory).toMatchObject({ source: "session", run: { step: "stage:2", phase: "job-done" } });
       });
 
-      it("gives no factory job when the session's latest run is off the workflow", async () => {
+      it("keeps the phase and the recap of the session's off-workflow run, flagged off the workflow", async () => {
         // Arrange
         await startSession({ pid: 11 });
+        const recap = { text: "The export is checked.", commits: [{ sha: "3a08238c4d5e6f708192a3b4c5d6e7f809a1b2c3", subject: "fix: export" }] };
         await writeBoard(
           ctx.boardsDir,
           "C--WS-demo.json",
           buildBoardExport({
-            live: [buildExportRun({ sessionId: SESSION_ID, command: "off-workflow", step: "off-workflow", feature: null })],
+            live: [
+              buildExportRun({
+                sessionId: SESSION_ID,
+                command: "off-workflow",
+                step: "off-workflow",
+                feature: null,
+                status: "done",
+                phase: "job-done",
+                recap,
+              }),
+            ],
             sessions: [buildExportSession({ sessionId: SESSION_ID, updatedAt: NOW - 600_000 })],
           }),
         );
@@ -927,7 +939,73 @@ describe("live routes", () => {
         const session = await getOnlySession();
 
         // Assert
-        expect(session.factory).toBeNull();
+        expect(session.factory).toMatchObject({
+          source: "live",
+          isOffWorkflow: true,
+          feature: null,
+          run: { command: "off-workflow", phase: "job-done", recap },
+        });
+      });
+
+      it("keeps the pending commit of an off-workflow run waiting for its validation", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({
+            live: [
+              buildExportRun({
+                sessionId: SESSION_ID,
+                command: "off-workflow",
+                step: "off-workflow",
+                feature: null,
+                status: "waiting",
+                phase: "awaiting-commit",
+                pendingCommit: "fix(demo): export",
+              }),
+            ],
+          }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toMatchObject({
+          isOffWorkflow: true,
+          run: { phase: "awaiting-commit", pendingCommit: "fix(demo): export" },
+        });
+      });
+
+      it("flags an off-workflow run of the board's session entries", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({
+            sessions: [buildExportSession({ sessionId: SESSION_ID, command: "off-workflow", step: "off-workflow", feature: null })],
+          }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toMatchObject({ source: "session", isOffWorkflow: true });
+      });
+
+      it("flags a factory run as on the workflow", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(ctx.boardsDir, "C--WS-demo.json", buildBoardExport({ live: [buildExportRun({ sessionId: SESSION_ID })] }));
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toMatchObject({ source: "live", isOffWorkflow: false });
       });
 
       it("keeps the job of a stale board, marked stale", async () => {

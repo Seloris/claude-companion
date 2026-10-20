@@ -99,15 +99,19 @@ Integration tests: none (the api has none for this area).
 
 **web**: none: the front has no unit tests (`web/CLAUDE.md`). The browser test covers it, on the demo.
 
+## Deviations
+
+- The plan's api tests → also `isOffWorkflow: false` in the existing exact `toEqual` of `attaches the board's live run…`, and a tenth pid in the demo test's `PIDS` (both needed by the new required field and the tenth demo session).
+
 ## Progress
 
 ### Stage 1 — api
 Commit: `fix(live-sessions): api — an off-workflow run keeps its phase and recap`
-- [ ] services: `toJob` sets `isOffWorkflow`; `matchSessionJobs` keeps the off-workflow job; comment rewritten
-- [ ] services: demo session `Off-workflow job done` with its log and its board run
-- [ ] routes: `FactorySessionJob.isOffWorkflow`
-- [ ] Tests: the live route tests and the demo test
-- [ ] Handoff: `api/openapi.json` exported
+- [x] services: `toJob` sets `isOffWorkflow`; `matchSessionJobs` keeps the off-workflow job; comment rewritten
+- [x] services: demo session `Off-workflow job done` with its log and its board run
+- [x] routes: `FactorySessionJob.isOffWorkflow`
+- [x] Tests: the live route tests and the demo test
+- [x] Handoff: `api/openapi.json` exported
 
 ### Stage 2 — web
 Commit: `fix(live-sessions): web — an off-workflow tile reads its run's phase`

@@ -7,7 +7,7 @@ import { createTestContext } from "../setup.js";
 
 const NOW_ISO = "2026-10-20T12:00:00.000Z";
 const NOW = Date.parse(NOW_ISO);
-const PIDS = [9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009];
+const PIDS = [9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010];
 
 // The demo dataset of `npm run demo`, read through the real services: a shape drift breaks this test, not the browser test.
 describe("live demo dataset", () => {
@@ -40,9 +40,10 @@ describe("live demo dataset", () => {
     });
   }
 
-  it("serves the nine demo sessions with the situation each one stands for", async () => {
+  it("serves the ten demo sessions with the situation each one stands for", async () => {
     // Act
-    const [atWork, toCommit, question, jobDone, finished, interrupted, offWorkflow, cliCommit, resumed] = await demoSessions();
+    const [atWork, toCommit, question, jobDone, finished, interrupted, offWorkflow, cliCommit, resumed, offWorkflowDone] =
+      await demoSessions();
 
     // Assert
     expect(atWork).toMatchObject({
@@ -79,13 +80,19 @@ describe("live demo dataset", () => {
     expect(offWorkflow).toMatchObject({
       status: "running",
       currentActivity: { kind: "tool", toolName: "Write" },
-      factory: null,
+      factory: { isOffWorkflow: true, run: { phase: "working" } },
     });
     expect(offWorkflow?.queuedPrompts).toHaveLength(1);
 
     expect(cliCommit).toMatchObject({ desktopLink: null, factory: { run: { phase: "awaiting-commit" } } });
 
     expect(resumed).toMatchObject({ status: "idle", turnStartedAt: null });
+
+    expect(offWorkflowDone).toMatchObject({
+      status: "idle",
+      factory: { isOffWorkflow: true, feature: null, run: { phase: "job-done", recap: { text: "The board export of a free request is checked." } } },
+    });
+    expect(offWorkflowDone?.turnStartedAt).not.toBeNull();
   });
 
   it("serves both demo boards, the billing one frozen", async () => {
