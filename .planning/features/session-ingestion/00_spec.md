@@ -41,7 +41,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `Durée de conservation` | `LogRetention` | The number of days Claude Code keeps a log file after its last change before deleting it | New |
 | `Session en direct` | `LiveSession` | A `Session` whose Claude Code process is alive on this machine (live-sessions) | Reused |
 | `Lien bureau` | `DesktopLink` | A link that opens a `Session` in the Claude desktop app | New |
-| `Commande de reprise` | `ResumeCommand` | The command `cd {folder} && claude --resume {session id}` that reopens a `Session` in a terminal | New |
+| `Commande de reprise` | `ResumeCommand` | The command that moves to a `Session`'s folder and runs `claude --resume {session id}`, reopening it in a terminal, written so that the usual terminals of the machine (PowerShell, cmd, bash) all take it | New |
 
 ## Functional Requirements
 
@@ -84,6 +84,8 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **BR-16** — The folder of the `ResumeCommand` is the folder the session started in (its first working directory, BR-09), not its workspace's path: Claude Code finds a session only from the folder it ran in, which differs from the workspace for a worktree (BR-03), a subfolder (BR-10) or a case variant (BR-02).
 - **BR-17** — An archived session (BR-05) offers no `ResumeCommand`: its log is gone, Claude Code has nothing to resume.
 - **BR-18** — A session offers its `DesktopLink` or its `ResumeCommand`, never both: the link wins whenever it exists; a session with neither (live without a link, archived without a link) offers no way to reopen it.
+- **BR-19** — A session's `DesktopLink` comes from Claude Code's live state, which names the desktop app's session behind a running desktop-app session: the application keeps it from the first `Refresh` that sees it there, and the session keeps it afterwards, its process ended or its log archived; a desktop-app session no refresh saw in the live state has no `DesktopLink` once it is no longer live, and offers its `ResumeCommand` instead.
+- **BR-20** — A session whose folder a terminal cannot take literally (a character a terminal would interpret even inside quotes) offers no `ResumeCommand`, so that a paste never runs anything but the resume.
 
 ## UX Flow
 
