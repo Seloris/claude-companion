@@ -1,5 +1,6 @@
 import type { Clock } from "../../shared/clock.js";
 import { haveFilesChanged, readLines, readMeta, scanSubagentFiles, statFile, type FileStat } from "../ingestion/ingestion.source.js";
+import { desktopSessionIdOf, toDesktopLink } from "../ingestion/ingestion.reopen.js";
 import type { IngestionService } from "../ingestion/ingestion.service.js";
 import { resolveWorkspace, type ResolvedWorkspace } from "../ingestion/ingestion.workspace.js";
 import type { WorkspacesRepository } from "../workspaces/workspaces.repository.js";
@@ -113,6 +114,8 @@ export function createLiveService({
         lastActivityAt: lastActivityAt.toISOString(),
         origin: status.entrypoint ?? log?.origin ?? null,
         gitBranch: log?.gitBranch ?? null,
+        // Live-sessions FR-31: the link comes from the status file, which every desktop-app process carries.
+        desktopLink: toDesktopLink(desktopSessionIdOf(status)),
         isLogFound: log !== null,
         isStored,
         lastPrompt: log?.lastPrompt ?? null,

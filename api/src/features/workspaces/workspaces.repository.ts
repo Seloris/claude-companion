@@ -1,8 +1,9 @@
-import { asc, count, countDistinct, desc, eq, gt, inArray, max, sql, sum } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, gt, inArray, isNull, max, sql, sum } from "drizzle-orm";
 import type { Database } from "../../db/client.js";
 import type { ModelUsage, ParsedSession } from "../ingestion/ingestion.parser.js";
 import type { ResolvedWorkspace } from "../ingestion/ingestion.workspace.js";
 import {
+  desktopSessionLinks,
   prompts,
   sessionModelUsages,
   sessions,
@@ -27,6 +28,7 @@ const sessionColumns = {
   failedToolCallCount: sessions.failedToolCallCount,
   skillCallCount: sessions.skillCallCount,
   agentTypes: sessions.agentTypes,
+  startFolder: sessions.startFolder,
 };
 
 // Postgres caps a statement at 65,535 parameters: a long session's rows go in several inserts.
@@ -62,7 +64,7 @@ export interface WorkspaceRow {
 
 export type SessionRow = {
   [K in keyof typeof sessionColumns]: (typeof sessions.$inferSelect)[K];
-} & { usages: ModelUsage[] };
+} & { desktopSessionId: string | null; usages: ModelUsage[] };
 
 export function createWorkspacesRepository(db: Database) {
   async function listUsages(sessionIds: string[]): Promise<Map<string, ModelUsage[]>> {
@@ -110,6 +112,7 @@ export function createWorkspacesRepository(db: Database) {
           failedToolCallCount: session.failedToolCallCount,
           skillCallCount: session.skillCallCount,
           agentTypes: session.agentTypes,
+          startFolder: session.firstCwd,
         });
         const { sessionId } = session;
         // The delete above cascaded to the session's previous children.
@@ -151,6 +154,27 @@ export function createWorkspacesRepository(db: Database) {
     async archiveSessions(ids: string[]): Promise<void> {
       if (ids.length === 0) return;
       await db.update(sessions).set({ isArchived: true }).where(inArray(sessions.id, ids));
+    },
+
+    // BR-16 backfill: the sessions stored before the start folder existed.
+    async listSessionIdsMissingStartFolder(): Promise<string[]> {
+      const rows = await db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(and(eq(sessions.isArchived, false), isNull(sessions.startFolder)));
+      return rows.map((row) => row.id);
+    },
+
+    // The last one seen wins. The rows must hold one entry per session id: a statement cannot update a row twice.
+    async saveDesktopSessionIds(rows: { sessionId: string; desktopSessionId: string; seenAt: Date }[]): Promise<void> {
+      if (rows.length === 0) return;
+      await db
+        .insert(desktopSessionLinks)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: desktopSessionLinks.sessionId,
+          set: { desktopSessionId: sql`excluded.desktop_session_id`, seenAt: sql`excluded.seen_at` },
+        });
     },
 
     async listSessionIds(filter: { isArchived: boolean }): Promise<string[]> {
@@ -212,16 +236,25 @@ export function createWorkspacesRepository(db: Database) {
     },
 
     async listSessions(workspaceId: number): Promise<SessionRow[]> {
-      const rows = await db.select(sessionColumns).from(sessions).where(eq(sessions.workspaceId, workspaceId));
+      const rows = await db
+        .select({ ...sessionColumns, desktopSessionId: desktopSessionLinks.desktopSessionId })
+        .from(sessions)
+        .leftJoin(desktopSessionLinks, eq(desktopSessionLinks.sessionId, sessions.id))
+        .where(eq(sessions.workspaceId, workspaceId));
       const usages = await listUsages(rows.map((row) => row.id));
       return rows.map((row) => ({ ...row, usages: usages.get(row.id) ?? [] }));
     },
 
     async findSession(id: string) {
       const [row] = await db
-        .select({ ...sessionColumns, workspace: { id: workspaces.id, name: workspaces.name } })
+        .select({
+          ...sessionColumns,
+          desktopSessionId: desktopSessionLinks.desktopSessionId,
+          workspace: { id: workspaces.id, name: workspaces.name },
+        })
         .from(sessions)
         .innerJoin(workspaces, eq(workspaces.id, sessions.workspaceId))
+        .leftJoin(desktopSessionLinks, eq(desktopSessionLinks.sessionId, sessions.id))
         .where(eq(sessions.id, id));
       if (row === undefined) return null;
       const usages = await listUsages([id]);

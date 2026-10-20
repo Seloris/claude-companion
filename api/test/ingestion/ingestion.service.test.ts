@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
-import { appendFile, mkdir, readdir, rm, stat } from "node:fs/promises";
+import { appendFile, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { refreshRuns } from "../../src/features/ingestion/ingestion.table.js";
 import {
+  desktopSessionLinks,
   sessionModelUsages,
   sessions,
   skillCalls,
@@ -12,6 +13,8 @@ import {
   toolCalls,
   workspaces,
 } from "../../src/features/workspaces/workspaces.table.js";
+import type { StatusFile } from "../../src/features/live/live.source.js";
+import { LIVE_STARTED_AT, statusFile, writeStatusFile } from "../live/live-builders.js";
 import { createTestContext } from "../setup.js";
 import { assistantLine, toJsonl, toolUseBlock, userLine, writeSession, type LogLine } from "./log-builders.js";
 
@@ -377,6 +380,169 @@ describe("IngestionService", () => {
     // Assert
     expect(report).toMatchObject({ isLogsDirFound: false, sessionsArchived: 0 });
     expect(await readSession(FIRST_ID)).toMatchObject({ isArchived: false });
+  });
+
+  describe("reopening a session", () => {
+    const DESKTOP_ID = "local_8696f16a-1111-4222-8333-444455556666";
+    const OTHER_DESKTOP_ID = "local_99999999-aaaa-4bbb-8ccc-dddddddddddd";
+
+    async function writeDesktopStatus(pid: number, overrides: Partial<StatusFile> = {}) {
+      await writeStatusFile(
+        ctx.sessionsDir,
+        statusFile({ pid, sessionId: FIRST_ID, entrypoint: "claude-desktop", hostSessionId: DESKTOP_ID, ...overrides }),
+      );
+    }
+
+    async function storedLinks() {
+      return ctx.db.select().from(desktopSessionLinks);
+    }
+
+    it("stores the first working directory of a session as its start folder", async () => {
+      // Arrange
+      await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+
+      // Act
+      await ctx.ingestion.refresh();
+
+      // Assert
+      expect(await readSession(FIRST_ID)).toMatchObject({ startFolder: demo() });
+    });
+
+    it("re-reads an unchanged session that has no start folder and fills it, and leaves the others alone", async () => {
+      // Arrange
+      await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+      await writeSession(ctx.logsDir, "C--WS-demo", session(SECOND_ID, demo()));
+      await ctx.ingestion.refresh();
+      await ctx.db.update(sessions).set({ startFolder: null }).where(eq(sessions.id, FIRST_ID));
+
+      // Act
+      const report = await ctx.ingestion.refresh();
+
+      // Assert
+      expect(report).toMatchObject({ sessionsRead: 1, sessionsAdded: 0, sessionsUpdated: 1 });
+      expect(await readSession(FIRST_ID)).toMatchObject({ startFolder: demo() });
+      expect(await ctx.ingestion.refresh()).toMatchObject({ sessionsRead: 0, sessionsUpdated: 0 });
+    });
+
+    it("does not re-read an archived session that has no start folder", async () => {
+      // Arrange
+      const { mainFile } = await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+      await ctx.ingestion.refresh();
+      await rm(mainFile);
+      await ctx.ingestion.refresh();
+      await ctx.db.update(sessions).set({ startFolder: null }).where(eq(sessions.id, FIRST_ID));
+
+      // Act
+      const report = await ctx.ingestion.refresh();
+
+      // Assert
+      expect(report).toMatchObject({ sessionsRead: 0, sessionsUpdated: 0 });
+      expect(await readSession(FIRST_ID)).toMatchObject({ isArchived: true, startFolder: null });
+    });
+
+    it("records the desktop id of a desktop-app status file whose process is not alive", async () => {
+      // Arrange
+      await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+      await writeDesktopStatus(4242);
+      ctx.clock.set("2026-10-02T08:00:00.000Z");
+
+      // Act
+      await ctx.ingestion.refresh();
+
+      // Assert
+      expect(await storedLinks()).toEqual([
+        { sessionId: FIRST_ID, desktopSessionId: DESKTOP_ID, seenAt: new Date("2026-10-02T08:00:00.000Z") },
+      ]);
+    });
+
+    it("records no desktop id from a CLI file, an ill-formed host session id or a file with none", async () => {
+      // Arrange
+      await writeDesktopStatus(1, { entrypoint: "cli" });
+      await writeDesktopStatus(2, { sessionId: SECOND_ID, hostSessionId: "local_not-a-uuid" });
+      await writeDesktopStatus(3, { sessionId: "33333333-3333-4333-8333-333333333333", hostSessionId: null });
+
+      // Act
+      const report = await ctx.ingestion.refresh();
+
+      // Assert
+      expect(report.status).toBe("succeeded");
+      expect(await storedLinks()).toEqual([]);
+    });
+
+    it("keeps the freshest desktop id when two status files name one session", async () => {
+      // Arrange
+      await writeDesktopStatus(1, { hostSessionId: OTHER_DESKTOP_ID, statusUpdatedAt: LIVE_STARTED_AT + 1000 });
+      await writeDesktopStatus(2, { hostSessionId: DESKTOP_ID, statusUpdatedAt: LIVE_STARTED_AT + 5000 });
+      await writeDesktopStatus(3, { hostSessionId: OTHER_DESKTOP_ID, statusUpdatedAt: LIVE_STARTED_AT + 2000 });
+
+      // Act
+      const report = await ctx.ingestion.refresh();
+
+      // Assert
+      expect(report.status).toBe("succeeded");
+      expect(await storedLinks()).toMatchObject([{ sessionId: FIRST_ID, desktopSessionId: DESKTOP_ID }]);
+    });
+
+    it("keeps the desktop id once the status file is gone, through a full refresh and the archive", async () => {
+      // Arrange
+      const { mainFile } = await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+      const statusPath = await writeStatusFile(
+        ctx.sessionsDir,
+        statusFile({ pid: 4242, sessionId: FIRST_ID, entrypoint: "claude-desktop", hostSessionId: DESKTOP_ID }),
+      );
+      await ctx.ingestion.refresh();
+      await rm(statusPath);
+
+      // Act
+      await ctx.ingestion.refresh({ mode: "full" });
+      const afterFull = await storedLinks();
+      await rm(mainFile);
+      const report = await ctx.ingestion.refresh();
+
+      // Assert
+      expect(afterFull).toMatchObject([{ sessionId: FIRST_ID, desktopSessionId: DESKTOP_ID }]);
+      expect(report).toMatchObject({ sessionsArchived: 1 });
+      expect(await readSession(FIRST_ID)).toMatchObject({ isArchived: true });
+      expect(await storedLinks()).toMatchObject([{ sessionId: FIRST_ID, desktopSessionId: DESKTOP_ID }]);
+    });
+
+    it("records the desktop id of a session the history does not hold yet", async () => {
+      // Arrange
+      await writeDesktopStatus(4242);
+
+      // Act
+      await ctx.ingestion.refresh();
+
+      // Assert
+      expect(await storedLinks()).toMatchObject([{ sessionId: FIRST_ID, desktopSessionId: DESKTOP_ID }]);
+    });
+
+    it("does not fail, and reports the same, when the sessions folder is missing", async () => {
+      // Arrange
+      await writeSession(ctx.logsDir, "C--WS-demo", session(FIRST_ID, demo()));
+      await rm(ctx.sessionsDir, { recursive: true });
+
+      // Act
+      const report = await ctx.ingestion.refresh();
+
+      // Assert
+      expect(report).toMatchObject({ status: "succeeded", sessionsRead: 1, sessionsAdded: 1, sessionsArchived: 0 });
+      expect(await storedLinks()).toEqual([]);
+    });
+
+    it("leaves every file of the sessions folder as it was", async () => {
+      // Arrange
+      await writeDesktopStatus(4242);
+      await writeFile(path.join(ctx.sessionsDir, "4242.abc123.key"), "not-a-real-credential");
+      const before = await snapshot(ctx.sessionsDir);
+
+      // Act
+      await ctx.ingestion.refresh();
+      await ctx.ingestion.refresh({ mode: "full" });
+
+      // Assert
+      expect(await snapshot(ctx.sessionsDir)).toEqual(before);
+    });
   });
 });
 

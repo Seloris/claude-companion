@@ -55,6 +55,11 @@ export const sessionSummarySchema = z
     failedToolCallCount: z.number().int(),
     skillCallCount: z.number().int(),
     agentTypes: z.array(z.string()),
+    // The link that opens the session in the Claude desktop app, null without one (FR-16, BR-19).
+    desktopLink: z.string().nullable(),
+    // Two lines, null when archived, linked, not re-read yet or with an unsafe folder; the front hides it while the
+    // session is live (FR-17, BR-15).
+    resumeCommand: z.string().nullable(),
   })
   .meta({ id: "SessionSummary" });
 

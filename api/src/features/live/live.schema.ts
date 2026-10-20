@@ -36,6 +36,8 @@ export const liveSessionSchema = z
     lastActivityAt: z.iso.datetime(),
     origin: z.string().nullable(),
     gitBranch: z.string().nullable(),
+    // The link that opens the session in the Claude desktop app; null for a session that does not run in it (live-sessions FR-31).
+    desktopLink: z.string().nullable(),
     // False: the log is missing or too young to be read, the session is known from Claude Code's status file only.
     isLogFound: z.boolean(),
     // True: the stored history holds the session, so it has a page.

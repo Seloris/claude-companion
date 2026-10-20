@@ -73,18 +73,18 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "claude-companion-"));
   const logsDir = options.logsDir ?? path.join(tempRoot, "projects");
   const scratchRoot = path.join(tempRoot, "scratch-workspaces");
+  // Status files go to a temp folder, never the real ~/.claude/sessions; a pid is alive when the test says so.
+  const sessionsDir = path.join(tempRoot, "sessions");
+  await mkdir(sessionsDir);
   const ingestionRepo = createIngestionRepository(db);
   const workspacesRepo = createWorkspacesRepository(db);
-  const ingestion = createIngestionService({ ingestionRepo, workspacesRepo, clock, logsDir, scratchRoot });
+  const ingestion = createIngestionService({ ingestionRepo, workspacesRepo, clock, logsDir, sessionsDir, scratchRoot });
   const workspaces = createWorkspacesService({ workspacesRepo });
   // Claude Code's settings file lives in the temp root, absent until a test writes it: never the real ~/.claude/settings.json.
   const settingsFile = path.join(tempRoot, "settings.json");
   const retention = createRetentionService({ ingestionRepo, workspacesRepo, clock, logsDir, settingsFile });
   const timer = createTestTimer();
   const dashboard = createDashboardService({ dashboardRepo: createDashboardRepository(db), clock });
-  // Status files go to a temp folder, never the real ~/.claude/sessions; a pid is alive when the test says so.
-  const sessionsDir = path.join(tempRoot, "sessions");
-  await mkdir(sessionsDir);
   const alivePids = new Set<number>();
   const buildLive = () =>
     createLiveService({
@@ -124,6 +124,10 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
     async session(workspace: ResolvedWorkspace, session: ParsedSession, options: { isArchived?: boolean } = {}) {
       await workspacesRepo.saveSession(workspace, session);
       if (options.isArchived === true) await workspacesRepo.archiveSessions([session.sessionId]);
+    },
+    // A desktop id as an earlier refresh recorded it from a status file.
+    async desktopSessionId(sessionId: string, desktopSessionId: string) {
+      await workspacesRepo.saveDesktopSessionIds([{ sessionId, desktopSessionId, seenAt: clock.now() }]);
     },
   };
 

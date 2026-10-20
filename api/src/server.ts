@@ -63,6 +63,7 @@ const ingestion = createIngestionService({
   workspacesRepo,
   clock: systemClock,
   logsDir: config.CLAUDE_PROJECTS_DIR,
+  sessionsDir: config.CLAUDE_SESSIONS_DIR,
   scratchRoot,
 });
 const refreshScheduler = createRefreshScheduler({ ingestion, ingestionRepo, clock: systemClock, timer: systemTimer });

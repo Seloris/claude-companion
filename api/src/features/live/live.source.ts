@@ -17,6 +17,9 @@ export const statusFileSchema = z.looseObject({
   // Milliseconds since the epoch, within the range of a Date: a crafted value must not make a date invalid.
   startedAt: timestamp,
   entrypoint: z.string().nullish(),
+  // The desktop app's id of the session. No regex here: a strict shape would make a live session look dead when the value
+  // is unexpected. The shape is checked by desktopSessionIdOf, where the link is built.
+  hostSessionId: z.string().nullish(),
   name: z.string().nullish(),
   status: z.string().nullish(),
   waitingFor: z.string().nullish(),

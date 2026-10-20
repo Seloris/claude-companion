@@ -3,6 +3,8 @@ import type { WorkspacesRepository } from "../workspaces/workspaces.repository.j
 import { parseSession, type SubagentFile } from "./ingestion.parser.js";
 import type { IngestionRepository, RefreshRun, StoredLogFile } from "./ingestion.repository.js";
 import type { RefreshMode, RefreshReport, RefreshStatus } from "./ingestion.schema.js";
+import { readStatusFiles } from "../live/live.source.js";
+import { desktopSessionIdOf } from "./ingestion.reopen.js";
 import { haveFilesChanged, readLines, readMeta, scanLogs, type ScannedSession } from "./ingestion.source.js";
 import { findRepoRoot, resolveWorkspace } from "./ingestion.workspace.js";
 
@@ -11,12 +13,15 @@ export function createIngestionService({
   workspacesRepo,
   clock,
   logsDir,
+  sessionsDir,
   scratchRoot,
 }: {
   ingestionRepo: IngestionRepository;
   workspacesRepo: WorkspacesRepository;
   clock: Clock;
   logsDir: string;
+  // Claude Code's live state, read only for the desktop ids of the sessions (BR-19).
+  sessionsDir: string;
   scratchRoot: string;
 }) {
   // In memory: only finished runs are stored, and one process serves the application.
@@ -28,6 +33,32 @@ export function createIngestionService({
     return run === null ? null : toReport(run);
   }
 
+  // BR-19: alive or not, since the mapping does not depend on liveness. readStatusFiles opens only the {pid}.json files:
+  // the *.key files beside them hold credentials and are never opened. The link is secondary to the history: a failure
+  // here is logged, and never fails the refresh nor changes its report.
+  async function recordDesktopSessions(): Promise<void> {
+    try {
+      const { files } = await readStatusFiles(sessionsDir);
+      const seenAt = clock.now();
+      // One entry per session: the file of a dead process may sit beside the one of its respawn, and one statement
+      // cannot update a row twice. The freshest file wins.
+      const freshest = new Map<string, { desktopSessionId: string; stamp: number }>();
+      for (const { status } of files) {
+        if (status === null) continue;
+        const desktopSessionId = desktopSessionIdOf(status);
+        if (desktopSessionId === null) continue;
+        const stamp = status.statusUpdatedAt ?? status.updatedAt ?? status.startedAt;
+        const known = freshest.get(status.sessionId);
+        if (known === undefined || stamp >= known.stamp) freshest.set(status.sessionId, { desktopSessionId, stamp });
+      }
+      await workspacesRepo.saveDesktopSessionIds(
+        [...freshest].map(([sessionId, { desktopSessionId }]) => ({ sessionId, desktopSessionId, seenAt })),
+      );
+    } catch (caught) {
+      console.error("desktop session ids could not be recorded", caught);
+    }
+  }
+
   async function refresh({ mode = "incremental" }: { mode?: RefreshMode } = {}): Promise<RefreshReport> {
     const startedAt = clock.now();
     const counts = { sessionsRead: 0, sessionsAdded: 0, sessionsUpdated: 0, sessionsArchived: 0, unreadableLines: 0 };
@@ -37,10 +68,18 @@ export function createIngestionService({
       const scan = await scanLogs(logsDir);
       isLogsDirFound = scan.isLogsDirFound;
       const stored = groupBySession(await ingestionRepo.listLogFiles());
+      const missingStartFolder = new Set(await workspacesRepo.listSessionIdsMissingStartFolder());
 
       for (const session of scan.sessions) {
         // FR-05: a full refresh re-reads every session, so the ones stored before an update get the new data.
-        if (mode === "incremental" && !hasChanged(session, stored.get(session.sessionId) ?? [])) continue;
+        // BR-16: so does an incremental one for a stored session still missing its start folder (a backfill, once).
+        if (
+          mode === "incremental" &&
+          !hasChanged(session, stored.get(session.sessionId) ?? []) &&
+          !missingStartFolder.has(session.sessionId)
+        ) {
+          continue;
+        }
         let mainLines: string[];
         let subagentFiles: SubagentFile[];
         try {
@@ -78,6 +117,8 @@ export function createIngestionService({
         for (const id of gone) await ingestionRepo.deleteLogFiles(id);
         counts.sessionsArchived = gone.length;
       }
+
+      await recordDesktopSessions();
     } catch (caught) {
       console.error("refresh failed", caught);
       error = caught instanceof Error ? caught.message : String(caught);

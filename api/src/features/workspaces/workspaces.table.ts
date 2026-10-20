@@ -40,6 +40,9 @@ export const sessions = pgTable(
     failedToolCallCount: integer().notNull().default(0),
     skillCallCount: integer().notNull().default(0),
     agentTypes: text().array().notNull().default([]),
+    // The first working directory (BR-16, session-ingestion BR-09), where `claude --resume` finds the session. Null for
+    // a session stored before it existed, until the next refresh re-reads it (or for good once archived).
+    startFolder: text(),
   },
   (table) => [index().on(table.workspaceId, table.startedAt)],
 );
@@ -143,3 +146,13 @@ export const subagentModelUsages = pgTable(
     ),
   ],
 );
+
+// No foreign key to `sessions`: the row must survive saveSession's delete and re-insert and the archive, since Claude
+// Code's live state no longer holds the desktop id once the process ends (BR-19).
+export const desktopSessionLinks = pgTable("desktop_session_links", {
+  // The CLI session id.
+  sessionId: text().primaryKey(),
+  // The desktop app's own id of the session: local_<uuid>.
+  desktopSessionId: text().notNull(),
+  seenAt: timestamp({ withTimezone: true }).notNull(),
+});

@@ -226,6 +226,18 @@
             "items": {
               "type": "string"
             }
+          },
+          "desktopLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resumeCommand": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -244,7 +256,9 @@
           "toolCallCount",
           "failedToolCallCount",
           "skillCallCount",
-          "agentTypes"
+          "agentTypes",
+          "desktopLink",
+          "resumeCommand"
         ]
       },
       "SessionDetail": {
@@ -311,6 +325,18 @@
             "items": {
               "type": "string"
             }
+          },
+          "desktopLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resumeCommand": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "workspace": {
             "type": "object",
@@ -381,6 +407,8 @@
           "failedToolCallCount",
           "skillCallCount",
           "agentTypes",
+          "desktopLink",
+          "resumeCommand",
           "workspace",
           "usages",
           "activity",
@@ -1070,6 +1098,12 @@
               "null"
             ]
           },
+          "desktopLink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "isLogFound": {
             "type": "boolean"
           },
@@ -1135,6 +1169,7 @@
           "lastActivityAt",
           "origin",
           "gitBranch",
+          "desktopLink",
           "isLogFound",
           "isStored",
           "lastPrompt",

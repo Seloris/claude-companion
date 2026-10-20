@@ -1,5 +1,6 @@
 import { NotFoundError } from "../../shared/errors.js";
 import type { ModelUsage } from "../ingestion/ingestion.parser.js";
+import { DESKTOP_ENTRYPOINT, toDesktopLink, toResumeCommand } from "../ingestion/ingestion.reopen.js";
 import type { SessionRow, WorkspacesRepository } from "./workspaces.repository.js";
 import type {
   ActivityEntry,
@@ -117,6 +118,8 @@ export function createWorkspacesService({ workspacesRepo }: { workspacesRepo: Wo
 export type WorkspacesService = ReturnType<typeof createWorkspacesService>;
 
 function toSessionSummary(session: SessionRow): SessionSummary {
+  // FR-16: a desktop-app origin; BR-19: the link outlives the process and the archive.
+  const desktopLink = session.origin === DESKTOP_ENTRYPOINT ? toDesktopLink(session.desktopSessionId) : null;
   return {
     id: session.id,
     title: session.title,
@@ -134,6 +137,10 @@ function toSessionSummary(session: SessionRow): SessionSummary {
     failedToolCallCount: session.failedToolCallCount,
     skillCallCount: session.skillCallCount,
     agentTypes: session.agentTypes,
+    desktopLink,
+    // BR-17: no command for an archived session; BR-18: the link wins; BR-20: nor for a folder a terminal cannot take
+    // literally. BR-15 (a live session) is the front's, which reads the live state.
+    resumeCommand: session.isArchived || desktopLink !== null ? null : toResumeCommand(session.startFolder, session.id),
   };
 }
 

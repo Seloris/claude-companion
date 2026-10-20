@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -5,6 +6,7 @@ import {
   workspaceDetailSchema,
   workspaceListSchema,
 } from "../../src/features/workspaces/workspaces.schema.js";
+import { sessions } from "../../src/features/workspaces/workspaces.table.js";
 import type { ProblemDetails } from "../../src/shared/errors.js";
 import {
   buildPrompt,
@@ -188,6 +190,8 @@ describe("workspaces routes", () => {
         failedToolCallCount: 1,
         skillCallCount: 1,
         agentTypes: ["Explore", "factory:reviewer"],
+        desktopLink: null,
+        resumeCommand: `pushd "C:\\WS\\demo"\nclaude --resume ${recent.sessionId}`,
       });
       expect(body.sessions[1]).toMatchObject({ isArchived: true, durationMs: 30 * 60 * 1000 });
     });
@@ -366,6 +370,149 @@ describe("workspaces routes", () => {
       // Assert
       expect(res.status).toBe(404);
       expect(res.body as ProblemDetails).toMatchObject({ status: 404, code: "not_found" });
+    });
+  });
+
+  describe("reopening a session", () => {
+    const DESKTOP_ID = "local_8696f16a-1111-4222-8333-444455556666";
+    const DESKTOP_LINK = `claude://claude.ai/epitaxy/${DESKTOP_ID}`;
+
+    async function getSession(id: string) {
+      const res = await request(ctx.app).get(`/v1/sessions/${id}`);
+      expect(res.status).toBe(200);
+      return sessionDetailSchema.parse(res.body);
+    }
+
+    async function getListedSession(workspaceName: string, id: string) {
+      const res = await request(ctx.app).get(`/v1/workspaces/${await workspaceIdOf(workspaceName)}`);
+      expect(res.status).toBe(200);
+      const listed = workspaceDetailSchema.parse(res.body).sessions.find((session) => session.id === id);
+      if (listed === undefined) throw new Error(`no session ${id} in ${workspaceName}`);
+      return listed;
+    }
+
+    it("gives the two-line resume command with the folder the session started in", async () => {
+      // Arrange
+      const session = buildSession({ firstCwd: "C:\\WS\\my project" });
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session);
+
+      // Act
+      const detail = await getSession(session.sessionId);
+      const listed = await getListedSession("shop", session.sessionId);
+
+      // Assert
+      const expected = `pushd "C:\\WS\\my project"\nclaude --resume ${session.sessionId}`;
+      expect(detail).toMatchObject({ resumeCommand: expected, desktopLink: null });
+      expect(listed).toMatchObject({ resumeCommand: expected, desktopLink: null });
+    });
+
+    it("gives the folder of a worktree session, not the path of its workspace (BR-16)", async () => {
+      // Arrange
+      const worktree = "C:\\WS\\shop\\.claude\\worktrees\\feat-cart";
+      const session = buildSession({ firstCwd: worktree });
+      await ctx.seed.session(buildWorkspace({ name: "shop", path: "C:\\WS\\shop" }), session);
+
+      // Act
+      const detail = await getSession(session.sessionId);
+
+      // Assert
+      expect(detail.resumeCommand).toBe(`pushd "${worktree}"\nclaude --resume ${session.sessionId}`);
+    });
+
+    it("gives no resume command for an archived session (BR-17)", async () => {
+      // Arrange
+      const session = buildSession();
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session, { isArchived: true });
+
+      // Act
+      const detail = await getSession(session.sessionId);
+      const listed = await getListedSession("shop", session.sessionId);
+
+      // Assert
+      expect(detail.resumeCommand).toBeNull();
+      expect(listed.resumeCommand).toBeNull();
+    });
+
+    it("gives the desktop link and no resume command to a desktop-app session with a recorded id (BR-18)", async () => {
+      // Arrange
+      const session = buildSession({ origin: "claude-desktop" });
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session);
+      await ctx.seed.desktopSessionId(session.sessionId, DESKTOP_ID);
+
+      // Act
+      const detail = await getSession(session.sessionId);
+      const listed = await getListedSession("shop", session.sessionId);
+
+      // Assert
+      expect(detail).toMatchObject({ desktopLink: DESKTOP_LINK, resumeCommand: null });
+      expect(listed).toMatchObject({ desktopLink: DESKTOP_LINK, resumeCommand: null });
+    });
+
+    it("gives a CLI session no desktop link even with a recorded id, and its command (FR-16)", async () => {
+      // Arrange
+      const session = buildSession({ origin: "cli" });
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session);
+      await ctx.seed.desktopSessionId(session.sessionId, DESKTOP_ID);
+
+      // Act
+      const detail = await getSession(session.sessionId);
+
+      // Assert
+      expect(detail.desktopLink).toBeNull();
+      expect(detail.resumeCommand).toBe(`pushd "C:\\WS\\demo"\nclaude --resume ${session.sessionId}`);
+    });
+
+    it("gives a desktop-app session with no recorded id its resume command (BR-19)", async () => {
+      // Arrange
+      const session = buildSession({ origin: "claude-desktop" });
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session);
+
+      // Act
+      const detail = await getSession(session.sessionId);
+
+      // Assert
+      expect(detail.desktopLink).toBeNull();
+      expect(detail.resumeCommand).not.toBeNull();
+    });
+
+    it("keeps the desktop link of an archived session (BR-19)", async () => {
+      // Arrange
+      const session = buildSession({ origin: "claude-desktop" });
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session, { isArchived: true });
+      await ctx.seed.desktopSessionId(session.sessionId, DESKTOP_ID);
+
+      // Act
+      const detail = await getSession(session.sessionId);
+      const listed = await getListedSession("shop", session.sessionId);
+
+      // Assert
+      expect(detail).toMatchObject({ desktopLink: DESKTOP_LINK, resumeCommand: null });
+      expect(listed).toMatchObject({ desktopLink: DESKTOP_LINK, resumeCommand: null });
+    });
+
+    it("gives no resume command to a session not re-read yet, whose start folder is null", async () => {
+      // Arrange
+      const session = buildSession();
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session);
+      await ctx.db.update(sessions).set({ startFolder: null }).where(eq(sessions.id, session.sessionId));
+
+      // Act
+      const detail = await getSession(session.sessionId);
+
+      // Assert
+      expect(detail.resumeCommand).toBeNull();
+    });
+
+    it("gives no resume command for a folder a terminal cannot take literally (BR-20)", async () => {
+      // Arrange
+      const session = buildSession({ firstCwd: "C:\\WS\\$HOME" });
+      await ctx.seed.session(buildWorkspace({ name: "shop" }), session);
+
+      // Act
+      const detail = await getSession(session.sessionId);
+
+      // Assert
+      expect(detail.resumeCommand).toBeNull();
     });
   });
 });

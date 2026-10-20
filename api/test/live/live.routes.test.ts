@@ -196,6 +196,7 @@ describe("live routes", () => {
           lastActivityAt: at(300),
           origin: "claude-desktop",
           gitBranch: "feat/login",
+          desktopLink: null,
           isLogFound: true,
           isStored: false,
           lastPrompt: "Fix the login page",
@@ -279,6 +280,45 @@ describe("live routes", () => {
 
         // Assert
         expect(session.origin).toBe("claude-vscode");
+      });
+
+      it("gives the desktop link of a desktop-app session (live-sessions FR-31)", async () => {
+        // Arrange
+        await startSession({
+          pid: 11,
+          status: { entrypoint: "claude-desktop", hostSessionId: "local_8696f16a-1111-4222-8333-444455556666" },
+        });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.desktopLink).toBe("claude://claude.ai/epitaxy/local_8696f16a-1111-4222-8333-444455556666");
+      });
+
+      it("gives no desktop link to a CLI session, whatever its status file holds", async () => {
+        // Arrange
+        await startSession({
+          pid: 11,
+          status: { entrypoint: "cli", hostSessionId: "local_8696f16a-1111-4222-8333-444455556666" },
+        });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.desktopLink).toBeNull();
+      });
+
+      it("keeps a session live and gives it no desktop link when its host session id is ill-formed", async () => {
+        // Arrange
+        await startSession({ pid: 11, status: { entrypoint: "claude-desktop", hostSessionId: "local_../../x" } });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.desktopLink).toBeNull();
       });
 
       it("takes the name of the status file for a session whose log has no title yet", async () => {

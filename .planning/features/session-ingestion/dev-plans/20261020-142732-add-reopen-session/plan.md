@@ -120,6 +120,9 @@ The parked technical questions, settled here:
 - Icons → `DesktopIcon` and `CopyIcon` added to `icons.tsx`, inline SVG in `currentColor`.
 - Clipboard hook → `shared/lib/useClipboard.ts`: not a data hook (no API call), so a UI component may use it.
 - Web unit tests → none (`web/CLAUDE.md`: no unit tests on the front); the browser test covers the stage.
+- Stage 1: two status files naming one CLI session (a dead process beside its respawn) → the refresh keeps one entry per session id, the freshest by `statusUpdatedAt ?? updatedAt ?? startedAt`, before `saveDesktopSessionIds` (one `INSERT … ON CONFLICT` cannot update a row twice, and the failure would be swallowed, losing every link of the refresh); a test covers it.
+- Stage 1: `saveDesktopSessionIds` called with duplicate session ids → its contract says the rows hold one entry per session id; the refresh is the one place that guarantees it.
+- Stage 1: test seeding of a recorded desktop id → `seed.desktopSessionId(sessionId, desktopSessionId)` in `test/setup.ts`, through the repository (the convention: never a raw insert).
 
 ## api
 
@@ -283,15 +286,20 @@ No integration tests: the api declares no `integration_tests`.
 
 None: `web/CLAUDE.md` has no unit tests on the front. The browser test of Validation checks the change.
 
+## Deviations
+
+- Folders that cannot be quoted: the listed characters → also the curly double quotes U+201C, U+201D and U+201E (PowerShell reads them as `"`, so a folder name could end the quotes and run a command), and every other control character `\x00-\x1f` and `\x7f` (a tab completes, an escape sequence acts on the terminal); a test per case (found by the stage 1 review; BR-20 keeps its meaning).
+- Session id of a command: `^[\w-]+$` → `^\w[\w-]*$` (a log named `-x.jsonl` would otherwise give an option instead of an id; found by the stage 1 review).
+
 ## Progress
 
 ### Stage 1 — api
 Commit: `feat(session-ingestion): api — desktop link and resume command`
-- [ ] db: `sessions.start_folder`, `desktop_session_links`, migration `0003_reopen_session`
-- [ ] services: `ingestion.reopen.ts`; `hostSessionId` in the status schema; the repository's start folder, desktop links, join and backfill list; the refresh's backfill and desktop id recording; the summary's `desktopLink` and `resumeCommand`; the live `desktopLink`; server and test setup wiring, with their tests
-- [ ] routes: `SessionSummary.desktopLink` and `resumeCommand`, `LiveSession.desktopLink`, route tests
-- [ ] Conventions: `api/CLAUDE.md` source data note
-- [ ] Handoff: `api/openapi.json` exported
+- [x] db: `sessions.start_folder`, `desktop_session_links`, migration `0003_reopen_session`
+- [x] services: `ingestion.reopen.ts`; `hostSessionId` in the status schema; the repository's start folder, desktop links, join and backfill list; the refresh's backfill and desktop id recording; the summary's `desktopLink` and `resumeCommand`; the live `desktopLink`; server and test setup wiring, with their tests
+- [x] routes: `SessionSummary.desktopLink` and `resumeCommand`, `LiveSession.desktopLink`, route tests
+- [x] Conventions: `api/CLAUDE.md` source data note
+- [x] Handoff: `api/openapi.json` exported
 
 ### Stage 2 — web
 Commit: `feat(session-ingestion): web — open in the desktop app or copy the resume command`
