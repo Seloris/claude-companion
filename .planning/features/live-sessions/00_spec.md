@@ -3,7 +3,7 @@
 > **Slug**: `live-sessions`
 > **Tags**: #sessions #factory
 > **Status**: Approved
-> **Last updated**: 2026-10-20
+> **Last updated**: 2026-10-21
 
 ## TL;DR
 
@@ -69,7 +69,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `Récap` | `FactoryRecap` | What a session's job done says it did: its recap line and its commits (factory-board) | Reused |
 | `Prompt suivant` | `NextPrompt` | The factory command prepared for a feature's next step (factory-board) | Reused |
 | `Commit proposé` | `PendingCommit` | The commit message a session `attend la validation du commit` proposed, as the factory board exports it | New |
-| `Hors workflow` | `OffWorkflow` | A `LiveSession` of which no `FactoryBoard` exports a `FactoryRun` of a factory job, typically a session typed without a `/factory:` command, whose run the mod may record as a free request off the workflow (factory-board FR-31) | New |
+| `Hors workflow` | `OffWorkflow` | A `LiveSession` of which no `FactoryBoard` exports a `FactoryRun` of a factory job, typically a session typed without a `/factory:` command: either no board knows it, or its matched run is the mod's record of a free request off the workflow (factory-board FR-31), which has a `FactoryPhase` and a `Récap` but no feature and no step | New |
 
 ## Functional Requirements
 
@@ -131,9 +131,9 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 
 ### The factory workflow on a tile
 
-- **FR-32** — A tile's status pill is its `FactoryPhase` when a `FactoryBoard` that is not a `StaleBoard` knows the session (found by its session among the board's live `FactoryRun`s or `FactorySession`s, the live run winning, as factory-board FR-31 matches them): `Au travail`, `Commit à valider`, `Question posée`, `Job done` or `Interrompue`; otherwise its `LiveStatus`: `En cours`, `Question posée` or `Terminée`. The `LiveStatus` keeps the tile's column (except BR-20) and its colour edge, so that the person reads where the job stands while the board still sorts by live state.
-- **FR-33** — Under its title, a tile a `FactoryBoard` knows carries a factory band: its feature (`nouvelle feature` without one), its step (factory-board FR-29) and its plan name (factory-board FR-30), read `feature › étape · plan`, with one segment per stage of the feature's followed plan, done, at hand or to come, as the factory page draws its card (factory-board FR-13); an `Autopilot` mark heads the tile while an autopilot works on the feature.
-- **FR-34** — A tile no `FactoryBoard` knows, or whose matched run is the mod's record of a free request off the workflow (`OffWorkflow`, factory-board FR-31), carries a grey `Hors workflow` mark in its context line and no factory band, so that a session outside the workflow is told apart at a glance.
+- **FR-32** — A tile's status pill is its `FactoryPhase` when a `FactoryBoard` that is not a `StaleBoard` knows the session (found by its session among the board's live `FactoryRun`s or `FactorySession`s, the live run winning, as factory-board FR-31 matches them, an `OffWorkflow` run included, FR-34): `Au travail`, `Commit à valider`, `Question posée`, `Job done` or `Interrompue`; otherwise its `LiveStatus`: `En cours`, `Question posée` or `Terminée`. The `LiveStatus` keeps the tile's column (except BR-20) and its colour edge, so that the person reads where the job stands while the board still sorts by live state.
+- **FR-33** — Under its title, a tile a `FactoryBoard` knows, unless its run is `OffWorkflow` (FR-34), carries a factory band: its feature (`nouvelle feature` without one), its step (factory-board FR-29) and its plan name (factory-board FR-30), read `feature › étape · plan`, with one segment per stage of the feature's followed plan, done, at hand or to come, as the factory page draws its card (factory-board FR-13); an `Autopilot` mark heads the tile while an autopilot works on the feature.
+- **FR-34** — An `OffWorkflow` tile carries a grey `Hors workflow` mark in its context line and no factory band, so that a session outside the workflow is told apart at a glance; when its matched run is the mod's record of a free request (factory-board FR-31), that run's `FactoryPhase` still sets its pill, its column and its callout like a factory run's (FR-32, BR-20, BR-21): `Job done` with its `Récap` (FR-37), or its `LastReply` when the board gives none, `Commit à valider` in `Vous attend` with its `PendingCommit`'s subject (FR-36), so that the outcome of a free request is read as the board records it rather than as a bare `Terminée`.
 - **FR-35** — On a tile known by a `StaleBoard` (BR-21), the band shows the `FactoryPhase` at the last scan, marked so with the scan's age (`Interrompue · au dernier scan (2 min)`), so that a frozen phase is never read as the current one.
 - **FR-36** — A `Commit à valider` tile shows a `Message de commit proposé` callout with the subject of its `PendingCommit`, never its body; the callout is a button that copies the subject to the clipboard and opens the session in the desktop app (FR-31), so that the person validates or corrects the commit in one move; a session without a `DesktopLink` only copies, and the button says so (BR-18).
 - **FR-37** — A `Job done` tile shows a `Récap` callout with its recap line and its commits (short hash and subject), as factory-board FR-26 gives them, and offers `Clôturer` (FR-17) as its primary action, so that the person reads the outcome and closes the session.
@@ -196,7 +196,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - On the tile of a desktop-app session, the person clicks to open it: the desktop app shows that session.
 - A factory session proposes a commit: its tile moves to `Vous attend` with `Commit à valider` and the subject; the person clicks the subject, it is copied and the session opens in the desktop app.
 - A factory session's job is done: its tile in `Terminées` reads `Job done`, its recap and commits; the person clicks `Prochaine : Stage 2 · web`, the next prompt is copied and the session opens; back on the page, they click `Clôturer`.
-- A session typed without a `/factory:` command reads `Hors workflow` and keeps the last reply of its turn.
+- A session typed without a `/factory:` command reads `Hors workflow` and keeps the last reply of its turn; when the mod records it as a free request, its pill follows the run's phase: `Job done` with its recap once its job is done, `Commit à valider` in `Vous attend` when it proposes a commit.
 - The person turns `Mode compact` on: one line per session, grouped by column; the switch is still on after a reload.
 
 ## Decisions taken autonomously
