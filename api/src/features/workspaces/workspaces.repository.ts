@@ -161,6 +161,11 @@ export function createWorkspacesRepository(db: Database) {
       return rows.map((row) => row.id);
     },
 
+    async countSessions(filter: { isArchived: boolean }): Promise<number> {
+      const [row] = await db.select({ total: count() }).from(sessions).where(eq(sessions.isArchived, filter.isArchived));
+      return row?.total ?? 0;
+    },
+
     // The ids among `ids` that the history holds, archived sessions included.
     async findStoredSessionIds(ids: string[]): Promise<Set<string>> {
       if (ids.length === 0) return new Set();

@@ -32,9 +32,19 @@ export const refreshStatusSchema = z
   })
   .meta({ id: "RefreshStatus" });
 
+// FR-13: the choices of the refresh control; null is off.
+// A union of literals: zod-to-openapi renders z.literal([...]) as a single-value enum.
+export const refreshIntervalSchema = z
+  .union([z.literal(5), z.literal(10), z.literal(30), z.literal(60)])
+  .nullable()
+  .meta({ id: "RefreshInterval" });
+
+export const refreshScheduleSchema = z.object({ intervalMinutes: refreshIntervalSchema }).meta({ id: "RefreshSchedule" });
+
 export type RefreshMode = z.infer<typeof refreshModeSchema>;
 export type RefreshReport = z.infer<typeof refreshReportSchema>;
 export type RefreshStatus = z.infer<typeof refreshStatusSchema>;
+export type RefreshSchedule = z.infer<typeof refreshScheduleSchema>;
 
 registry.registerPath({
   method: "get",
@@ -52,6 +62,29 @@ registry.registerPath({
   request: { query: refreshStartQuerySchema },
   responses: {
     202: { description: "The refresh runs", content: { "application/json": { schema: refreshStatusSchema } } },
+    400: {
+      description: "Invalid request",
+      content: { "application/problem+json": { schema: problemDetailsSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/v1/refresh/schedule",
+  summary: "The interval of the periodic refresh",
+  responses: {
+    200: { description: "The schedule", content: { "application/json": { schema: refreshScheduleSchema } } },
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/v1/refresh/schedule",
+  summary: "Choose the interval of the periodic refresh; it applies at once and survives a restart",
+  request: { body: { required: true, content: { "application/json": { schema: refreshScheduleSchema } } } },
+  responses: {
+    200: { description: "The saved schedule", content: { "application/json": { schema: refreshScheduleSchema } } },
     400: {
       description: "Invalid request",
       content: { "application/problem+json": { schema: problemDetailsSchema } },

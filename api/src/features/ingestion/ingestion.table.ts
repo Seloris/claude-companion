@@ -23,3 +23,11 @@ export const refreshRuns = pgTable("refresh_runs", {
   sessionsRead: integer().notNull().default(0),
   error: text(),
 });
+
+// The PeriodicRefresh schedule: one row (id always 1) for the whole application. No row means the default interval.
+export const refreshSchedules = pgTable("refresh_schedules", {
+  id: integer().primaryKey(),
+  // Minutes between two periodic refreshes; null is off.
+  intervalMinutes: integer(),
+  updatedAt: timestamp({ withTimezone: true }).notNull(),
+});

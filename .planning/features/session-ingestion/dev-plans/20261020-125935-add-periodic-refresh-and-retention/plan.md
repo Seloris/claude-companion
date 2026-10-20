@@ -56,6 +56,10 @@ Technical questions parked by the person's spec grill, settled here:
 - A `setSchedule` arriving while `start()` is still reading the stored interval → the change wins: `start()` does not arm once a `setSchedule` has run.
 - Comments in files shared with other features → cite ids with the slug (`session-ingestion FR-15`): `WorkspacesPage` and `AppLayout` already cite other features' FR ids.
 - Retention line when the retention query is loading → nothing (a discreet line, no spinner); on error, an `ErrorMessage`.
+- `RefreshInterval` in the OpenAPI document (stage 1) → a `z.union` of the four literals, nullable, not `z.literal([...])` (the array form rendered as a single-value enum; the fallback the plan names).
+- Stage 1 review: unread log vanishing between `readdir` and `stat` makes `GET /v1/retention` fail with a 500 until the next poll → left as it is (same `scanLogs` as the refresh; transient, polled every 5 minutes by the web).
+- Stage 1 review: a `settings.json` with a UTF-8 BOM gives the 30-day default → left as it is (BR-13: an unreadable setting is the default; not in the plan).
+- Stage 1 review: the stored interval is cast, not re-validated, when read → left as it is (only the validated `PUT` writes it).
 
 ## api
 
@@ -211,11 +215,11 @@ Public, like every route (`app.ts` says it once). Contracts with `.meta({ id })`
 
 ### Stage 1 — api
 Commit: `feat(session-ingestion): api — periodic refresh and log retention`
-- [ ] db: `refresh_schedules` table; migration `periodic_refresh`
-- [ ] services: config `CLAUDE_SETTINGS_FILE`, timer port, `isFileUnread` in the log source, schedule repository methods, refresh scheduler, `countSessions`, retention source and service, with their tests
-- [ ] routes: schedule contracts and routes, retention contract and route, `app.ts` and `server.ts` wiring, route tests
-- [ ] Conventions: root `CLAUDE.md` and `api/CLAUDE.md` name the settings file
-- [ ] Handoff: `api/openapi.json` exported
+- [x] db: `refresh_schedules` table; migration `periodic_refresh`
+- [x] services: config `CLAUDE_SETTINGS_FILE`, timer port, `isFileUnread` in the log source, schedule repository methods, refresh scheduler, `countSessions`, retention source and service, with their tests
+- [x] routes: schedule contracts and routes, retention contract and route, `app.ts` and `server.ts` wiring, route tests
+- [x] Conventions: root `CLAUDE.md` and `api/CLAUDE.md` name the settings file
+- [x] Handoff: `api/openapi.json` exported
 
 ### Stage 2 — web
 Commit: `feat(session-ingestion): web — refresh interval and retention notice`

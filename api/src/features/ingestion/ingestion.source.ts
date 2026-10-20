@@ -64,18 +64,21 @@ export async function scanSubagentFiles(folderPath: string, sessionId: string): 
   return subagentFiles;
 }
 
+// FR-02, session-ingestion FR-15: a file is unread when no refresh stored it as it is now (no row, or another size or
+// modification time).
+export function isFileUnread(scanned: FileStat, stored: FileStat | undefined): boolean {
+  return (
+    stored === undefined ||
+    stored.sizeBytes !== scanned.sizeBytes ||
+    stored.modifiedAt.getTime() !== scanned.modifiedAt.getTime()
+  );
+}
+
 // FR-02: true when a file is new, changed or gone since `stored` was recorded.
 export function haveFilesChanged(scanned: FileStat[], stored: FileStat[]): boolean {
   if (scanned.length !== stored.length) return true;
   const storedByPath = new Map(stored.map((file) => [file.path, file]));
-  return scanned.some((file) => {
-    const previous = storedByPath.get(file.path);
-    return (
-      previous === undefined ||
-      previous.sizeBytes !== file.sizeBytes ||
-      previous.modifiedAt.getTime() !== file.modifiedAt.getTime()
-    );
-  });
+  return scanned.some((file) => isFileUnread(file, storedByPath.get(file.path)));
 }
 
 export async function readLines(file: string): Promise<string[]> {

@@ -919,6 +919,48 @@
           "full"
         ]
       },
+      "RefreshSchedule": {
+        "type": "object",
+        "properties": {
+          "intervalMinutes": {
+            "$ref": "#/components/schemas/RefreshInterval"
+          }
+        },
+        "required": [
+          "intervalMinutes"
+        ]
+      },
+      "RefreshInterval": {
+        "anyOf": [
+          {
+            "type": "number",
+            "enum": [
+              5
+            ]
+          },
+          {
+            "type": "number",
+            "enum": [
+              10
+            ]
+          },
+          {
+            "type": "number",
+            "enum": [
+              30
+            ]
+          },
+          {
+            "type": "number",
+            "enum": [
+              60
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "LiveState": {
         "type": "object",
         "properties": {
@@ -1267,6 +1309,53 @@
           "currentTool",
           "since"
         ]
+      },
+      "LogRetentionStatus": {
+        "type": "object",
+        "properties": {
+          "retentionDays": {
+            "type": "integer"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "oldestLogAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "archivedSessionCount": {
+            "type": "integer"
+          },
+          "unreadAtRisk": {
+            "type": "object",
+            "properties": {
+              "fileCount": {
+                "type": "integer"
+              },
+              "nearestDeletionAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "fileCount",
+              "nearestDeletionAt"
+            ]
+          }
+        },
+        "required": [
+          "retentionDays",
+          "isDefault",
+          "oldestLogAt",
+          "archivedSessionCount",
+          "unreadAtRisk"
+        ]
       }
     },
     "parameters": {}
@@ -1554,6 +1643,58 @@
         }
       }
     },
+    "/v1/refresh/schedule": {
+      "get": {
+        "summary": "The interval of the periodic refresh",
+        "responses": {
+          "200": {
+            "description": "The schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshSchedule"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Choose the interval of the periodic refresh; it applies at once and survives a restart",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSchedule"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The saved schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshSchedule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/live": {
       "get": {
         "summary": "The Claude Code sessions running on this machine, grouped by workspace",
@@ -1564,6 +1705,23 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LiveState"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/retention": {
+      "get": {
+        "summary": "Claude Code's log retention, the oldest log, and the unread logs about to be deleted",
+        "responses": {
+          "200": {
+            "description": "The log retention status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogRetentionStatus"
                 }
               }
             }
