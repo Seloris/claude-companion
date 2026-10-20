@@ -86,22 +86,20 @@
   background: var(--live-done-soft);
 }
 
-/* The title, with its pill and since when on its right while there is room. */
+/* The title on the tile's full width, its pill and since when on the line below: every tile reads the same. */
 .heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 12px;
+  display: grid;
+  gap: 6px;
   min-width: 0;
 }
 
 .title {
-  flex: 1 1 180px;
   min-width: 0;
   margin: 0;
-  font-size: 1.05em;
+  font-size: 1.12em;
   font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
   overflow-wrap: anywhere;
 }
 
