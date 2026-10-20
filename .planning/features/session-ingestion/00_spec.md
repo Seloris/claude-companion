@@ -6,7 +6,7 @@
 
 ## TL;DR
 
-The person runs Claude Code in many workspaces on one PC and has no overview of what was done where. This feature reads the Claude Code session logs, stores each session once in the application's database, keeps it up to date incrementally, and shows a first recap: the workspaces, then the sessions of each workspace. It keeps the history up to date in the background while the application runs, and warns the person before Claude Code deletes a log the application has not read yet.
+The person runs Claude Code in many workspaces on one PC and has no overview of what was done where. This feature reads the Claude Code session logs, stores each session once in the application's database, keeps it up to date incrementally, and shows a first recap: the workspaces, then the sessions of each workspace. It keeps the history up to date in the background while the application runs, and warns the person before Claude Code deletes a log the application has not read yet. From a stored session, the person reopens it: in the Claude desktop app when it has a link there, else with a resume command copied for a terminal.
 
 ## Problem
 
@@ -17,7 +17,8 @@ Claude Code writes one log file per session under `~/.claude/projects`, in folde
 - Conversations of claude.ai and of the Claude desktop chat: only Claude Code sessions.
 - A cost in dollars: tokens only; an estimated cost needs a price table and is a later feature.
 - The full conversation (assistant replies, tool calls and their results): only the person's prompts are kept.
-- Live updates while a session runs: the data changes on a refresh only.
+- Live updates while a session runs: the data changes on a refresh only; only whether a session is live, which decides its `ResumeCommand` (BR-15), follows the live state.
+- Resuming a session from the application itself: it opens the desktop app's link or copies the command, the person runs it.
 - Search, filters, charts and cross-workspace statistics: the dashboard is a later feature.
 - Changing or deleting sessions, or anything in the logs folder.
 - Changing Claude Code's log retention: the application reads the setting, the person changes it in Claude Code.
@@ -38,6 +39,9 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `Actualisation` | `Refresh` | One pass that reads the new and changed log files into the database | New |
 | `Actualisation périodique` | `PeriodicRefresh` | A `Refresh` the application starts by itself at the interval the person chose | New |
 | `Durée de conservation` | `LogRetention` | The number of days Claude Code keeps a log file after its last change before deleting it | New |
+| `Session en direct` | `LiveSession` | A `Session` whose Claude Code process is alive on this machine (live-sessions) | Reused |
+| `Lien bureau` | `DesktopLink` | A link that opens a `Session` in the Claude desktop app | New |
+| `Commande de reprise` | `ResumeCommand` | The command `cd {folder} && claude --resume {session id}` that reopens a `Session` in a terminal | New |
 
 ## Functional Requirements
 
@@ -56,6 +60,9 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **FR-13** — The person chooses the interval of the `PeriodicRefresh` in the refresh control, among off, 5, 10, 30 and 60 minutes, 10 by default; the choice applies at once and survives a restart of the application.
 - **FR-14** — The workspaces page shows the `LogRetention` in force, the date of the oldest log file and the number of sessions whose log has disappeared and that only the database still holds, so that the person sees what the application already saves.
 - **FR-15** — The workspaces page shows a warning banner when at least one log file holds changes no refresh has read yet and Claude Code will delete it in less than 7 days, with the number of such files and the nearest deletion date, so that the person refreshes before losing them.
+- **FR-16** — A session that comes from the Claude desktop app (its origin, FR-04) and has a `DesktopLink` offers to open it in the desktop app, from its session page and from its row in its workspace's session list.
+- **FR-17** — A session with no `DesktopLink` offers, from the same two places, a button that copies its `ResumeCommand` to the clipboard, so that the person resumes it in a terminal with one paste; copying writes nothing, the person runs the command.
+- **FR-18** — Copying the `ResumeCommand` is confirmed in a line; when the browser cannot write to the clipboard, the command is shown for the person to copy by hand.
 
 ## Business Rules
 
@@ -73,6 +80,10 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **BR-12** — A `PeriodicRefresh` is an ordinary refresh: it reads only the new and changed files, it is skipped when another refresh runs (BR-06), and its report replaces the previous one.
 - **BR-13** — The `LogRetention` comes from Claude Code's settings, which the application only reads; when the setting is missing, unreadable or invalid, it is 30 days (Claude Code's default) and the page says the default applies.
 - **BR-14** — A log file's deletion date is its last change plus the `LogRetention`: the application estimates it, it does not know when Claude Code actually cleans up.
+- **BR-15** — The `ResumeCommand` is never offered for a `LiveSession` (its Claude Code process is alive on this machine, whatever its live state), nor while the live state cannot be read: a second Claude Code process on the same session would write to the same log. A session that becomes live while its page is open loses the button as soon as the application sees it live.
+- **BR-16** — The folder of the `ResumeCommand` is the folder the session started in (its first working directory, BR-09), not its workspace's path: Claude Code finds a session only from the folder it ran in, which differs from the workspace for a worktree (BR-03), a subfolder (BR-10) or a case variant (BR-02).
+- **BR-17** — An archived session (BR-05) offers no `ResumeCommand`: its log is gone, Claude Code has nothing to resume.
+- **BR-18** — A session offers its `DesktopLink` or its `ResumeCommand`, never both: the link wins whenever it exists; a session with neither (live without a link, archived without a link) offers no way to reopen it.
 
 ## UX Flow
 
@@ -83,3 +94,15 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - From the workspaces page, the person starts a refresh, or shows the Scratch group with the switch.
 - In the refresh control, the person picks the interval of the periodic refresh; the history then stays up to date while the application runs.
 - Under the refresh control, a discreet line gives the retention in force, the oldest log and the sessions only the database holds; when a log not read yet is about to be deleted, a banner replaces it until a refresh reads the file.
+- On a session's page or its row, the person opens a desktop-app session in the desktop app; for another session that is not live, they copy its resume command, see it confirmed, and paste it into a terminal.
+
+## Decisions taken autonomously
+
+- Feature slug → `session-ingestion`, existing (the session page and the workspace's session list belong to this feature).
+- Where are the link and the copy button? → On the session page and on each row of the workspace's session list (FR-16, FR-17) (the list is where the person picks the session to reopen).
+- Which folder does the command `cd` into? → The folder the session started in, not the workspace's path (BR-16) (refines the person's "workspace path": Claude Code files the log of a worktree or subfolder session under that folder, so `--resume` from the workspace's path would not find it; both are the same in the ordinary case).
+- Live state unreadable? → No `ResumeCommand` (BR-15) (the application cannot show the session is not live, and a wrong guess makes two processes write one log).
+- Archived session? → No `ResumeCommand` (BR-17) (its log is gone).
+- Desktop session with a link, not live? → The link only (BR-18) (the person's "otherwise" means one or the other).
+- Clipboard refused by the browser? → The command is shown to copy by hand (FR-18) (the person is never left without it).
+- A session whose folder no longer exists (a deleted scratch workspace)? → The command is offered all the same (Claude Code says so when it runs; the application does not check folders).
