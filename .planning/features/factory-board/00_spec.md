@@ -7,7 +7,7 @@
 
 ## TL;DR
 
-The projects built with the factory workflow have a factory board inside Claude Code (the factory-board mod's pane): their features, the plan timeline of each, and the factory sessions at work. It is visible only inside a Claude Code session of that one project. This feature shows every project's board in the application, with each project's workspace, and draws it as the pane does. The board is read from the export the mod writes, and the application only draws it, with where each factory session stands for the person: at work, waiting for a commit's yes or another answer, its job done with its recap, or interrupted.
+The projects built with the factory workflow have a factory board inside Claude Code (the factory-board mod's pane): their features, the plan timeline of each, and the factory sessions at work. It is visible only inside a Claude Code session of that one project. This feature shows every project's board in the application, with each project's workspace, and draws it as the pane does. The board is read from the export the mod writes, and the application only draws it, with where each factory session stands for the person: at work, waiting for a commit's yes or another answer, its job done with its recap, or interrupted. A stored session that a board links to a plan also shows that plan in its recap.
 
 ## Problem
 
@@ -20,6 +20,9 @@ The person drives several factory projects at once, often through autopilots and
 - The pane's controls that write or that the export does not carry: the plan picker (only the default plan's timeline is exported), `Nouvelle feature`, `Squasher`, the models screen, `Marquer comme fait`, the rescan.
 - Drawing the factory data on the live page: its tiles' pill, band, callouts, columns, order and `Clôturer` are `live-sessions`' (its FR-32 to FR-40, BR-20 to BR-22); this feature only says which run a tile shows (FR-31), and the folded `Idle` group carries no factory band.
 - A list of the factory sessions on the board: the live page shows the running ones, each tile with its factory band (FR-31), and closes them with `Clôturer` (live-sessions FR-17).
+- Finding a session's plan without a board, from its prompts or its log: the exported runs are the only link between a session and a plan (BR-02, BR-03).
+- Showing, from a session, its feature's spec, its plan's other iterations, the images a plan references, or the plan as it stood at the time of the session: only the current `plan.md` of the run's folder.
+- Marking the sessions that have a plan in the session lists or on the live tiles.
 - Making the board fresher than the mod writes it (every 10 seconds, after a commit and at each turn's end): a faster rescan is a change of the mod.
 - The version of any other installed plugin in the header, the other plugins of the factory's marketplace included: the application reads the installed plugins for the factory and factory-board versions only.
 - Installing, updating or comparing the plugins: the header shows the versions installed, never whether a newer one exists.
@@ -39,6 +42,7 @@ The person drives several factory projects at once, often through autopilots and
 | `Phase` | `FactoryPhase` | Where a factory session stands for the person at the end of its last turn: `au travail`, `attend la validation du commit`, `attend une réponse`, `job done`, `interrompue` | New |
 | `Activité` | `FactoryActivity` | A project's state at a glance: the factory session that most needs the person (a commit to validate, then another answer, then a turn at work), else the latest; `au repos` without any | New |
 | `Récap` | `FactoryRecap` | What a session's job done says it did: its short recap line and its commits | New |
+| `Plan` | `FactoryPlan` | A feature's dev-plan: a plan folder of its project and the `plan.md` it holds | New |
 | `Session factory` | `FactorySession` | A session's latest `FactoryRun` of its main conversation, as the mod lists it for a month | New |
 | `Session en direct` | `LiveSession` | A session running on this machine, drawn as a tile on the live page (live-sessions) | Reused |
 | `Clôturée` | `Closed` | The person's mark that they are done with a session (live-sessions) | Reused |
@@ -102,6 +106,15 @@ The person drives several factory projects at once, often through autopilots and
 
 - **FR-31** — On the live page, the tile of a `LiveSession` found by its session among a board's live runs or `FactorySession`s carries a factory band, drawn as live-sessions FR-33 and FR-35 say: its feature (`nouvelle feature` without one), its step (FR-29), its plan name (FR-30) and the segments of its feature's stages (FR-13), its `Phase` moving to the tile's status pill (live-sessions FR-32); the live run wins over the `FactorySession` when both name it, the main loop over a subagent's run, then the latest change, and a run the mod records for a free request off the workflow gives no band (live-sessions FR-34), so that the person reads which factory job a session does without opening the factory page.
 
+### Plan of a session
+
+- **FR-32** — A stored session's recap shows a `Plan` section when one of its `FactoryRun`s names a plan folder, on its session page and in the live page's recap dialog alike (live-sessions FR-42 draws the same recap), so that the person reads the plan a session works on without opening the repository.
+- **FR-33** — The session's plan is the folder of the run that FR-31's order picks among the session's runs naming a plan folder, over every board (a `StaleBoard` included, one of an unsupported version excluded): its live runs, its `FactorySession`s, then its timelines' runs, so that the plan always matches the tile's band when that band's run names one.
+- **FR-34** — The section is headed by the plan's name (FR-30) and the title its `plan.md` gives, and is folded by default; unfolded, it shows the whole `plan.md` as formatted text (headings, lists, checkboxes ticked or not, tables, code blocks), so that the recap stays short until the person asks for the plan.
+- **FR-35** — The plan read is the `plan.md` of that folder under the run's own root (a worktree's run reads the worktree's plan), in its current content each time the recap opens, not the version of the session's time.
+- **FR-36** — When that `plan.md` cannot be read (a removed worktree, a switched branch, a deleted plan), the section says the plan cannot be read and names the path it looked for.
+- **FR-37** — A session whose runs name no plan folder, or which no board knows (typed without a `/factory:` command, a spec-only run, older than the runs a board keeps), shows no `Plan` section at all.
+
 ### Plugin versions
 
 - **FR-38** — The application's header shows, at its top right on every page, the installed version of the factory plugin and of the factory-board mod, each named after its plugin (`factory 0.8.0 · factory-board 0.11.0`), so that the person knows which workflow and which board the projects run without opening a project.
@@ -115,6 +128,8 @@ The person drives several factory projects at once, often through autopilots and
 - **BR-02** — The board is drawn as exported: a state, a marker, a run's status or a prompt is never derived again or corrected by the application, a `StaleBoard`'s included (FR-11 marks it, never changes it).
 - **BR-03** — A `FactoryRun` exists only for sessions started with a `/factory:` command: a session typed without one never appears on a board, only on the live page.
 - **BR-04** — `Clôturer` is the person's mark, made on the live page and kept by their browser (live-sessions BR-10): it hides a session from the `Activité` of FR-27, and never changes a `Phase` or anything else the mod exported (BR-02).
+- **BR-05** — The application only reads a project for a plan: it never writes, moves or deletes a `plan.md` or any other file of the project, and reads no other file there than the `plan.md` of a plan folder an exported run names.
+- **BR-06** — A plan folder that leads outside its run's root is never read: the section says the plan cannot be read (FR-36).
 - **BR-07** — The application only reads Claude Code's installed plugins file, for the two versions of FR-38: it never writes, moves or deletes it.
 
 ## UX Flow
@@ -124,6 +139,7 @@ The person drives several factory projects at once, often through autopilots and
 - A card unfolds into its timeline; the step at hand shows its prompt buttons and the two switches; a click copies the prompt.
 - A run's session opens the stored session page.
 - Workspaces page: factory badge on a workspace → its page → factory section with its boards.
+- Session page, or the live page's recap dialog: under the session's facts, a folded `Plan` section reads e.g. `add-session-phases · Factory sessions: phases`; a click unfolds the whole plan.
 - Header, on every page: the plugin versions at the top right, after the navigation links (FR-38).
 - Live page: a factory session's tile reads e.g. `Job done` in its pill and `factory-board › Revue finale · add-session-phases` with its stage segments in its band, under its title.
 
@@ -158,6 +174,23 @@ The person drives several factory projects at once, often through autopilots and
 - Are the `avec revue` and `test navigateur` switches shared with the live page? → Yes, kept by the browser (FR-23) (live-sessions FR-38 copies the next step's prompt "as the factory page's switches set them"; switches local to the page could not be read there).
 - The non-goal "Changing the live page beyond the factory line of FR-31" → revised: the live page draws the factory data (live-sessions FR-32 to FR-40); this feature keeps the match only.
 - The live runs on the workspace page's factory section (2026-10-20)? → Dropped, by the person's request (the live page shows the running sessions); the `Activité` (FR-27) stays, and the factory page keeps its live runs (FR-12).
+- Feature slug for showing a session's plan (2026-10-21) → `factory-board`, existing (the exported runs' plan folder is the only link between a session and a plan; `live-sessions` and the session recap specs carry no factory data).
+- Branch → `feat/factory-board-session-plan` (`feat/factory-board` already exists; the repository's pattern `feat/factory-board-{name}`).
+- Where does "opening a session" show the plan? → In the stored session's recap, so on its session page and in the live page's recap dialog (live-sessions FR-42: one recap for both).
+- Which run gives the plan when a session has several? → FR-31's order among the runs naming a plan folder, the timelines' runs last (the tile and the page never disagree; the `FactorySession`s cover a month only).
+- A session linked by its prompt only (`/factory:implement {plan folder}` in a session no board keeps)? → No plan (BR-02: the board is drawn as exported, nothing is derived again).
+- The earlier decision that the application reads no `plan.md` (FR-29)? → Superseded for the `Plan` section only (the request needs the plan's text, which the export does not carry); the step labels of FR-29 still come from the export.
+- Which root holds the plan? → The run's own root (a worktree's run plans in the worktree, not in the board's checkout).
+- Which version of the plan? → Its current content, read each time the recap opens (a plan's Progress moves while it is implemented; the git history of a plan is out of scope).
+- Plan file not readable? → Say so and name the path (FR-36) (a removed worktree is common; silence would read as "no plan").
+- Folded or open by default? → Folded, headed by the plan name and title (a plan is long; the recap's other sections stay in view).
+- How is the plan drawn? → As formatted text, read only (a Markdown file; the rendering library is the plan's choice).
+- Images referenced by a plan, its assets? → Not shown (non-goal; only `plan.md`).
+- The feature's spec from the session? → Not shown (not asked: the request names the plan).
+- A session with no plan? → No section, no empty state (FR-37) (most sessions have none).
+- Plan folder escaping its root? → Never read (BR-06) (the export is data; the application reads only plans).
+- Mark the sessions with a plan in the lists or on the tiles? → No (not asked).
+- The root `CLAUDE.md`'s hard rule listing what the application reads → Parked for the plan (a project's `plan.md` becomes a new read-only source).
 - Feature slug for the plugin versions in the header (2026-10-21) → `factory-board`, existing (it already reads the installed plugins for the factory and factory-board versions; tag #factory).
 - Branch → `feat/factory-board-header-versions`, cut from `develop` (`develop` is the base branch; `feat/factory-board` is taken, and CONTRIBUTING names branches `{type}/{slug}-{name}`).
 - Ids of the new requirements → FR-38 to FR-41 and BR-07 (the unmerged branch `feat/factory-board-session-plan` already adds FR-32 to FR-37, BR-05 and BR-06 to this spec; the ids stay distinct when both merge).
