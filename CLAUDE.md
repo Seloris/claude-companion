@@ -8,6 +8,8 @@ The manifest is `factory.yaml`, beside this file: name, base branch, languages, 
 
 **Servers.** Start a component's server (an API, a front) as the factory's workflow rules say under "Starting a server": with Windows Terminal, in a tab of the `factory` window titled after the component (`wt -w factory nt --title {component} -d {absolute component path} cmd /k "{serve}"`), so the person sees every server open; otherwise as a background command. Never restart a server that already answers.
 
+**Done footer.** A turn that committed, whatever started it (a skill, an agent or a free request), ends with the done footer of the factory's workflow rules, as its very last lines: a `---` line, `## ✅ JOB DONE`, one `> ` recap line in French (120 characters at most, what the turn achieved for the person, not the commit subject again), then one line per commit, `` `{short hash}` {commit subject} · branch `{branch}` · not pushed ``. No footer when nothing was committed, or when the turn stops on a failure or an open question. The board and its companion apps read it: keep its shape.
+
 **Language.** Agents talk to the person in French. Everything written to the repository is in English: code, identifiers, comments, contracts, tests, commit messages, branch names, plans, specs and instruction files. User-facing strings of the application: French.
 
 ## Hard rules
