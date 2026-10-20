@@ -95,6 +95,7 @@ function WorkspacesPage() {
             intervalMinutes={scheduleQuery.data?.intervalMinutes}
             isIntervalSaving={setSchedule.isPending}
             intervalError={setSchedule.isError ? setSchedule.error.message : null}
+            scheduleError={scheduleQuery.isError ? scheduleQuery.error.message : null}
             onIntervalChange={(intervalMinutes) => setSchedule.mutate({ intervalMinutes })}
           />
           {renderRetention()}

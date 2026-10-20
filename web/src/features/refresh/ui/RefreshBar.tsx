@@ -49,6 +49,7 @@ export function RefreshBar({
   intervalMinutes,
   isIntervalSaving,
   intervalError,
+  scheduleError,
   onIntervalChange,
 }: {
   status: RefreshStatus | undefined;
@@ -59,6 +60,8 @@ export function RefreshBar({
   intervalMinutes: RefreshInterval | undefined;
   isIntervalSaving: boolean;
   intervalError: string | null;
+  // The schedule could not be read: the select stays disabled, this says why.
+  scheduleError: string | null;
   onIntervalChange(intervalMinutes: RefreshInterval): void;
 }) {
   const isRunning = isStarting || (status?.isRunning ?? false);
@@ -104,6 +107,7 @@ export function RefreshBar({
               </ErrorMessage>
             )
             : <ReportSummary report={report} />}
+      {scheduleError !== null && <ErrorMessage>{t("refresh.interval.loadFailed", { message: scheduleError })}</ErrorMessage>}
       {intervalError !== null && <ErrorMessage>{t("refresh.interval.failed", { message: intervalError })}</ErrorMessage>}
       {startError !== null && <ErrorMessage>{t("refresh.start.failed", { message: startError })}</ErrorMessage>}
     </div>

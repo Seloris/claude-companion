@@ -9,15 +9,11 @@ type LogRetentionStatus = components["schemas"]["LogRetentionStatus"];
 // session-ingestion FR-14: the discreet line; FR-15: the banner that replaces it while log files not read yet will be deleted soon.
 export function RetentionNotice({ retention, now }: { retention: LogRetentionStatus; now: Date }) {
   const { fileCount, nearestDeletionAt } = retention.unreadAtRisk;
-  if (fileCount > 0) {
-    // An overdue date reads as a risk already in force: Claude Code deletes at its next start.
-    return (
-      <Banner>
-        {nearestDeletionAt === null || new Date(nearestDeletionAt).getTime() <= now.getTime()
-          ? tp("retention.banner.overdue", fileCount)
-          : tp("retention.banner.upcoming", fileCount, { date: formatDate(nearestDeletionAt) })}
-      </Banner>
-    );
+  // The API gives a nearest date whenever a file is at risk.
+  if (fileCount > 0 && nearestDeletionAt !== null) {
+    // The nearest date already past reads as a risk in force: Claude Code deletes at its next start. Only the oldest file is known to be past it.
+    const key = new Date(nearestDeletionAt).getTime() <= now.getTime() ? "retention.banner.overdue" : "retention.banner.upcoming";
+    return <Banner>{tp(key, fileCount, { date: formatDate(nearestDeletionAt) })}</Banner>;
   }
   const days = tp("retention.line.days", retention.retentionDays);
   // session-ingestion BR-13: a retention that could not be read says it is the default.
