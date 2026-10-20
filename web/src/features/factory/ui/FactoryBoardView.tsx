@@ -30,8 +30,10 @@ function isFeatureState(id: string): id is FactoryFeatureState {
 }
 
 // One board: its branch line (FR-10), its age (FR-11), its activity (FR-27), its live runs (FR-12), its filters (FR-14) and its cards by state.
+// The workspace page leaves out the live runs: its sessions are on the live page.
 export function FactoryBoardView({
   board,
+  isLiveRunsShown = true,
   now,
   view,
   closedMarks,
@@ -41,6 +43,7 @@ export function FactoryBoardView({
   onBrowserChange,
 }: {
   board: FactoryBoard;
+  isLiveRunsShown?: boolean;
   now: Date;
   view: FactoryView;
   closedMarks: FactoryClosedMarks;
@@ -114,7 +117,7 @@ export function FactoryBoardView({
     for (const feature of board.features) counts.set(feature.state, (counts.get(feature.state) ?? 0) + 1);
     return (
       <>
-        {board.live.length > 0 && <FactoryLiveRuns board={board} now={now} onOpenFeature={openFeature} />}
+        {isLiveRunsShown && board.live.length > 0 && <FactoryLiveRuns board={board} now={now} onOpenFeature={openFeature} />}
         {board.features.length === 0 ? (
           <p className={styles.empty}>{t("factory.board.noFeature")}</p>
         ) : (

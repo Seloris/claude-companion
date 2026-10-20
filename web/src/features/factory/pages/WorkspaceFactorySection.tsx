@@ -27,6 +27,7 @@ export function WorkspaceFactorySection({ workspaceId }: { workspaceId: number }
         <FactoryBoardView
           key={board.fileName}
           board={board}
+          isLiveRunsShown={false}
           now={now}
           view={view}
           closedMarks={closedMarks}
