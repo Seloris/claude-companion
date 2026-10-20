@@ -7,12 +7,8 @@ import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
 import { useReopenAction } from "../data/useReopenAction.ts";
 import { useSessionQuery } from "../data/useSessionQuery.ts";
-import { ActivityTimeline } from "../ui/ActivityTimeline.tsx";
 import { ReopenActions } from "../ui/ReopenActions.tsx";
-import { SessionFacts } from "../ui/SessionFacts.tsx";
-import { SubagentTable } from "../ui/SubagentTable.tsx";
-import { TokenTable } from "../ui/TokenTable.tsx";
-import { ToolTable } from "../ui/ToolTable.tsx";
+import { SessionRecap } from "../ui/SessionRecap.tsx";
 import styles from "./pages.module.css";
 
 function SessionPage() {
@@ -52,23 +48,7 @@ function SessionPage() {
           <PageTitle>{session.title}</PageTitle>
           <ReopenActions action={reopenActionOf(session)} title={session.title} />
         </header>
-        <SessionFacts session={session} />
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t("session.usages.title")}</h2>
-          <TokenTable usages={session.usages} />
-        </section>
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t("session.activity.title")}</h2>
-          <ActivityTimeline activity={session.activity} />
-        </section>
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t("session.subagents.title")}</h2>
-          <SubagentTable subagents={session.subagents} />
-        </section>
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t("session.tools.title")}</h2>
-          <ToolTable tools={session.tools} />
-        </section>
+        <SessionRecap session={session} />
       </>
     );
   }

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { useLocation } from "react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useNavigationType, useSearchParams } from "react-router";
+import { ApiError } from "../../../api/client.ts";
 import { formatDuration } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
 import { usePromptSwitches } from "../../../shared/lib/promptSwitches.ts";
@@ -11,6 +12,8 @@ import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Switch } from "../../../shared/ui/Switch.tsx";
+import { useReopenAction } from "../../workspaces/data/useReopenAction.ts";
+import { useSessionQuery } from "../../workspaces/data/useSessionQuery.ts";
 import { setCompactMode, useCompactMode } from "../data/compactMode.ts";
 import { requestNotificationPermission, useNotificationPermission } from "../data/notificationPermission.ts";
 import { setNotificationSettings, useNotificationSettings } from "../data/notificationSettings.ts";
@@ -19,6 +22,7 @@ import { buildColumns, flattenWorkspaces, tileState, toClosable, workspaceChoice
 import { CompactBoard } from "../ui/CompactBoard.tsx";
 import { IdleGroup } from "../ui/IdleGroup.tsx";
 import { pillLabel } from "../ui/labels.ts";
+import { RecapDialog, type RecapDialogState } from "../ui/RecapDialog.tsx";
 import { LiveBoard, type ColumnId } from "../ui/LiveBoard.tsx";
 import { NotificationSettings } from "../ui/NotificationSettings.tsx";
 import { WorkspaceFilter } from "../ui/WorkspaceFilter.tsx";
@@ -34,6 +38,13 @@ function readWorkspaceState(state: unknown): string | null {
   return typeof state.workspace === "string" ? state.workspace : null;
 }
 
+// FR-45: the arrow opens the recap dialog with a push marked in the navigation state; a dialog opened from a reload or a
+// pasted address has no such entry behind it.
+function readRecapOpenedHere(state: unknown): boolean {
+  if (typeof state !== "object" || state === null || !("recapOpenedHere" in state)) return false;
+  return state.recapOpenedHere === true;
+}
+
 function LivePage() {
   const liveQuery = useLiveStateQuery({ isPolling: false });
   const now = useNow(NOW_TICK_MS);
@@ -41,19 +52,57 @@ function LivePage() {
   const permission = useNotificationPermission();
   const notificationSettings = useNotificationSettings();
   const location = useLocation();
+  const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const requestedWorkspace = readWorkspaceState(location.state);
   const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(requestedWorkspace);
   // FR-28: a click while this page is open is a new navigation (a new key), applied once, during render, so that the
-  // page never shows the old filter for a frame.
+  // page never shows the old filter for a frame. Never on a back or forward (POP): an older entry holding a
+  // notification's workspace would reset the filter the person changed since (FR-44, the dialog closed by history).
   const [appliedKey, setAppliedKey] = useState(location.key);
   if (location.key !== appliedKey) {
     setAppliedKey(location.key);
-    if (requestedWorkspace !== null) setSelectedWorkspace(requestedWorkspace);
+    if (requestedWorkspace !== null && navigationType !== "POP") setSelectedWorkspace(requestedWorkspace);
   }
   const [selectedTab, setSelectedTab] = useState<ColumnId>("awaiting");
   // FR-39, BR-22: the compact mode, kept by the browser. FR-38: the prompt switches the factory page sets.
   const isCompact = useCompactMode();
   const switches = usePromptSwitches();
+
+  // FR-42, FR-45: the address names the open recap dialog; the session is read only while it is open, from the address
+  // alone, whether or not the session is still on the board (FR-46).
+  const [searchParams] = useSearchParams();
+  const openSessionId = searchParams.get("session") || null;
+  const recapQuery = useSessionQuery(openSessionId ?? "", { enabled: openSessionId !== null });
+  const reopenActionOf = useReopenAction();
+  const recapState: RecapDialogState = recapQuery.isPending
+    ? { kind: "loading" }
+    : recapQuery.isError
+      ? recapQuery.error instanceof ApiError && recapQuery.error.status === 404
+        ? { kind: "notFound" }
+        : { kind: "error", message: recapQuery.error.message }
+      : { kind: "loaded", session: recapQuery.data, reopenAction: reopenActionOf(recapQuery.data) };
+
+  // FR-44: the arrow's push is undone by going back; a dialog opened without it leaves the address without staying in
+  // the history, and never leaves the app.
+  function closeRecap() {
+    if (readRecapOpenedHere(location.state)) void navigate(-1);
+    else void navigate({ pathname: "/live" }, { replace: true, preventScrollReset: true });
+  }
+
+  // FR-44: the focus goes back to the arrow, however the dialog closed (Escape, the button, an outside click, the
+  // browser's back button). An open dialog removed from the page leaves the focus on the body, and a poll may have
+  // re-mounted the arrow behind it: the arrow is found again by its session. A session that left the board has no
+  // arrow, and the focus is moved nowhere else.
+  const lastOpenSessionId = useRef(openSessionId);
+  useEffect(() => {
+    const closedId = lastOpenSessionId.current;
+    lastOpenSessionId.current = openSessionId;
+    if (closedId === null || openSessionId !== null) return;
+    if (document.activeElement !== null && document.activeElement !== document.body) return;
+    const arrow = document.querySelector<HTMLElement>(`[data-recap-session="${CSS.escape(closedId)}"]`);
+    arrow?.focus({ preventScroll: true });
+  }, [openSessionId]);
 
   const live = liveQuery.data;
   // Every live session of the last read, never a filtered list: the tracking is kept against it.
@@ -158,6 +207,8 @@ function LivePage() {
         <WorkspaceFilter choices={choices} total={all.length} selected={filter} onSelect={setSelectedWorkspace} />
       )}
       {renderContent()}
+      {/* Outside renderContent(): the dialog stays open while the board loads, fails or empties (FR-46). */}
+      {openSessionId !== null && <RecapDialog key={openSessionId} state={recapState} onClose={closeRecap} />}
     </main>
   );
 }

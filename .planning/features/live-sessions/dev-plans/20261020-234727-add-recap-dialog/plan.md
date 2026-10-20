@@ -71,6 +71,8 @@ flowchart TD
 - Desktop size → `width: min(960px, calc(100% - 32px))`, `max-height: calc(100dvh - 64px)`; the header (title, links, close) stays fixed and the recap scrolls inside (a long activity must not push the close button away).
 - A notification click or a navigation link while the dialog is open → it navigates away and the dialog closes with the page (non-goal: the spec names only `Escape`, the close button and the outside click; the next page's own rules apply).
 - `ReopenActions` in the dialog → shown, as on the stored page. `useReopenAction` already applies BR-18: no `ResumeCommand` for a live session (the spec's decision: no new rule).
+- Review: no retry exception for a 404 in `useSessionQuery` (an unknown id shows "loading" a few seconds before the not-found message) → left as is (pre-existing behaviour, shared with the stored page; changing the query's retry policy is out of this plan's scope).
+- Review: the recap's section headings are `h2` like the dialog's title → accepted (the plan wants the same recap in both places; a heading-level option would be speculative).
 - The full page link (FR-43) → a plain `<Link to="/sessions/{id}">` labelled `live.recap.fullPage` ("Ouvrir la page complète"). It navigates in the same tab, and a middle click opens a new tab natively.
 
 ## web
@@ -146,21 +148,30 @@ Browser test scenarios, against the demo (api `npm run demo`, web `npm run dev:d
 10. `/sessions/{id}` (the stored page) looks as before the change.
 11. A not-yet-stored session's arrow is still greyed and inert (FR-10).
 
+## Deviations
+
+- Focus back on the arrow (FR-44) → restored by an effect of `LivePage` when `?session` goes from an id to none, not by a `requestAnimationFrame` in `closeRecap()`. `navigate(-1)` is processed asynchronously, so a frame queued after it could run while the dialog is still mounted. An open `<dialog>` removed from the page does not restore the focus natively, and the browser's back button never goes through `closeRecap()`. The effect covers every way out. Same rule: when the focus is on the body, the arrow found by `data-recap-session` gets it, otherwise nothing.
+- `Dialog` calls `onClose` at most once per mount (a ref). Escape, the native close of a repeated Escape, the button and the outside click may follow each other before the page unmounts it, and a second call would navigate back twice. Its effect only opens the dialog; no `close()` in a cleanup (under StrictMode its asynchronous `close` event would land after the re-mount).
+- The dialog's close button is `Button variant="quiet"`, not `ghost`: the ghost button hovers toward `--danger`, and closing is not destructive (the same reason as `web/CLAUDE.md`'s `ButtonLink` rule).
+- An outside click closes the dialog only when the press and the click both land on the `<dialog>` element itself (a `pointerdown` ref): a text selection released over the backdrop does not close it.
+- The focus goes back to the arrow with `preventScroll: true` (FR-44: the same scroll), and an empty `?session=` counts as no dialog.
+- `RecapDialog` takes no `sessionId` prop (unused: the loaded session carries its id); `LivePage` keys it by the open id instead, so that another session gets a fresh dialog.
+
 ## Progress
 
 ### Stage 1 — web
 Commit: `feat(live-sessions): web — recap dialog from the live page`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: `useSessionQuery` takes an optional `enabled`
-- [ ] ui: `shared/ui/Dialog` and `CloseIcon`
-- [ ] ui: `workspaces/ui/SessionRecap` extracted from `SessionPage`
-- [ ] ui: `live/ui/RecapDialog`; `RecapLink` points to `/live?session={id}` with `recapOpenedHere` and `data-recap-session`
-- [ ] ui: i18n keys `live.recap.*`
-- [ ] pages: `SessionPage` renders `SessionRecap`
-- [ ] pages: `LivePage` opens the dialog from `?session`, closes it by history, restores focus, applies FR-28 only on PUSH/REPLACE
-- [ ] Conventions: `web/CLAUDE.md` lists `Dialog` and `CloseIcon`
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: `useSessionQuery` takes an optional `enabled`
+- [x] ui: `shared/ui/Dialog` and `CloseIcon`
+- [x] ui: `workspaces/ui/SessionRecap` extracted from `SessionPage`
+- [x] ui: `live/ui/RecapDialog`; `RecapLink` points to `/live?session={id}` with `recapOpenedHere` and `data-recap-session`
+- [x] ui: i18n keys `live.recap.*`
+- [x] pages: `SessionPage` renders `SessionRecap`
+- [x] pages: `LivePage` opens the dialog from `?session`, closes it by history, restores focus, applies FR-28 only on PUSH/REPLACE
+- [x] Conventions: `web/CLAUDE.md` lists `Dialog` and `CloseIcon`
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), the scenarios of Tests against the demo
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [-] Browser test: not run (autopilot without browser test)

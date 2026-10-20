@@ -4,7 +4,10 @@ import { ArrowUpRightIcon } from "../../../shared/ui/icons.tsx";
 import styles from "./RecapLink.module.css";
 
 // FR-10: the arrow to the stored session when the history already holds it; a session not yet refreshed shows the arrow
-// greyed out and inert, in the same place, so that the actions do not move once it is stored.
+// greyed out and inert, in the same place, so that the actions do not move once it is stored. FR-42, FR-45: the arrow
+// opens the recap in a dialog over the board, named by the address (`/live?session={id}`); a push, so that the browser's
+// back button closes it, marked `recapOpenedHere` so that the dialog's own close goes back too. `data-recap-session`
+// lets the page give the focus back to the arrow when a poll re-mounted it behind the dialog (FR-44).
 export function RecapLink({ sessionId, title, isStored }: { sessionId: string; title: string; isStored: boolean }) {
   if (!isStored) {
     return (
@@ -15,7 +18,15 @@ export function RecapLink({ sessionId, title, isStored }: { sessionId: string; t
   }
   const label = t("live.tile.recapLabel", { title });
   return (
-    <Link className={styles.link} to={`/sessions/${sessionId}`} aria-label={label} title={label}>
+    <Link
+      className={styles.link}
+      to={{ pathname: "/live", search: `?session=${encodeURIComponent(sessionId)}` }}
+      state={{ recapOpenedHere: true }}
+      preventScrollReset
+      data-recap-session={sessionId}
+      aria-label={label}
+      title={label}
+    >
       <ArrowUpRightIcon />
     </Link>
   );
