@@ -7,7 +7,7 @@
 
 ## TL;DR
 
-The person runs several Claude Code sessions at once, in several workspaces, and only sees what each one does by switching to it. This feature adds a live page: every session running on this machine, as tiles in three columns by state (waiting for an answer, running, just finished), each tile naming its workspace, what the session is doing right now (tool, skill, agent), its last prompt and, once finished, Claude's last reply. The page updates by itself; a session whose process ends leaves it and stays in the stored history.
+The person runs several Claude Code sessions at once, in several workspaces, and only sees what each one does by switching to it. This feature adds a live page: every session running on this machine, as tiles in three columns by state (waiting for an answer, running, just finished), each tile naming its workspace, what the session is doing right now (tool, skill, agent), its last prompt and, once finished, Claude's last reply. The page updates by itself; a session whose process ends leaves it and stays in the stored history. On request, the browser also notifies the person when a session asks a question and, if they choose, when a turn ends.
 
 ## Problem
 
@@ -15,16 +15,20 @@ With five or six sessions open across the desktop app, a terminal and worktrees,
 
 A first live page grouped the sessions by workspace: the person still had to scan every workspace to find what needs them, and a session that had just finished its turn looked the same as one idle for hours, folded away with it.
 
+The board and the counts in the tab's title still have to be looked at: while the person works in another window, a session can wait on a question for an hour before they glance back.
+
 ## Non-goals
 
 - Acting on a session: sending it a prompt, answering its question, stopping it. The page observes only.
 - Tokens and costs of a running session: tokens come from the stored history, after the fact.
-- System or browser notifications when a session starts waiting: the person watches the page.
 - Sessions of other machines, cloud sessions, conversations of claude.ai and of the Claude desktop chat.
 - The relation between a session and the sessions it started: each live session stands on its own, under its workspace.
 - Enriching the stored history from the live view: the history keeps coming from the logs through a refresh.
 - Sharing the `Vu` marks across browsers or devices: they belong to the browser the person marked them in.
 - Showing a session whose process ended as finished: it leaves the page at once (BR-01); the stored history holds it.
+- Notifications while no page of the application is open: the browser notifies only through an open page.
+- Notifications for other changes (a session starting to run, a change of `CurrentActivity`, a session leaving the page): only a question and, on request, the end of a turn need the person.
+- Sharing the notification settings across browsers or devices: like the `Vu` marks, they belong to the browser the person set them in.
 
 ## Domain Glossary
 
@@ -46,6 +50,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `Dernière réponse` | `LastReply` | The last text Claude wrote to the person in the latest `Turn` of a session | New |
 | `Terminée récemment` | `RecentlyFinished` | An `Idle` `LiveSession` whose `Turn` just ended and that the person has not marked `Vu` yet | New |
 | `Vu` | `Seen` | The person's mark that they have taken note of a `RecentlyFinished` session's latest `Turn` | New |
+| `Notification` | `LiveNotification` | A browser notification about one `LiveSession`, of one of two kinds: `Question posée` (it became `AwaitingAnswer`) or `Tour terminé` (it became `RecentlyFinished`) | New |
 
 ## Functional Requirements
 
@@ -83,6 +88,17 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **FR-21** — The page shows how long ago it was last updated.
 - **FR-22** — On a phone-sized screen the three columns become three tabs with their counts, `Question posée` first.
 
+### Notifications
+
+- **FR-23** — Notifications are off until the person turns them on from the live page; accepting the browser's permission turns the `Question posée` notifications on at once.
+- **FR-24** — When a `LiveSession` becomes `AwaitingAnswer`, a `Question posée` notification names its `Workspace`, its title and the question, shortened, so that the person knows which session waits and for what without opening the application.
+- **FR-25** — The `Tour terminé` notifications have their own switch, off by default; once on, a session that becomes `RecentlyFinished` gives a notification naming its `Workspace`, its title, its `LastReply` shortened and the duration of its `Turn`.
+- **FR-26** — The person turns each kind of notification off and on again from the live page, without changing the browser's permission.
+- **FR-27** — Notifications arrive as long as one page of the application is open in the browser, whichever page it is, so that the person does not have to keep the live page open.
+- **FR-28** — Clicking a notification brings the application's tab to the front and opens the live page filtered on the session's `Workspace` (FR-19).
+- **FR-29** — When the browser refuses notifications (permission denied, or no support), the live page says so and how to allow them again, instead of a switch that does nothing.
+- **FR-30** — A `Question posée` notification is withdrawn once its session is no longer `AwaitingAnswer` (answered, or ended), so that only the questions still waiting remain.
+
 ## Business Rules
 
 - **BR-01** — A session is live only while its Claude Code process is alive on this machine; a session whose process is gone leaves the page at once, with no "ended" status, and stays in the stored history like any other.
@@ -96,6 +112,12 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **BR-09** — A session is `RecentlyFinished` while it is `Idle`, has had a `Turn` since its Claude Code process started (a resumed session's older turns do not count), became `Idle` less than 15 minutes ago and is not marked `Vu`; otherwise an `Idle` session goes to the folded group. A session too young to have a turn is never `RecentlyFinished`.
 - **BR-10** — A `Vu` mark covers one `Turn`: a session that runs again and finishes a new turn is `RecentlyFinished` again. The marks live in the browser the person used, survive a reload, and are forgotten with the browser's data.
 - **BR-11** — The `LastReply` is the last text Claude Code wrote in the main conversation of the latest `Turn`, never a subagent's; a turn that ended without text (an interruption, tool calls only) has none, and the tile says so.
+- **BR-12** — One change of a session gives one notification, however many pages of the application are open; a newer notification of the same session replaces the previous one instead of piling up.
+- **BR-13** — Only a change seen while a page of the application is open notifies: sessions already `AwaitingAnswer` or `RecentlyFinished` when a page opens, or when the live state can be read again (FR-12), notify nothing, so that opening the application never fires a burst of notifications.
+- **BR-14** — Notifications follow the `LiveStatus` only: a session waiting for a permission counts as `Running` (BR-03) and notifies nothing.
+- **BR-15** — The workspace filter (FR-19) never applies to notifications: every `LiveSession` of this machine can notify.
+- **BR-16** — The notification settings are kept by the person's browser only, like the `Vu` marks (BR-10): they survive a reload and are forgotten with the browser's data.
+- **BR-17** — Clicking a `Tour terminé` notification does not mark the session `Vu`: the mark stays the person's act on the page.
 
 ## UX Flow
 
@@ -111,3 +133,22 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - The person picks one workspace in the filter: the three columns and the idle group show its sessions only.
 - The person closes a session: it leaves the page, and a refresh updates its recap in the history.
 - The person clicks a session's link: its stored page, with its prompts and activity.
+- On the live page, the person turns notifications on and accepts the browser's request: `Question posée` notifications are on; `Tour terminé` stays off until they tick it.
+- The person works in another window with the workspaces page open: a session asks a question, a notification names its workspace, its title and the question.
+- The person clicks the notification: the application's tab comes to the front on the live page, filtered on that workspace, the waiting tile in `Question posée`.
+- The person answers in the session: the notification disappears.
+
+## Decisions taken autonomously
+
+- Feature slug → `live-sessions`, existing (the notifications report changes of `LiveStatus`, which this feature owns).
+- Where are the notification switches? → On the live page (it is the page about live sessions; the navigation keeps its counts only).
+- Can `Question posée` be turned off without revoking the browser's permission? → Yes, its own switch (FR-26) (the person cannot be asked to dig into browser settings to mute it).
+- What does a notification show? → `Workspace`, title, and the question or the `LastReply` shortened, plus the turn's duration for `Tour terminé` (the same facts as the tile, enough to decide whether to switch).
+- Several pages of the application open? → One notification per change (BR-12) (one per tab would multiply them).
+- Sessions already waiting when a page opens? → No notification (BR-13) (opening the application would fire a burst; the board and the tab title already show them).
+- Does a permission request notify? → No (BR-14) (it counts as `Running`, BR-03; the live state cannot tell it apart).
+- Does the workspace filter mute notifications? → No (BR-15) (same as the navigation counts; the filter is a view, not a subscription).
+- Notify while the live page is in the foreground? → Yes, no suppression (the person asked for any open page; the page may be open but behind another window).
+- Does clicking a `Tour terminé` notification mark it `Vu`? → No (BR-17) (`Vu` stays an explicit act on the page).
+- A `Question posée` notification for a question already answered? → Withdrawn (FR-30) (a stale question would send the person to a session that no longer waits).
+- Browser refuses or cannot notify? → The live page says so and how to allow them again (FR-29) (a switch that silently does nothing would mislead).
