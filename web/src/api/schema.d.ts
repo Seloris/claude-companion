@@ -204,6 +204,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/factory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every factory board the factory-board mod exported, grouped by workspace */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The factory boards */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FactoryState"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -657,6 +693,116 @@ export interface components {
          * @enum {string}
          */
         DashboardPeriod: "7d" | "30d" | "90d" | "all";
+        FactoryState: {
+            /** Format: date-time */
+            readAt: string;
+            boardsDir: string;
+            isBoardsDirReadable: boolean;
+            unsupportedFiles: components["schemas"]["FactoryUnsupportedFile"][];
+            workspaces: components["schemas"]["FactoryWorkspace"][];
+        };
+        FactoryUnsupportedFile: {
+            fileName: string;
+            schemaVersion: number | null;
+        };
+        FactoryWorkspace: {
+            key: string;
+            workspaceId: number | null;
+            name: string;
+            path: string;
+            hasLiveRun: boolean;
+            counts: {
+                running: number;
+                review: number;
+            };
+            boards: components["schemas"]["FactoryBoard"][];
+        };
+        FactoryBoard: {
+            fileName: string;
+            root: string;
+            branch: string | null;
+            baseBranch: string;
+            aheadCount: number | null;
+            changedCount: number;
+            /** Format: date-time */
+            scannedAt: string;
+            isStale: boolean;
+            error: string | null;
+            markers: {
+                review: string;
+                browser: string;
+            };
+            live: components["schemas"]["FactoryRun"][];
+            features: components["schemas"]["FactoryFeature"][];
+        };
+        FactoryRun: {
+            sessionId: string;
+            feature: string | null;
+            folder: string | null;
+            command: string;
+            step: string;
+            lastStep: string | null;
+            agentId: string | null;
+            status: components["schemas"]["FactoryRunStatus"];
+            /** Format: date-time */
+            since: string;
+            /** Format: date-time */
+            updatedAt: string;
+            isStored: boolean;
+        };
+        /** @enum {string} */
+        FactoryRunStatus: "running" | "waiting" | "done" | "interrupted";
+        FactoryFeature: {
+            slug: string;
+            title: string;
+            state: components["schemas"]["FactoryFeatureState"];
+            isNewPlan: boolean;
+            hasSpec: boolean;
+            specStatus: string | null;
+            plan: components["schemas"]["FactoryPlan"] | null;
+            plans: string[];
+            autopilot: components["schemas"]["FactoryRun"] | null;
+            next: components["schemas"]["FactoryNextPrompt"] | null;
+            steps: components["schemas"]["FactoryTimelineStep"][];
+        };
+        /** @enum {string} */
+        FactoryFeatureState: "empty" | "spec" | "plan" | "running" | "review" | "done";
+        FactoryPlan: {
+            folder: string;
+            title: string;
+            stages: components["schemas"]["FactoryPlanStage"][];
+            validationDone: number;
+            validationTotal: number;
+            reviewDone: boolean;
+            isDraft: boolean;
+        };
+        FactoryPlanStage: {
+            number: number;
+            title: string;
+            commit: string | null;
+            sha: string | null;
+            done: number;
+            total: number;
+        };
+        FactoryNextPrompt: {
+            label: string;
+            prompt: string;
+            all: components["schemas"]["FactoryPrompt"] | null;
+            autopilot: components["schemas"]["FactoryPrompt"] | null;
+        };
+        FactoryPrompt: {
+            label: string;
+            prompt: string;
+        };
+        FactoryTimelineStep: {
+            step: string;
+            title: string;
+            detail: string;
+            marker: components["schemas"]["FactoryMarker"];
+            runs: components["schemas"]["FactoryRun"][];
+        };
+        /** @enum {string} */
+        FactoryMarker: "done" | "running" | "next" | "pending";
         RefreshStatus: {
             isRunning: boolean;
             /** Format: date-time */

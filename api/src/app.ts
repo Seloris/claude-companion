@@ -2,6 +2,8 @@ import express, { Router } from "express";
 import type { Database } from "./db/client.js";
 import { dashboardRoutes } from "./features/dashboard/dashboard.routes.js";
 import type { DashboardService } from "./features/dashboard/dashboard.service.js";
+import { factoryRoutes } from "./features/factory/factory.routes.js";
+import type { FactoryService } from "./features/factory/factory.service.js";
 import { healthRoutes } from "./features/health/health.routes.js";
 import { ingestionRoutes } from "./features/ingestion/ingestion.routes.js";
 import type { RefreshScheduler } from "./features/ingestion/ingestion.scheduler.js";
@@ -23,6 +25,7 @@ export interface AppContext {
   workspaces: WorkspacesService;
   dashboard: DashboardService;
   live: LiveService;
+  factory: FactoryService;
   refreshScheduler: Pick<RefreshScheduler, "getSchedule" | "setSchedule">;
   retention: RetentionService;
   // Absolute folder of the built front; when set, the app also serves it (see shared/web.ts).
@@ -30,7 +33,7 @@ export interface AppContext {
 }
 
 // Every route is public: the application is local and single-user, with no sign-in.
-export function createApp({ clock, ingestion, workspaces, dashboard, live, refreshScheduler, retention, webDir }: AppContext) {
+export function createApp({ clock, ingestion, workspaces, dashboard, live, factory, refreshScheduler, retention, webDir }: AppContext) {
   const app = express();
   app.use(express.json());
   const apiRouter = Router();
@@ -39,6 +42,7 @@ export function createApp({ clock, ingestion, workspaces, dashboard, live, refre
   apiRouter.use(workspacesRoutes({ workspaces }));
   apiRouter.use(dashboardRoutes({ dashboard }));
   apiRouter.use(liveRoutes({ live }));
+  apiRouter.use(factoryRoutes({ factory }));
   apiRouter.use(retentionRoutes({ retention }));
   // At the root always (OpenAPI paths, route tests, Vite's proxy which strips /api); under /api too when serving the
   // front, whose base URL it is. Both mounts come before the static files, so an API path always wins.

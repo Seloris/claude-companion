@@ -28,3 +28,24 @@
   font-size: 0.86em;
   font-variant-numeric: tabular-nums;
 }
+
+/* A factory session works now: a pulsing dot beside the factory badge (the pulse stops under prefers-reduced-motion). */
+.liveDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .liveDot {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+}

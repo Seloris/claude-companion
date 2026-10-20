@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 import { formatTokens } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
@@ -8,6 +9,7 @@ import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
 import { Switch } from "../../../shared/ui/Switch.tsx";
+import { useFactoryStateQuery } from "../../factory/data/useFactoryStateQuery.ts";
 import { useRefreshScheduleQuery } from "../../refresh/data/useRefreshScheduleQuery.ts";
 import { useRefreshStatusQuery } from "../../refresh/data/useRefreshStatusQuery.ts";
 import { useStartRefreshMutation } from "../../refresh/data/useStartRefreshMutation.ts";
@@ -16,7 +18,7 @@ import { RefreshBar } from "../../refresh/ui/RefreshBar.tsx";
 import { useLogRetentionQuery } from "../../retention/data/useLogRetentionQuery.ts";
 import { RetentionNotice } from "../../retention/ui/RetentionNotice.tsx";
 import { useWorkspacesQuery } from "../data/useWorkspacesQuery.ts";
-import { WorkspaceList } from "../ui/WorkspaceList.tsx";
+import { type FactoryBadge, WorkspaceList } from "../ui/WorkspaceList.tsx";
 import styles from "./pages.module.css";
 
 function WorkspacesPage() {
@@ -30,6 +32,17 @@ function WorkspacesPage() {
   const retentionQuery = useLogRetentionQuery();
   // The banner tells an upcoming deletion from an overdue one: the clock keeps ticking while the page stays open.
   const now = useNow(60_000);
+
+  // FR-09: a workspace with a board carries a factory badge; the list does not wait for it, nor fail with it.
+  const factoryQuery = useFactoryStateQuery();
+  const factoryGroups = factoryQuery.data?.workspaces;
+  const factoryBadges = useMemo(() => {
+    const badges = new Map<number, FactoryBadge>();
+    for (const group of factoryGroups ?? []) {
+      if (group.workspaceId !== null) badges.set(group.workspaceId, { ...group.counts, hasLiveRun: group.hasLiveRun });
+    }
+    return badges;
+  }, [factoryGroups]);
 
   const status = statusQuery.data;
   const logsDir = status?.logsDir ?? "";
@@ -71,7 +84,7 @@ function WorkspacesPage() {
             tokens: t("tokens.count.label", { count: formatTokens(totals.tokens.input + totals.tokens.output) }),
           })}
         </p>
-        <WorkspaceList workspaces={workspaces} />
+        <WorkspaceList workspaces={workspaces} factoryBadges={factoryBadges} />
       </>
     );
   }

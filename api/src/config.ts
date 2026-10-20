@@ -11,6 +11,8 @@ const envSchema = z.object({
   CLAUDE_SESSIONS_DIR: z.string().default(path.join(os.homedir(), ".claude", "sessions")),
   // Claude Code's user settings, read only for cleanupPeriodDays (the log retention).
   CLAUDE_SETTINGS_FILE: z.string().default(path.join(os.homedir(), ".claude", "settings.json")),
+  // The factory-board mod's export, one JSON per project root, read only.
+  CLAUDE_FACTORY_BOARD_DIR: z.string().default(path.join(os.homedir(), ".claude", "factory-board")),
   // The desktop app's scratch workspaces live under it; unset outside Windows.
   APPDATA: z.string().default(""),
 });

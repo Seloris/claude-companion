@@ -1,0 +1,74 @@
+.card {
+  border: var(--border-width) solid var(--border);
+  border-left: 4px solid var(--state-color);
+  border-radius: var(--radius-control);
+  background: var(--item-bg);
+  scroll-margin-top: 16px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.header:hover {
+  background: var(--surface-2);
+}
+
+.header:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.chevron {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.header[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chevron {
+    transition: transform 120ms;
+  }
+}
+
+.slug {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* The state pill takes the card's colour on its quiet fill. */
+.state {
+  flex: none;
+  padding: 1px 10px;
+  font-size: 0.78em;
+  font-weight: 600;
+  color: var(--state-color);
+  background: color-mix(in srgb, var(--state-color) 14%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+.title {
+  flex: 1 1 100%;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+.body {
+  padding: 4px 12px 14px;
+}

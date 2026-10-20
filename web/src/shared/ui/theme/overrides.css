@@ -31,6 +31,16 @@
   /* A warning is not a danger: it takes the awaiting amber (same meaning, it needs the person); the dark values follow the aliased pair. */
   --warning: var(--status-awaiting);
   --warning-soft: var(--status-awaiting-soft);
+  /* The factory board: a done step, the step at hand and a later one, then the colour of a feature by its state. */
+  --factory-done: #15803d;
+  --factory-current: #c2410c;
+  --factory-later: var(--border);
+  --factory-state-running: var(--accent);
+  --factory-state-review: var(--status-awaiting);
+  --factory-state-plan: var(--status-finished);
+  --factory-state-spec: var(--text-muted);
+  --factory-state-empty: var(--text-muted);
+  --factory-state-done: var(--factory-done);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,5 +57,7 @@
     --status-awaiting-soft: rgba(251, 191, 36, 0.16);
     --status-finished: #a5b4fc;
     --status-finished-soft: rgba(165, 180, 252, 0.16);
+    --factory-done: #4ade80;
+    --factory-current: #fb923c;
   }
 }

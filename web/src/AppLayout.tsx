@@ -32,6 +32,7 @@ export function AppLayout() {
     { to: `/${scratchSuffix}`, label: t("layout.nav.workspaces") },
     { to: `/dashboard${scratchSuffix}`, label: t("layout.nav.dashboard") },
     { to: "/live", label: t("layout.nav.live"), badges: liveBadges },
+    { to: "/factory", label: t("layout.nav.factory") },
   ];
 
   // FR-14: the browser tab says how many sessions wait for an answer, so that it shows from another tab.

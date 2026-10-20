@@ -10,6 +10,7 @@ import { createIngestionRepository } from "./features/ingestion/ingestion.reposi
 import { createRefreshScheduler } from "./features/ingestion/ingestion.scheduler.js";
 import { createIngestionService } from "./features/ingestion/ingestion.service.js";
 import { findRepoRoot } from "./features/ingestion/ingestion.workspace.js";
+import { createFactoryService } from "./features/factory/factory.service.js";
 import { createLiveService } from "./features/live/live.service.js";
 import { isPidAlive } from "./features/live/live.source.js";
 import { createRetentionService } from "./features/retention/retention.service.js";
@@ -87,10 +88,18 @@ const live = createLiveService({
   findRepoRoot,
 });
 
+const factory = createFactoryService({
+  workspacesRepo,
+  clock: systemClock,
+  boardsDir: config.CLAUDE_FACTORY_BOARD_DIR,
+  scratchRoot,
+  findRepoRoot,
+});
+
 server.off("request", starting);
 server.on(
   "request",
-  createApp({ db, clock: systemClock, ingestion, workspaces, dashboard, live, refreshScheduler, retention, ...(webDir === null ? {} : { webDir }) }),
+  createApp({ db, clock: systemClock, ingestion, workspaces, dashboard, live, factory, refreshScheduler, retention, ...(webDir === null ? {} : { webDir }) }),
 );
 console.log(`api listening on http://127.0.0.1:${config.PORT}`);
 if (webDir !== null) console.log(`app on http://localhost:${config.PORT}`);

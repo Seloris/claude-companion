@@ -1,0 +1,16 @@
+.text {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+.link {
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  text-decoration: underline;
+}
+
+.link:hover {
+  color: var(--accent);
+}

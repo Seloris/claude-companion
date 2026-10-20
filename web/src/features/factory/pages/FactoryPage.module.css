@@ -1,0 +1,4 @@
+/* The page gutter around the panel, down to narrow widths. */
+.page {
+  padding: 40px 16px;
+}

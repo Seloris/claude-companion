@@ -10,6 +10,7 @@ export const router = createBrowserRouter([
       { path: "/sessions/:sessionId", lazy: () => import("./features/workspaces/pages/SessionPage.tsx") },
       { path: "/dashboard", lazy: () => import("./features/dashboard/pages/DashboardPage.tsx") },
       { path: "/live", lazy: () => import("./features/live/pages/LivePage.tsx") },
+      { path: "/factory", lazy: () => import("./features/factory/pages/FactoryPage.tsx") },
     ],
   },
 ]);

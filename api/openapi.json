@@ -853,6 +853,526 @@
         ],
         "default": "30d"
       },
+      "FactoryState": {
+        "type": "object",
+        "properties": {
+          "readAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "boardsDir": {
+            "type": "string"
+          },
+          "isBoardsDirReadable": {
+            "type": "boolean"
+          },
+          "unsupportedFiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryUnsupportedFile"
+            }
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryWorkspace"
+            }
+          }
+        },
+        "required": [
+          "readAt",
+          "boardsDir",
+          "isBoardsDirReadable",
+          "unsupportedFiles",
+          "workspaces"
+        ]
+      },
+      "FactoryUnsupportedFile": {
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "fileName",
+          "schemaVersion"
+        ]
+      },
+      "FactoryWorkspace": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "hasLiveRun": {
+            "type": "boolean"
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "running": {
+                "type": "integer"
+              },
+              "review": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "running",
+              "review"
+            ]
+          },
+          "boards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryBoard"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "workspaceId",
+          "name",
+          "path",
+          "hasLiveRun",
+          "counts",
+          "boards"
+        ]
+      },
+      "FactoryBoard": {
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "root": {
+            "type": "string"
+          },
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "baseBranch": {
+            "type": "string"
+          },
+          "aheadCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "changedCount": {
+            "type": "integer"
+          },
+          "scannedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isStale": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "markers": {
+            "type": "object",
+            "properties": {
+              "review": {
+                "type": "string"
+              },
+              "browser": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "review",
+              "browser"
+            ]
+          },
+          "live": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryRun"
+            }
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryFeature"
+            }
+          }
+        },
+        "required": [
+          "fileName",
+          "root",
+          "branch",
+          "baseBranch",
+          "aheadCount",
+          "changedCount",
+          "scannedAt",
+          "isStale",
+          "error",
+          "markers",
+          "live",
+          "features"
+        ]
+      },
+      "FactoryRun": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "feature": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "lastStep": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agentId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/FactoryRunStatus"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isStored": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sessionId",
+          "feature",
+          "folder",
+          "command",
+          "step",
+          "lastStep",
+          "agentId",
+          "status",
+          "since",
+          "updatedAt",
+          "isStored"
+        ]
+      },
+      "FactoryRunStatus": {
+        "type": "string",
+        "enum": [
+          "running",
+          "waiting",
+          "done",
+          "interrupted"
+        ]
+      },
+      "FactoryFeature": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/FactoryFeatureState"
+          },
+          "isNewPlan": {
+            "type": "boolean"
+          },
+          "hasSpec": {
+            "type": "boolean"
+          },
+          "specStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "autopilot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryNextPrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryTimelineStep"
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "state",
+          "isNewPlan",
+          "hasSpec",
+          "specStatus",
+          "plan",
+          "plans",
+          "autopilot",
+          "next",
+          "steps"
+        ]
+      },
+      "FactoryFeatureState": {
+        "type": "string",
+        "enum": [
+          "empty",
+          "spec",
+          "plan",
+          "running",
+          "review",
+          "done"
+        ]
+      },
+      "FactoryPlan": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryPlanStage"
+            }
+          },
+          "validationDone": {
+            "type": "integer"
+          },
+          "validationTotal": {
+            "type": "integer"
+          },
+          "reviewDone": {
+            "type": "boolean"
+          },
+          "isDraft": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "folder",
+          "title",
+          "stages",
+          "validationDone",
+          "validationTotal",
+          "reviewDone",
+          "isDraft"
+        ]
+      },
+      "FactoryPlanStage": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "done": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "commit",
+          "sha",
+          "done",
+          "total"
+        ]
+      },
+      "FactoryNextPrompt": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "all": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryPrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autopilot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryPrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "label",
+          "prompt",
+          "all",
+          "autopilot"
+        ]
+      },
+      "FactoryPrompt": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "prompt"
+        ]
+      },
+      "FactoryTimelineStep": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "marker": {
+            "$ref": "#/components/schemas/FactoryMarker"
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryRun"
+            }
+          }
+        },
+        "required": [
+          "step",
+          "title",
+          "detail",
+          "marker",
+          "runs"
+        ]
+      },
+      "FactoryMarker": {
+        "type": "string",
+        "enum": [
+          "done",
+          "running",
+          "next",
+          "pending"
+        ]
+      },
       "RefreshStatus": {
         "type": "object",
         "properties": {
@@ -1586,6 +2106,23 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/factory": {
+      "get": {
+        "summary": "Every factory board the factory-board mod exported, grouped by workspace",
+        "responses": {
+          "200": {
+            "description": "The factory boards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryState"
                 }
               }
             }

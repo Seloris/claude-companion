@@ -1,0 +1,108 @@
+.timeline {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* The rail runs through the dots, from one row to the next. */
+.row:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  bottom: -14px;
+  left: 9px;
+  width: 2px;
+  background: var(--factory-later);
+}
+
+.row.done:not(:last-child)::before {
+  background: var(--factory-done);
+}
+
+.dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  color: var(--accent-text);
+  background: var(--surface-2);
+  border: 2px solid var(--factory-later);
+  border-radius: var(--radius-pill);
+}
+
+.dot svg {
+  width: 12px;
+  height: 12px;
+}
+
+.done .dot {
+  background: var(--factory-done);
+  border-color: var(--factory-done);
+}
+
+.running .dot {
+  background: var(--factory-current);
+  border-color: var(--factory-current);
+}
+
+.next .dot {
+  background: transparent;
+  border-color: var(--factory-current);
+}
+
+.pending .dot {
+  background: transparent;
+}
+
+.body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.pending .title {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.detail {
+  color: var(--text-muted);
+  font-size: 0.86em;
+}
+
+.folder {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  overflow-wrap: anywhere;
+}
+
+.earlier {
+  display: grid;
+  gap: 4px;
+}

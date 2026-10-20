@@ -197,6 +197,16 @@ export function createWorkspacesRepository(db: Database) {
       return new Set(rows.map((row) => row.id));
     },
 
+    // The stored workspaces among the path keys, by key: one query for all the keys.
+    async findWorkspacesByPathKeys(keys: string[]): Promise<Map<string, { id: number; name: string; path: string }>> {
+      if (keys.length === 0) return new Map();
+      const rows = await db
+        .select({ id: workspaces.id, pathKey: workspaces.pathKey, name: workspaces.name, path: workspaces.path })
+        .from(workspaces)
+        .where(inArray(workspaces.pathKey, keys));
+      return new Map(rows.map(({ pathKey, ...workspace }) => [pathKey, workspace]));
+    },
+
     async listWorkspaces(filter: { includeScratch: boolean }): Promise<WorkspaceRow[]> {
       const rows = await db
         .select({

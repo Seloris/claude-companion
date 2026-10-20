@@ -1,0 +1,23 @@
+.segments {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.segment {
+  width: 18px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+}
+
+.done {
+  background: var(--factory-done);
+}
+
+.next,
+.running {
+  background: var(--factory-current);
+}
+
+.pending {
+  background: var(--factory-later);
+}

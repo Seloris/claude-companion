@@ -1,0 +1,11 @@
+.section {
+  display: grid;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15em;
+  font-weight: var(--title-weight);
+}

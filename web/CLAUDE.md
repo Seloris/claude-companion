@@ -34,7 +34,7 @@ src/
                             Button (variant: primary, danger, quiet, ghost), Switch, Checkbox, List (List, ListItem with isDone, ListItemText),
                             Badge (tone: default, attention, muted), Banner (a warning strip, role="status"), EmptyState, LoadingState, ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>),
                             NavBar (the navigation: links as props, counts as `badges`), ButtonLink (an <a> with the button's look, variant: quiet, ghost), Disclosure (a native <details>, folded until opened),
-                            Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, QuestionIcon, CheckIcon, EyeIcon, BranchIcon, DesktopIcon, CopyIcon)
+                            Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), ToggleChipGroup (toggle chips, several pressed), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, QuestionIcon, CheckIcon, EyeIcon, BranchIcon, DesktopIcon, CopyIcon)
       theme/                fonts.ts (the skin's font imports) and skin.css (its tokens), both written by factory-init: never edited; base.css (the page), overrides.css (this application's values)
     lib/                    utils, i18n; useNow.ts (the current time, re-read every interval), useClipboard.ts (copy text, with its copied/failed state), desktopLink.ts (isDesktopLink: the only desktop-app href the pages render)
 ```

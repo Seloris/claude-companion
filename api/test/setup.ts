@@ -11,6 +11,7 @@ import { createRefreshScheduler } from "../src/features/ingestion/ingestion.sche
 import { createIngestionRepository } from "../src/features/ingestion/ingestion.repository.js";
 import { createIngestionService } from "../src/features/ingestion/ingestion.service.js";
 import type { ResolvedWorkspace } from "../src/features/ingestion/ingestion.workspace.js";
+import { createFactoryService } from "../src/features/factory/factory.service.js";
 import { createLiveService } from "../src/features/live/live.service.js";
 import { createRetentionService } from "../src/features/retention/retention.service.js";
 import { createWorkspacesRepository } from "../src/features/workspaces/workspaces.repository.js";
@@ -76,6 +77,9 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
   // Status files go to a temp folder, never the real ~/.claude/sessions; a pid is alive when the test says so.
   const sessionsDir = path.join(tempRoot, "sessions");
   await mkdir(sessionsDir);
+  // The factory-board mod's folder, in the temp root: never the real ~/.claude/factory-board.
+  const boardsDir = path.join(tempRoot, "factory-board");
+  await mkdir(boardsDir);
   const ingestionRepo = createIngestionRepository(db);
   const workspacesRepo = createWorkspacesRepository(db);
   const ingestion = createIngestionService({ ingestionRepo, workspacesRepo, clock, logsDir, sessionsDir, scratchRoot });
@@ -100,6 +104,11 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
   // The service keeps snapshots and caches in memory: reset() swaps it for a fresh one so no test sees another's.
   let current = buildLive();
   const live = { getLiveState: () => current.getLiveState() };
+  const buildFactory = () =>
+    createFactoryService({ workspacesRepo, clock, boardsDir, scratchRoot, findRepoRoot: () => null });
+  // Same as the live service: its cache of the last good reads is in memory.
+  let currentFactory = buildFactory();
+  const factory = { getFactoryState: () => currentFactory.getFactoryState() };
   // Never started by the context: a test calls start() itself. reset() swaps it for a fresh one (truncation wipes the
   // row, not the memory).
   const buildScheduler = () => createRefreshScheduler({ ingestion, ingestionRepo, clock, timer });
@@ -115,6 +124,7 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
     workspaces,
     dashboard,
     live,
+    factory,
     refreshScheduler,
     retention,
     ...(options.webDir === undefined ? {} : { webDir: options.webDir }),
@@ -145,8 +155,10 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
       await rm(path.join(tempRoot, entry), { recursive: true, force: true });
     }
     await mkdir(sessionsDir, { recursive: true });
+    await mkdir(boardsDir, { recursive: true });
     alivePids.clear();
     current = buildLive();
+    currentFactory = buildFactory();
     currentScheduler.stop();
     timer.clear();
     currentScheduler = buildScheduler();
@@ -174,6 +186,7 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
     scratchRoot,
     tempRoot,
     sessionsDir,
+    boardsDir,
     settingsFile,
     alivePids,
     timer,

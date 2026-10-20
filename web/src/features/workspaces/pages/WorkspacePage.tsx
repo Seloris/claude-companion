@@ -6,6 +6,7 @@ import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
+import { WorkspaceFactorySection } from "../../factory/pages/WorkspaceFactorySection.tsx";
 import { useReopenAction } from "../data/useReopenAction.ts";
 import { useWorkspaceQuery } from "../data/useWorkspaceQuery.ts";
 import { SessionList } from "../ui/SessionList.tsx";
@@ -37,6 +38,7 @@ function WorkspacePage() {
             {t("workspace.page.dashboard")}
           </Link>
         </header>
+        <WorkspaceFactorySection workspaceId={workspace.id} />
         {workspace.sessions.length === 0 ? (
           <EmptyState>{t("workspace.sessions.empty")}</EmptyState>
         ) : (

@@ -9,34 +9,63 @@ import { TokenCount } from "./TokenCount.tsx";
 
 type WorkspaceSummary = components["schemas"]["WorkspaceSummary"];
 
-export function WorkspaceList({ workspaces }: { workspaces: WorkspaceSummary[] }) {
+// FR-09: what a workspace's factory badge says: its features at work, to validate, and whether a session works now.
+export interface FactoryBadge {
+  running: number;
+  review: number;
+  hasLiveRun: boolean;
+}
+
+export function WorkspaceList({
+  workspaces,
+  factoryBadges,
+}: {
+  workspaces: WorkspaceSummary[];
+  factoryBadges?: Map<number, FactoryBadge>;
+}) {
   return (
     <List>
-      {workspaces.map((workspace) => (
-        <ListItem key={workspace.id}>
-          <ListItemText>
-            <span className={styles.main}>
-              <Link className={styles.link} to={`/workspaces/${workspace.id}`}>
-                {workspace.name}
-              </Link>
-              <span className={styles.meta}>{workspace.path}</span>
-              <span className={styles.figures}>
-                <span>{tp("workspaces.sessions.count", workspace.sessionCount)}</span>
-                <span>
-                  {t("workspaces.list.lastActivity", {
-                    when:
-                      workspace.lastActivityAt === null
-                        ? t("common.value.none")
-                        : formatRelative(workspace.lastActivityAt),
-                  })}
+      {workspaces.map((workspace) => {
+        const factory = factoryBadges?.get(workspace.id);
+        return (
+          <ListItem key={workspace.id}>
+            <ListItemText>
+              <span className={styles.main}>
+                <Link className={styles.link} to={`/workspaces/${workspace.id}`}>
+                  {workspace.name}
+                </Link>
+                <span className={styles.meta}>{workspace.path}</span>
+                <span className={styles.figures}>
+                  <span>{tp("workspaces.sessions.count", workspace.sessionCount)}</span>
+                  <span>
+                    {t("workspaces.list.lastActivity", {
+                      when:
+                        workspace.lastActivityAt === null
+                          ? t("common.value.none")
+                          : formatRelative(workspace.lastActivityAt),
+                    })}
+                  </span>
+                  <TokenCount tokens={workspace.tokens} />
                 </span>
-                <TokenCount tokens={workspace.tokens} />
               </span>
-            </span>
-          </ListItemText>
-          {workspace.isScratch && <Badge>{t("workspaces.badge.scratch")}</Badge>}
-        </ListItem>
-      ))}
+            </ListItemText>
+            {factory !== undefined && (
+              <>
+                {factory.hasLiveRun && (
+                  <span className={styles.liveDot} role="img" aria-label={t("factory.badge.live")} />
+                )}
+                <Badge>
+                  {t("factory.badge.summary", {
+                    running: tp("factory.badge.running", factory.running),
+                    review: tp("factory.badge.review", factory.review),
+                  })}
+                </Badge>
+              </>
+            )}
+            {workspace.isScratch && <Badge>{t("workspaces.badge.scratch")}</Badge>}
+          </ListItem>
+        );
+      })}
     </List>
   );
 }
