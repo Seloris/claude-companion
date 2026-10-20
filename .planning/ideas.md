@@ -11,3 +11,7 @@ The person's ideas for this project, not yet specified. Grouped by scope: one `#
 - 2026-10-20 — **Main model on live tiles:** Show each session's main model on its tile in the Live tab.
 - 2026-10-20 — **Compact Live mode:** Offer a compact mode for the Live tab.
 - 2026-10-20 — **Done recap on live tiles:** Show the short end-of-session recap on the live tile too.
+
+## app
+
+- 2026-10-21 — **Worktree overview and actions:** List every worktree and act on each one, such as merging it into a branch or continuing its development.
