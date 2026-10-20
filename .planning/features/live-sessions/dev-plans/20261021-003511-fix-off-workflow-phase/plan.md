@@ -115,13 +115,13 @@ Commit: `fix(live-sessions): api — an off-workflow run keeps its phase and rec
 
 ### Stage 2 — web
 Commit: `fix(live-sessions): web — an off-workflow tile reads its run's phase`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] ui: `isOffWorkflow` and `factoryBandJob` in `board.ts`
-- [ ] ui: `FactoryMarks` and the band of `LiveSessionTile`
-- [ ] ui: the band of `CompactSessionLine`
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] ui: `isOffWorkflow` and `factoryBandJob` in `board.ts`
+- [x] ui: `FactoryMarks` and the band of `LiveSessionTile`
+- [x] ui: the band of `CompactSessionLine`
 
 ## Validation
 
 - [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), on the demo: `Board export check` reads `Job done`, its `Récap` and `Hors workflow`, no band; `Live screen mockups` reads `Au travail` and `Hors workflow`, no band
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [-] Browser test: not run (declined by the person) — the change tested in `web` (`test-in-browser` skill), on the demo: `Board export check` reads `Job done`, its `Récap` and `Hors workflow`, no band; `Live screen mockups` reads `Au travail` and `Hors workflow`, no band

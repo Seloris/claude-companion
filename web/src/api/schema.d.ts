@@ -1014,6 +1014,7 @@ export interface components {
             };
             /** @enum {string} */
             source: "live" | "session";
+            isOffWorkflow: boolean;
             run: components["schemas"]["FactoryRun"];
             feature: components["schemas"]["FactoryJobFeature"] | null;
         };

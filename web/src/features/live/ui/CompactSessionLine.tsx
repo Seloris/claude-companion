@@ -5,7 +5,7 @@ import type { PromptSwitches } from "../../../shared/lib/promptSwitches.ts";
 import { Button } from "../../../shared/ui/Button.tsx";
 import { ButtonLink } from "../../../shared/ui/ButtonLink.tsx";
 import { CheckIcon, DesktopIcon } from "../../../shared/ui/icons.tsx";
-import { commitSubjectOf, factoryPhaseOf, type BoardSession, type TileState } from "./board.ts";
+import { commitSubjectOf, factoryBandJob, factoryPhaseOf, type BoardSession, type TileState } from "./board.ts";
 import { CommitCallout } from "./CommitCallout.tsx";
 import styles from "./CompactSessionLine.module.css";
 import { FactoryBand } from "./FactoryBand.tsx";
@@ -46,6 +46,7 @@ export function CompactSessionLine({
   const phase = factoryPhaseOf(session);
   const commitSubject = commitSubjectOf(session);
   const recap = column === "finished" && phase === "job-done" ? (session.factory?.run.recap ?? null) : null;
+  const bandJob = factoryBandJob(session);
   const facts = [session.workspace.name, session.gitBranch, session.origin === null ? null : originLabel(session.origin)]
     .filter((part) => part !== null)
     .join(" · ");
@@ -104,7 +105,7 @@ export function CompactSessionLine({
         <StatusPill pill={pill} label={pillLabel(pill)} />
       </span>
       <span className={styles.factory}>
-        {session.factory !== null && <FactoryBand job={session.factory} now={now} isCompact />}
+        {bandJob !== null && <FactoryBand job={bandJob} now={now} isCompact />}
         <FactoryMarks session={session} />
       </span>
       <span className={styles.whatCell}>{renderWhat()}</span>

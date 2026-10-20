@@ -5,7 +5,7 @@ import type { PromptSwitches } from "../../../shared/lib/promptSwitches.ts";
 import { Button } from "../../../shared/ui/Button.tsx";
 import { ButtonLink } from "../../../shared/ui/ButtonLink.tsx";
 import { BranchIcon, CheckIcon, ClockIcon, DesktopIcon } from "../../../shared/ui/icons.tsx";
-import { commitSubjectOf, factoryPhaseOf, type BoardSession, type TileState } from "./board.ts";
+import { commitSubjectOf, factoryBandJob, factoryPhaseOf, isOffWorkflow, type BoardSession, type TileState } from "./board.ts";
 import { CommitCallout } from "./CommitCallout.tsx";
 import { FactoryBand } from "./FactoryBand.tsx";
 import { activityLabel, originLabel, pillLabel, startLabel, turnDuration, waitingForLabel, type CurrentActivity } from "./labels.ts";
@@ -32,11 +32,11 @@ function ActivityLine({ activity }: { activity: CurrentActivity | null }) {
   );
 }
 
-// FR-34, FR-33: the `Hors workflow` mark of a session no factory board knows, or the `Autopilot` mark of a feature an
-// autopilot works on.
+// FR-34, FR-33: the `Hors workflow` mark of a session no factory board knows or whose run is a free request, or the
+// `Autopilot` mark of a feature an autopilot works on.
 export function FactoryMarks({ session }: { session: BoardSession }) {
-  if (session.factory === null) return <span className={styles.offWorkflow}>{t("live.mark.offWorkflow")}</span>;
-  if (session.factory.feature?.autopilot == null) return null;
+  if (isOffWorkflow(session)) return <span className={styles.offWorkflow}>{t("live.mark.offWorkflow")}</span>;
+  if (session.factory?.feature?.autopilot == null) return null;
   return <span className={styles.autopilot}>{t("live.mark.autopilot")}</span>;
 }
 
@@ -65,6 +65,7 @@ export function LiveSessionTile({
   const classes = [styles.tile, styles[column], isHighlighted ? styles.isHighlighted : ""].filter(Boolean).join(" ");
   const sinceDuration = formatElapsed(session.statusSince, now);
   const hasDesktopLink = session.desktopLink !== null && isDesktopLink(session.desktopLink);
+  const bandJob = factoryBandJob(session);
 
   function renderCallout() {
     if (session.status === "awaitingAnswer") {
@@ -133,7 +134,7 @@ export function LiveSessionTile({
           </span>
         </p>
       </div>
-      {session.factory !== null && <FactoryBand job={session.factory} now={now} />}
+      {bandJob !== null && <FactoryBand job={bandJob} now={now} />}
       {renderCallout()}
       {column === "running" && (
         <>

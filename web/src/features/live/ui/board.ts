@@ -1,6 +1,6 @@
 import type { components } from "../../../api/schema.d.ts";
 import type { Closable } from "../../../shared/lib/useClosedMarks.ts";
-import type { FactoryPhase } from "../../factory/data/factoryTypes.ts";
+import type { FactoryPhase, FactorySessionJob } from "../../factory/data/factoryTypes.ts";
 import { shownPhase } from "../../factory/ui/labels.ts";
 
 type LiveState = components["schemas"]["LiveState"];
@@ -74,6 +74,16 @@ export function toClosable(session: BoardSession): Closable {
 export function factoryPhaseOf(session: BoardSession): FactoryPhase | null {
   if (session.factory === null || session.factory.isStale) return null;
   return shownPhase(session.factory.run);
+}
+
+// FR-34: a session no factory board knows, or whose run is the mod's record of a free request.
+export function isOffWorkflow(session: BoardSession): boolean {
+  return session.factory === null || session.factory.isOffWorkflow;
+}
+
+// FR-33: the job a factory band draws, never a free request's.
+export function factoryBandJob(session: BoardSession): FactorySessionJob | null {
+  return session.factory === null || session.factory.isOffWorkflow ? null : session.factory;
 }
 
 // BR-20: a session waits for the person when it asks a question, or when its factory job waits for its commit's validation.
