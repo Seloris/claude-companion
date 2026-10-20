@@ -1,14 +1,9 @@
 /* On a phone only the selected column shows; the board's tab list picks it (FR-22). */
 .column {
-  --column-tint: var(--accent-soft);
   display: grid;
   align-content: start;
   gap: 12px;
   min-width: 0;
-  padding: 16px;
-  background: var(--column-tint);
-  border: var(--border-width) solid var(--border);
-  border-radius: var(--radius);
 }
 
 .column[data-selected="false"] {
@@ -21,23 +16,36 @@
   }
 }
 
+/* The tone of a column: its count bubble and the edge of its tiles. */
 .awaiting {
-  --column-tint: var(--status-awaiting-soft);
+  --column-tone: var(--status-awaiting);
+}
+
+.running {
+  --column-tone: var(--accent);
 }
 
 .finished {
-  --column-tint: var(--status-finished-soft);
+  --column-tone: var(--status-finished);
 }
 
 .header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 2px 10px;
+  gap: 10px;
+  min-height: var(--control-h);
 }
 
-.icon {
-  display: inline-flex;
+.count {
+  min-width: 34px;
+  padding: 1px 10px;
+  font-size: 0.86em;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+  background: var(--column-tone);
+  border-radius: var(--radius-pill);
 }
 
 .title {
@@ -47,22 +55,8 @@
   font-weight: var(--title-weight);
 }
 
-.count {
-  min-width: 28px;
-  padding: 0 10px;
-  font-size: 0.86em;
-  font-weight: 600;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  background: var(--surface-2);
-  border-radius: var(--radius-pill);
-}
-
-.caption {
-  grid-column: 2 / -1;
-  margin: 0;
-  font-size: 0.86em;
-  color: var(--text-muted);
+.action {
+  margin-left: auto;
 }
 
 .tiles {

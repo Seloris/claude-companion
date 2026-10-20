@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { t } from "../../../shared/lib/i18n/index.ts";
+import { setPromptSwitches, usePromptSwitches } from "../../../shared/lib/promptSwitches.ts";
 import { useClosedMarks } from "../../../shared/lib/useClosedMarks.ts";
 import { useNow } from "../../../shared/lib/useNow.ts";
 import { useFactoryView } from "../data/factoryView.ts";
@@ -15,8 +15,8 @@ export function WorkspaceFactorySection({ workspaceId }: { workspaceId: number }
   // BR-04: the Clôturée marks made on the live page, read once for the section (a mark made in another tab arrives through the storage event); the Activité honours them.
   const closedMarks = useClosedMarks();
   const now = useNow(1000);
-  const [isReview, setReview] = useState(false);
-  const [isBrowser, setBrowser] = useState(false);
+  // FR-23: the switches the factory page sets, kept by the browser.
+  const { isReview, isBrowser } = usePromptSwitches();
 
   const group = query.data?.workspaces.find((workspace) => workspace.workspaceId === workspaceId);
   if (group === undefined || group.boards.length === 0) return null;
@@ -32,8 +32,8 @@ export function WorkspaceFactorySection({ workspaceId }: { workspaceId: number }
           closedMarks={closedMarks}
           isReview={isReview}
           isBrowser={isBrowser}
-          onReviewChange={setReview}
-          onBrowserChange={setBrowser}
+          onReviewChange={(checked) => setPromptSwitches({ isReview: checked })}
+          onBrowserChange={(checked) => setPromptSwitches({ isBrowser: checked })}
         />
       ))}
     </section>

@@ -1,0 +1,24 @@
+.next {
+  display: inline-grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The live region stays in the tree, so that its message is announced; it takes no room while empty. */
+.status:empty {
+  position: absolute;
+}
+
+.fallback {
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+  background: var(--surface-2);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-control);
+}

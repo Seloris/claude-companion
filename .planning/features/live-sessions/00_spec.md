@@ -67,7 +67,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `Récap` | `FactoryRecap` | What a session's job done says it did: its recap line and its commits (factory-board) | Reused |
 | `Prompt suivant` | `NextPrompt` | The factory command prepared for a feature's next step (factory-board) | Reused |
 | `Commit proposé` | `PendingCommit` | The commit message a session `attend la validation du commit` proposed, as the factory board exports it | New |
-| `Hors workflow` | `OffWorkflow` | A `LiveSession` of which no `FactoryBoard` exports a `FactoryRun`, typically a session typed without a `/factory:` command (factory-board BR-03) | New |
+| `Hors workflow` | `OffWorkflow` | A `LiveSession` of which no `FactoryBoard` exports a `FactoryRun` of a factory job, typically a session typed without a `/factory:` command, whose run the mod may record as a free request off the workflow (factory-board FR-31) | New |
 
 ## Functional Requirements
 
@@ -125,7 +125,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 
 - **FR-32** — A tile's status pill is its `FactoryPhase` when a `FactoryBoard` that is not a `StaleBoard` knows the session (found by its session among the board's live `FactoryRun`s or `FactorySession`s, the live run winning, as factory-board FR-31 matches them): `Au travail`, `Commit à valider`, `Question posée`, `Job done` or `Interrompue`; otherwise its `LiveStatus`: `En cours`, `Question posée` or `Terminée`. The `LiveStatus` keeps the tile's column (except BR-20) and its colour edge, so that the person reads where the job stands while the board still sorts by live state.
 - **FR-33** — Under its title, a tile a `FactoryBoard` knows carries a factory band: its feature (`nouvelle feature` without one), its step (factory-board FR-29) and its plan name (factory-board FR-30), read `feature › étape · plan`, with one segment per stage of the feature's followed plan, done, at hand or to come, as the factory page draws its card (factory-board FR-13); an `Autopilot` mark heads the tile while an autopilot works on the feature.
-- **FR-34** — A tile no `FactoryBoard` knows (`OffWorkflow`) carries a grey `Hors workflow` mark in its context line and no factory band, so that a session outside the workflow is told apart at a glance.
+- **FR-34** — A tile no `FactoryBoard` knows, or whose matched run is the mod's record of a free request off the workflow (`OffWorkflow`, factory-board FR-31), carries a grey `Hors workflow` mark in its context line and no factory band, so that a session outside the workflow is told apart at a glance.
 - **FR-35** — On a tile known by a `StaleBoard` (BR-21), the band shows the `FactoryPhase` at the last scan, marked so with the scan's age (`Interrompue · au dernier scan (2 min)`), so that a frozen phase is never read as the current one.
 - **FR-36** — A `Commit à valider` tile shows a `Message de commit proposé` callout with the subject of its `PendingCommit`, never its body; the callout is a button that copies the subject to the clipboard and opens the session in the desktop app (FR-31), so that the person validates or corrects the commit in one move; a session without a `DesktopLink` only copies, and the button says so (BR-18).
 - **FR-37** — A `Job done` tile shows a `Récap` callout with its recap line and its commits (short hash and subject), as factory-board FR-26 gives them, and offers `Clôturer` (FR-17) as its primary action, so that the person reads the outcome and closes the session.
@@ -224,3 +224,5 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - Does the folded `Idle` group get the band or `Hors workflow`? → No (non-goal) (unchanged from factory-board's choice).
 - The application's name `SelOps` (FR-41) → recorded here (no spec owns the navigation; this one owns its counts).
 - factory-board FR-31 (the factory line on the live tile) and its non-goal "Changing the live page beyond the factory line of FR-31" → superseded by FR-32 to FR-38 here; left for the plan (write-spec called mode on factory-board): this commit holds the live-sessions spec only.
+- factory-board FR-31 and its non-goals (plan `add-factory-phases`, 2026-10-20) → revised there in called mode, in the plan's commit: the factory line becomes the band, the phase the pill.
+- The mod records a free request as a run (`off-workflow` command) → such a session is `OffWorkflow` (~FR-34, glossary) (it runs no factory job; reading it as one would give a band with no feature and no step).

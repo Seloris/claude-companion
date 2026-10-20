@@ -12,7 +12,7 @@ import text from "./texts.module.css";
 import { WorkspaceChip } from "./WorkspaceChip.tsx";
 
 // FR-07: the idle sessions that are not finished, folded in one group, each reduced to its workspace, its title, since when it is idle
-// and the link that opens it in the desktop app when it has one.
+// and the icon that opens it in the desktop app when it has a link (FR-31).
 export function IdleGroup({ sessions, now }: { sessions: BoardSession[]; now: Date }) {
   if (sessions.length === 0) return null;
   return (
@@ -27,7 +27,6 @@ export function IdleGroup({ sessions, now }: { sessions: BoardSession[]; now: Da
               {session.desktopLink !== null && isDesktopLink(session.desktopLink) && (
                 <ButtonLink variant="ghost" href={session.desktopLink} aria-label={t("live.tile.desktopLabel", { title: session.title })}>
                   <DesktopIcon />
-                  {t("live.tile.desktop")}
                 </ButtonLink>
               )}
               <RecapLink sessionId={session.sessionId} title={session.title} isStored={session.isStored} />

@@ -3,6 +3,7 @@ import { haveFilesChanged, readLines, readMeta, scanSubagentFiles, statFile, typ
 import { desktopSessionIdOf, toDesktopLink } from "../ingestion/ingestion.reopen.js";
 import type { IngestionService } from "../ingestion/ingestion.service.js";
 import { resolveWorkspace, type ResolvedWorkspace } from "../ingestion/ingestion.workspace.js";
+import type { FactorySessionJob } from "../factory/factory.schema.js";
 import type { WorkspacesRepository } from "../workspaces/workspaces.repository.js";
 import type { LiveSession, LiveState, LiveStatus, LiveWorkspace } from "./live.schema.js";
 import { readLiveLog, type CurrentActivityRead, type LiveLog } from "./live.log.js";
@@ -33,6 +34,7 @@ export function createLiveService({
   scratchRoot,
   isPidAlive,
   findRepoRoot,
+  findFactoryJobs,
 }: {
   workspacesRepo: Pick<WorkspacesRepository, "findStoredSessionIds">;
   ingestion: Pick<IngestionService, "start" | "whenIdle">;
@@ -42,6 +44,8 @@ export function createLiveService({
   scratchRoot: string;
   isPidAlive: (pid: number) => boolean;
   findRepoRoot: (cwd: string) => string | null;
+  // The factory job of each session, by session id (factory-board FR-31).
+  findFactoryJobs: () => Promise<Map<string, FactorySessionJob>>;
 }) {
   // In memory only (BR-07): the application stores nothing of the live state.
   // The last status file read OK, by file name: Claude Code rewrites them, a read can catch one half written.
@@ -50,6 +54,23 @@ export function createLiveService({
   const logCache = new Map<string, CachedLog>();
   const failedSessions = new Set<string>();
   let previousIds: Set<string> | null = null;
+  // One log until the boards read again.
+  let hasJobsFailed = false;
+
+  // The boards never fail the live state: without them every session is outside the workflow for this read.
+  async function loadFactoryJobs(): Promise<Map<string, FactorySessionJob>> {
+    try {
+      const jobs = await findFactoryJobs();
+      hasJobsFailed = false;
+      return jobs;
+    } catch (error) {
+      if (!hasJobsFailed) {
+        hasJobsFailed = true;
+        console.error("live state: the factory boards could not be read", error);
+      }
+      return new Map();
+    }
+  }
 
   // Any error on one session's files (a file vanishing, EPERM, EBUSY on Windows) leaves that session without log
   // for this read, never fails the response.
@@ -90,7 +111,13 @@ export function createLiveService({
     }
   }
 
-  function toEntry(status: StatusFile, log: LiveLog | null, isStored: boolean, liveStatus: LiveStatus): LiveEntry {
+  function toEntry(
+    status: StatusFile,
+    log: LiveLog | null,
+    isStored: boolean,
+    liveStatus: LiveStatus,
+    factory: FactorySessionJob | null,
+  ): LiveEntry {
     const statusSince = new Date(status.statusUpdatedAt ?? status.updatedAt ?? status.startedAt);
     const lastLineAt = log?.lastLineAt ?? null;
     const lastActivityAt = lastLineAt !== null && lastLineAt > statusSince ? lastLineAt : statusSince;
@@ -139,6 +166,7 @@ export function createLiveService({
                   since: subagent.launchedAt.toISOString(),
                 }))
             : [],
+        factory,
       },
     };
   }
@@ -189,8 +217,10 @@ export function createLiveService({
 
     const logs = await Promise.all(alive.map((status) => loadLog(status)));
     const stored = await workspacesRepo.findStoredSessionIds([...ids]);
+    // No board read while no process runs: the live state is polled every 3 s on every page.
+    const jobs = alive.length === 0 ? new Map<string, FactorySessionJob>() : await loadFactoryJobs();
     const entries = alive.map((status, index) =>
-      toEntry(status, logs[index] ?? null, stored.has(status.sessionId), toLiveStatus(status)),
+      toEntry(status, logs[index] ?? null, stored.has(status.sessionId), toLiveStatus(status), jobs.get(status.sessionId) ?? null),
     );
 
     const state = emptyState(true);

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { readPermission } from "../data/notificationPermission.ts";
 import { getNotificationSettings, useNotificationSettings } from "../data/notificationSettings.ts";
 import type { useLiveStateQuery } from "../data/useLiveStateQuery.ts";
-import { flattenWorkspaces } from "../ui/board.ts";
+import { flattenWorkspaces, isAwaitingPerson } from "../ui/board.ts";
 import {
   notificationTag,
   notificationText,
@@ -89,8 +89,8 @@ export function useLiveNotifications(liveQuery: ReturnType<typeof useLiveStateQu
     baselineRef.current = tracked.baseline;
 
     const held = heldRef.current;
-    // FR-30: a question that was answered, or whose session left, no longer waits for anything.
-    const awaitingIds = new Set(sessions.filter((session) => session.status === "awaitingAnswer").map((session) => session.sessionId));
+    // FR-30: a question that was answered, a commit validated or declined, or a session that left, no longer waits for anything.
+    const awaitingIds = new Set(sessions.filter(isAwaitingPerson).map((session) => session.sessionId));
     for (const [sessionId, entry] of held) {
       if (entry.kind === "awaitingAnswer" && !awaitingIds.has(sessionId)) closeHeld(held, sessionId);
     }

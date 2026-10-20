@@ -1,18 +1,26 @@
-import { CheckIcon, QuestionIcon } from "../../../shared/ui/icons.tsx";
+import { CheckIcon } from "../../../shared/ui/icons.tsx";
+import type { PillId } from "./board.ts";
 import styles from "./StatusPill.module.css";
 
-export type PillStatus = "awaiting" | "running" | "finished";
+const TONES: Record<PillId, "working" | "attention" | "done" | "finished" | "muted"> = {
+  working: "working",
+  running: "working",
+  "awaiting-commit": "attention",
+  "awaiting-answer": "attention",
+  awaitingAnswer: "attention",
+  "job-done": "done",
+  finished: "finished",
+  interrupted: "muted",
+  idle: "muted",
+};
 
-// The icon of a status: a pulsing dot while it runs (the pulse stops under prefers-reduced-motion), a question mark, a check.
-export function StatusIcon({ status }: { status: PillStatus }) {
-  if (status === "running") return <span className={styles.dot} aria-hidden="true" />;
-  return status === "awaiting" ? <QuestionIcon /> : <CheckIcon />;
-}
-
-export function StatusPill({ status, label }: { status: PillStatus; label: string }) {
+// FR-32: the pill of a tile, its factory phase or its live status. A pulsing dot while it works (the pulse stops under
+// prefers-reduced-motion), a check once the job is done, a dot for what waits or finished, nothing for a muted state.
+export function StatusPill({ pill, label }: { pill: PillId; label: string }) {
+  const tone = TONES[pill];
   return (
-    <span className={`${styles.pill} ${styles[status]}`}>
-      <StatusIcon status={status} />
+    <span className={`${styles.pill} ${styles[tone]}`}>
+      {tone === "done" ? <CheckIcon /> : tone !== "muted" && <span className={styles.dot} aria-hidden="true" />}
       {label}
     </span>
   );

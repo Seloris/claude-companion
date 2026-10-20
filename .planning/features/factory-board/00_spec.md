@@ -18,8 +18,8 @@ The person drives several factory projects at once, often through autopilots and
 - Acting on a project: the application never writes a plan, a spec, `factory.yaml` or the board, never fills a Claude Code prompt box and never starts a session; it copies prompts to the clipboard only.
 - Recomputing the board: the states, the markers, the steps' runs, the live runs and the prompts are the mod's; the application draws them as exported, without correcting them.
 - The pane's controls that write or that the export does not carry: the plan picker (only the default plan's timeline is exported), `Nouvelle feature`, `Squasher`, the models screen, `Marquer comme fait`, the rescan.
-- Changing the live page beyond the factory line of FR-31: a tile's column, order, state and `Clôturer` stay `live-sessions`', and the folded `Idle` group carries no factory line.
-- A list of the factory sessions on the board: the live page shows the running ones, each tile with its factory line (FR-31), and closes them with `Clôturer` (live-sessions FR-17).
+- Drawing the factory data on the live page: its tiles' pill, band, callouts, columns, order and `Clôturer` are `live-sessions`' (its FR-32 to FR-40, BR-20 to BR-22); this feature only says which run a tile shows (FR-31), and the folded `Idle` group carries no factory band.
+- A list of the factory sessions on the board: the live page shows the running ones, each tile with its factory band (FR-31), and closes them with `Clôturer` (live-sessions FR-17).
 - Making the board fresher than the mod writes it (every 10 seconds, after a commit and at each turn's end): a faster rescan is a change of the mod.
 
 ## Domain Glossary
@@ -80,7 +80,7 @@ The person drives several factory projects at once, often through autopilots and
 - **FR-20** — The boards update by themselves without a reload, and a change of a board file is visible within 2 seconds of its writing; the freshness of the content itself is the mod's (FR-11).
 - **FR-21** — A board file that cannot be parsed (being rewritten) keeps the board last read, with no error shown, and is read again at the next change.
 - **FR-22** — A board file that disappears removes its board.
-- **FR-23** — The state filters and the unfolded card are kept by the person's browser, and survive a reload.
+- **FR-23** — The state filters, the unfolded card and the two switches of FR-18 are kept by the person's browser, and survive a reload; the switches also set the prompt the live page copies for a job's next step (live-sessions FR-38), so that the person sets them once.
 
 ### Phases and sessions
 
@@ -97,7 +97,7 @@ The person drives several factory projects at once, often through autopilots and
 
 ### Live page
 
-- **FR-31** — On the live page, the tile of a `LiveSession` found by its session among a board's live runs or `FactorySession`s carries a factory line: its feature (`nouvelle feature` without one), its step (FR-29), its plan name (FR-30) and its `Phase` (its status without one, FR-24), the live run winning over the `FactorySession` when both name it, so that the person reads which factory job a running session does without opening the factory page.
+- **FR-31** — On the live page, the tile of a `LiveSession` found by its session among a board's live runs or `FactorySession`s carries a factory band, drawn as live-sessions FR-33 and FR-35 say: its feature (`nouvelle feature` without one), its step (FR-29), its plan name (FR-30) and the segments of its feature's stages (FR-13), its `Phase` moving to the tile's status pill (live-sessions FR-32); the live run wins over the `FactorySession` when both name it, the main loop over a subagent's run, then the latest change, and a run the mod records for a free request off the workflow gives no band (live-sessions FR-34), so that the person reads which factory job a session does without opening the factory page.
 
 ## Business Rules
 
@@ -113,7 +113,7 @@ The person drives several factory projects at once, often through autopilots and
 - A card unfolds into its timeline; the step at hand shows its prompt buttons and the two switches; a click copies the prompt.
 - A run's session opens the stored session page.
 - Workspaces page: factory badge on a workspace → its page → factory section with its boards.
-- Live page: a factory session's tile reads e.g. `factory-board · Revue finale · add-session-phases · job done` under its usual content.
+- Live page: a factory session's tile reads e.g. `Job done` in its pill and `factory-board › Revue finale · add-session-phases` with its stage segments in its band, under its title.
 
 ## Decisions taken autonomously
 
@@ -139,3 +139,9 @@ The person drives several factory projects at once, often through autopilots and
 - Where do FR-25's commit message and FR-26's `Récap` show now? → In the `Activité` and on the live run lines, unchanged (they never belonged to the list alone).
 - The workspace page's factory section (FR-08)? → Loses the list too: it is drawn as on the factory page.
 - live-sessions BR-10 and its `Clôturée` glossary entry still say the mark is shared with the factory sessions → Left for the plan (write-spec called mode): this commit holds the factory-board spec only.
+- Feature slug for the factory band on the live tile (2026-10-20) → `factory-board`, existing; revised from the plan `live-sessions` `add-factory-phases` (write-spec called mode, autonomous), shipped in that plan's commit.
+- FR-31 revised or replaced? → Revised in place under the same id: the line becomes the band, the phase moves to the pill (live-sessions FR-32); ids are never renumbered.
+- Does the match rule change? → No: the live run before the `FactorySession`, the main loop before a subagent's run, then the latest change, over every board, a stale one included (the rule the live tiles already used).
+- The mod also records free requests as runs (`command` and `step` `off-workflow`), which BR-03 does not foresee → such a run is no factory job: when it is the session's match, the tile reads `Hors workflow` (live-sessions FR-34); BR-03 is left as is (append-only), this decision records the reading.
+- Are the `avec revue` and `test navigateur` switches shared with the live page? → Yes, kept by the browser (FR-23) (live-sessions FR-38 copies the next step's prompt "as the factory page's switches set them"; switches local to the page could not be read there).
+- The non-goal "Changing the live page beyond the factory line of FR-31" → revised: the live page draws the factory data (live-sessions FR-32 to FR-40); this feature keeps the match only.

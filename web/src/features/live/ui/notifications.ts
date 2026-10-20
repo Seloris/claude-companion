@@ -1,6 +1,6 @@
 import { formatDuration } from "../../../shared/lib/format.ts";
 import { t } from "../../../shared/lib/i18n/index.ts";
-import { turnEndedAt, type BoardSession } from "./board.ts";
+import { commitSubjectOf, isAwaitingPerson, turnEndedAt, type BoardSession } from "./board.ts";
 import { waitingForLabel } from "./labels.ts";
 
 export type LiveNotificationKind = "awaitingAnswer" | "finished";
@@ -14,7 +14,17 @@ export interface LiveNotification {
 export interface NotificationBaseline {
   // The live state's own read time (the clock of `statusSince`), so a turn that ended after it is a new one (BR-19).
   readAt: string;
-  sessions: Map<string, { status: BoardSession["status"]; question: string | null; turnStartedAt: string | null }>;
+  sessions: Map<
+    string,
+    {
+      // BR-20: in `Vous attend`, by a question or by a commit to validate.
+      isAwaiting: boolean;
+      status: BoardSession["status"];
+      question: string | null;
+      commitSubject: string | null;
+      turnStartedAt: string | null;
+    }
+  >;
 }
 
 // A toast has little room: the api's 300-character reply is cut here.
@@ -28,8 +38,8 @@ function cut(text: string): string {
 // - `baseline` is null for the first readable read of a page and for the first one after an unreadable or failed read:
 //   it becomes the new baseline and notifies nothing (BR-13). A session first seen after that notifies if it is already
 //   waiting or finished its turn after the previous read.
-// - `sessions` is every live session, never a filtered list (BR-15); only the status counts (BR-14: a permission wait
-//   is `running`).
+// - `sessions` is every live session, never a filtered list (BR-15); the columns count (BR-14: a permission wait is
+//   `running`, unless its factory phase puts it in `Vous attend`, BR-20).
 // - `readAt` is the live state's own read time, compared with the end of a turn (BR-19): only a turn that ended after the
 //   previous read notifies, so a session first seen, or seen again after a read that missed it, tells nothing of an old turn.
 export function trackNotifications(
@@ -44,21 +54,30 @@ export function trackNotifications(
     // A read that finds no log (a file busy on Windows) nulls the question and the turn: that says nothing about them,
     // so the baseline keeps what the last read that had the log said, and the turn is not told again once the log is back.
     const isLogMissing = !session.isLogFound && before !== undefined;
+    const isAwaiting = isAwaitingPerson(session);
+    const commitSubject = commitSubjectOf(session);
     next.set(session.sessionId, {
+      isAwaiting,
       status: session.status,
+      commitSubject,
       question: isLogMissing ? before.question : session.question,
       turnStartedAt: isLogMissing ? before.turnStartedAt : session.turnStartedAt,
     });
     if (baseline === null) continue;
-    if (session.status === "awaitingAnswer") {
-      // Two questions answered within one poll are told apart by their text; a missing text on either side (a log not
-      // read yet) is not a new question.
+    if (isAwaiting) {
+      // Two questions answered within one poll are told apart by their text, two commits by their subject; a missing
+      // text on either side (a log not read yet) is not a new question.
       const isAnotherQuestion =
         before !== undefined &&
         before.question !== null &&
         session.question !== null &&
         before.question !== session.question;
-      if (before === undefined || before.status !== "awaitingAnswer" || isAnotherQuestion) {
+      const isAnotherCommit =
+        before !== undefined &&
+        before.commitSubject !== null &&
+        commitSubject !== null &&
+        before.commitSubject !== commitSubject;
+      if (before === undefined || !before.isAwaiting || isAnotherQuestion || isAnotherCommit) {
         notifications.push({ kind: "awaitingAnswer", session });
       }
     } else {
@@ -87,12 +106,13 @@ export function notificationTag(sessionId: string): string {
 export function notificationText({ kind, session }: LiveNotification): { title: string; body: string } {
   const workspace = session.workspace.name;
   if (kind === "awaitingAnswer") {
+    // FR-24: the question, else the subject of the commit to validate, else what the session waits for.
+    const subject = commitSubjectOf(session);
+    const question =
+      session.question ?? (subject === null ? waitingForLabel(session.waitingFor) : t("live.notify.commitBody", { subject }));
     return {
       title: t("live.notify.awaitingTitle", { workspace }),
-      body: t("live.notify.awaitingBody", {
-        title: session.title,
-        question: cut(session.question ?? waitingForLabel(session.waitingFor)),
-      }),
+      body: t("live.notify.awaitingBody", { title: session.title, question: cut(question) }),
     };
   }
   const turnMs =

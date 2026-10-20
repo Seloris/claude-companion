@@ -55,7 +55,7 @@ export function FactoryFeatureCard({
             {t("factory.card.autopilot", { step: withPlanName(runStepLabel(board, autopilot), autopilot.folder) })}
           </Badge>
         )}
-        <FactoryStageSegments feature={feature} />
+        <FactoryStageSegments steps={feature.steps} />
         {feature.title !== feature.slug && <span className={styles.title}>{feature.title}</span>}
       </button>
       {isExpanded && (

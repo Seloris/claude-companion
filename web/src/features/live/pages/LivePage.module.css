@@ -20,6 +20,20 @@
   gap: 8px;
 }
 
+/* FR-21, FR-39, FR-23: the update time, the compact switch and the notifications, on the right of the title. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 20px;
+}
+
+/* An opened disclosure takes the bar's whole width, so its settings are not squeezed beside the switch. */
+.notifications:has(details[open]) {
+  flex-basis: 100%;
+}
+
 .summary {
   margin: 0;
   color: var(--text-muted);

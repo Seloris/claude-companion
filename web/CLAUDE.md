@@ -33,10 +33,10 @@ src/
                             Panel, PageTitle, Field (label, error, the control as a render prop), TextInput, SearchInput, Select,
                             Button (variant: primary, danger, quiet, ghost), Switch, Checkbox, List (List, ListItem with isDone, ListItemText),
                             Badge (tone: default, attention, muted), Banner (a warning strip, role="status"), EmptyState, LoadingState, ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>),
-                            NavBar (the navigation: links as props, counts as `badges`), ButtonLink (an <a> with the button's look, variant: quiet, ghost), Disclosure (a native <details>, folded until opened),
-                            Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), ToggleChipGroup (toggle chips, several pressed), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, QuestionIcon, CheckIcon, EyeIcon, BranchIcon, DesktopIcon, CopyIcon)
+                            NavBar (the navigation: the application's name as `brand`, links as props, counts as `badges`), ButtonLink (an <a> with the button's look, variant: quiet, ghost), Disclosure (a native <details>, folded until opened),
+                            Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), ToggleChipGroup (toggle chips, several pressed), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, CheckIcon, EyeIcon, BranchIcon, DesktopIcon, CopyIcon, ClockIcon, ArrowUpRightIcon)
       theme/                fonts.ts (the skin's font imports) and skin.css (its tokens), both written by factory-init: never edited; base.css (the page), overrides.css (this application's values)
-    lib/                    utils, i18n; useNow.ts (the current time, re-read every interval), useClipboard.ts (copy text, with its copied/failed state), useClosedMarks.ts (the Clôturée marks of the sessions, kept by the browser, made on the live page and honoured by the factory board's Activité), desktopLink.ts (isDesktopLink: the only desktop-app href the pages render)
+    lib/                    utils, i18n; useNow.ts (the current time, re-read every interval), useClipboard.ts (copy text, with its copied/failed state), useClosedMarks.ts (the Clôturée marks of the sessions, kept by the browser, made on the live page and honoured by the factory board's Activité), desktopLink.ts (isDesktopLink: the only desktop-app href the pages render), promptSwitches.ts (the `avec revue` / `test navigateur` switches of the prompts to copy, kept by the browser, set on the factory pages and read by the live page)
 ```
 
 ## Package scripts
@@ -45,6 +45,7 @@ src/
 |---|---|
 | `build` | `tsc -b && vite build`: type-checks, then bundles |
 | `dev` | `vite`, with the `/api` proxy to http://localhost:3100 |
+| `dev:demo` | `vite --mode demo`: the same dev server on 5180, with the `/api` proxy to the demo API (api's `npm run demo`) on http://localhost:3101 |
 
 ## Conventions
 
@@ -72,6 +73,7 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 ## Testing
 
 - No unit tests on the front: the `test-in-browser` skill checks a change in the real app on http://localhost:5180; there are no test accounts, nothing to sign in with.
+- A browser test of the live page runs against the demo (api `npm run demo`, then web `npm run dev:demo`), never against `~/.claude`; check that `/api/v1/live`'s `sessionsDir` ends in `fixtures/live-demo/sessions` (and `/api/v1/factory`'s `boardsDir` in `fixtures/live-demo/factory-board`) before testing.
 
 ## Local run
 

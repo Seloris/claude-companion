@@ -1,0 +1,111 @@
+.callout {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--live-commit-soft);
+  border-radius: var(--radius-control);
+}
+
+.heading {
+  font-size: var(--label-size);
+  font-weight: 600;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--live-commit);
+}
+
+/* One button: the subject as it will be pasted, then what the click does. */
+.button {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.subject {
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--live-commit);
+}
+
+.button:hover .action {
+  text-decoration: underline;
+}
+
+.action svg,
+.compactButton svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+/* The live region stays in the tree, so that its message is announced; it takes no room while empty. */
+.status:empty {
+  position: absolute;
+}
+
+.fallback {
+  margin: 0;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+/* FR-40: the subject alone, on one line, in the commit's tone. */
+.compact {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compactButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 10px;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--live-commit);
+  background: var(--live-commit-soft);
+}
+
+.compactSubject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

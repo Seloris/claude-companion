@@ -926,6 +926,7 @@ export interface components {
             queuedPrompts: string[];
             currentActivity: components["schemas"]["CurrentActivity"];
             runningSubagents: components["schemas"]["RunningSubagent"][];
+            factory: components["schemas"]["FactorySessionJob"] | null;
         };
         /** @enum {string} */
         LiveStatus: "running" | "awaitingAnswer" | "idle";
@@ -964,6 +965,34 @@ export interface components {
             currentTool: string | null;
             /** Format: date-time */
             since: string;
+        };
+        FactorySessionJob: {
+            fileName: string;
+            root: string;
+            isStale: boolean;
+            /** Format: date-time */
+            scannedAt: string;
+            markers: {
+                review: string;
+                browser: string;
+            };
+            /** @enum {string} */
+            source: "live" | "session";
+            run: components["schemas"]["FactoryRun"];
+            feature: components["schemas"]["FactoryJobFeature"] | null;
+        };
+        FactoryJobFeature: {
+            slug: string;
+            title: string;
+            plan: components["schemas"]["FactoryPlan"] | null;
+            autopilot: components["schemas"]["FactoryRun"] | null;
+            next: components["schemas"]["FactoryNextPrompt"] | null;
+            steps: components["schemas"]["FactoryJobStep"][];
+        };
+        FactoryJobStep: {
+            step: string;
+            title: string;
+            marker: components["schemas"]["FactoryMarker"];
         };
         LogRetentionStatus: {
             retentionDays: number;

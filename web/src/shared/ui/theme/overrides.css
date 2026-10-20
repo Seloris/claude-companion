@@ -48,6 +48,12 @@
   --factory-phase-job-done: var(--factory-done);
   --factory-phase-interrupted: var(--text-muted);
   --factory-phase-idle: var(--text-muted);
+  /* The live tile's pills the skin has no tone for (FR-32): a commit to validate takes the awaiting amber (it needs the
+     person), a job done the factory's done green. The dark values follow the variables they alias. */
+  --live-commit: var(--status-awaiting);
+  --live-commit-soft: var(--status-awaiting-soft);
+  --live-done: var(--factory-done);
+  --live-done-soft: color-mix(in srgb, var(--factory-done) 14%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {

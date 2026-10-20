@@ -1,0 +1,35 @@
+.callout {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  background: var(--live-done-soft);
+  border-radius: var(--radius-control);
+}
+
+.heading {
+  font-size: var(--label-size);
+  font-weight: 600;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--live-done);
+}
+
+.text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.commits {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9em;
+  list-style: none;
+}
+
+.sha {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}

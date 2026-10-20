@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { t } from "../../../shared/lib/i18n/index.ts";
+import { setPromptSwitches, usePromptSwitches } from "../../../shared/lib/promptSwitches.ts";
 import { useClosedMarks } from "../../../shared/lib/useClosedMarks.ts";
 import { useNow } from "../../../shared/lib/useNow.ts";
 import { Banner } from "../../../shared/ui/Banner.tsx";
@@ -20,9 +20,9 @@ function FactoryPage() {
   const closedMarks = useClosedMarks();
   // The scan age and the durations keep ticking between two polls.
   const now = useNow(1000);
-  // The two switches are page state, off by default, shared by all the cards of the page (FR-18).
-  const [isReview, setReview] = useState(false);
-  const [isBrowser, setBrowser] = useState(false);
+  // FR-18, FR-23: the two switches, off by default, shared by all the cards and kept by the browser for every page
+  // (the live page's next-step button reads them).
+  const { isReview, isBrowser } = usePromptSwitches();
 
   function renderContent() {
     if (query.isPending) return <LoadingState>{t("common.state.loading")}</LoadingState>;
@@ -52,8 +52,8 @@ function FactoryPage() {
               closedMarks={closedMarks}
               isReview={isReview}
               isBrowser={isBrowser}
-              onReviewChange={setReview}
-              onBrowserChange={setBrowser}
+              onReviewChange={(checked) => setPromptSwitches({ isReview: checked })}
+              onBrowserChange={(checked) => setPromptSwitches({ isBrowser: checked })}
             />
           ))
         )}

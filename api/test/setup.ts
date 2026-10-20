@@ -92,6 +92,14 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
   const timer = createTestTimer();
   const dashboard = createDashboardService({ dashboardRepo: createDashboardRepository(db), clock });
   const alivePids = new Set<number>();
+  const buildFactory = () =>
+    createFactoryService({ workspacesRepo, clock, boardsDir, pluginsFile, scratchRoot, findRepoRoot: () => null });
+  // Its cache of the last good reads is in memory, like the live service's snapshots.
+  let currentFactory = buildFactory();
+  const factory = {
+    getFactoryState: () => currentFactory.getFactoryState(),
+    getSessionJobs: () => currentFactory.getSessionJobs(),
+  };
   const buildLive = () =>
     createLiveService({
       workspacesRepo,
@@ -102,15 +110,12 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
       scratchRoot,
       isPidAlive: (pid) => alivePids.has(pid),
       findRepoRoot: () => null,
+      // The factory service of the current context: a test writes boards in boardsDir and reads them on /v1/live.
+      findFactoryJobs: () => currentFactory.getSessionJobs(),
     });
   // The service keeps snapshots and caches in memory: reset() swaps it for a fresh one so no test sees another's.
   let current = buildLive();
   const live = { getLiveState: () => current.getLiveState() };
-  const buildFactory = () =>
-    createFactoryService({ workspacesRepo, clock, boardsDir, pluginsFile, scratchRoot, findRepoRoot: () => null });
-  // Same as the live service: its cache of the last good reads is in memory.
-  let currentFactory = buildFactory();
-  const factory = { getFactoryState: () => currentFactory.getFactoryState() };
   // Never started by the context: a test calls start() itself. reset() swaps it for a fresh one (truncation wipes the
   // row, not the memory).
   const buildScheduler = () => createRefreshScheduler({ ingestion, ingestionRepo, clock, timer });

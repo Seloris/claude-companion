@@ -1,4 +1,4 @@
-/* The tile's tone is the colour of its column: the halo of a change reads it. */
+/* The tile's tone is the colour of its column: its edge and the halo of a change read it. */
 .tile {
   --tile-tone: var(--accent);
   display: grid;
@@ -7,6 +7,7 @@
   padding: 14px 16px;
   background: var(--item-bg);
   border: var(--item-border);
+  border-left: 3px solid var(--tile-tone);
   border-radius: var(--item-radius);
   box-shadow: 0 0 0 0 transparent;
   transition: box-shadow 400ms;
@@ -23,6 +24,15 @@
 /* FR-18: a status that just changed shows a halo for a few seconds; the page's reduced-motion rule drops the fade, not the halo. */
 .isHighlighted {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tile-tone) 45%, transparent);
+}
+
+/* The context line, and the factory marks on its right. */
+.context {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 10px;
+  min-width: 0;
 }
 
 .meta {
@@ -54,7 +64,41 @@
   overflow-wrap: anywhere;
 }
 
+/* FR-34: grey, it marks what the session is not part of. */
+.offWorkflow,
+.autopilot {
+  flex: none;
+  padding: 1px 10px;
+  font-size: 0.8em;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+}
+
+.offWorkflow {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+/* FR-33: an autopilot works on the feature. */
+.autopilot {
+  color: var(--live-done);
+  background: var(--live-done-soft);
+}
+
+/* The title, with its pill and since when on its right while there is room. */
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
 .title {
+  flex: 1 1 180px;
+  min-width: 0;
   margin: 0;
   font-size: 1.05em;
   font-weight: 600;
@@ -86,31 +130,45 @@
 }
 
 .question {
+  --callout-tone: var(--status-awaiting);
   background: var(--status-awaiting-soft);
 }
 
 .reply {
+  --callout-tone: var(--status-finished);
   background: var(--status-finished-soft);
 }
 
-.replyLabel {
+.calloutLabel {
   font-size: var(--label-size);
   font-weight: 600;
-  color: var(--status-finished);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--callout-tone);
 }
 
-.block {
-  display: grid;
-  gap: 2px;
+/* FR-06: the last prompt on one line, cut with an ellipsis. */
+.prompt {
+  display: flex;
+  gap: 8px;
   min-width: 0;
+  margin: 0;
+  font-size: 0.92em;
+}
+
+.promptLabel {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.promptText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .queue {
-  margin: 0;
-}
-
-.factory {
-  min-width: 0;
   margin: 0;
 }
 
@@ -124,8 +182,24 @@
   border-top: var(--border-width) solid var(--border);
 }
 
+/* FR-02: the start and the total duration as one strip. */
 .when {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-variant-numeric: tabular-nums;
+}
+
+.when svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.rule {
+  width: 24px;
+  border-top: var(--border-width) solid currentColor;
+  opacity: 0.6;
 }
 
 .actions {
@@ -133,7 +207,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px 12px;
+  gap: 6px 8px;
 }
 
 .actions svg {

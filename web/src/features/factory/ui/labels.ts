@@ -7,7 +7,9 @@ import type {
   FactoryBoard,
   FactoryFeatureState,
   FactoryPhase,
+  FactoryPlan,
   FactoryRun,
+  FactorySessionJob,
 } from "../data/factoryTypes.ts";
 
 // The Clôturée marks made on the live page (BR-04), read once per page and passed down to the Activité.
@@ -97,23 +99,40 @@ export function withPlanName(label: string, folder: string | null): string {
 
 // FR-29, BR-02: the label of the step a run works on. The timeline rows belong to the plan the board follows, so a stage
 // title is used only for a run of that plan; a run of another plan of the feature never reads a stage title of the followed one.
-export function runStepLabel(board: FactoryBoard, run: Pick<FactoryRun, "feature" | "folder" | "command" | "step">): string {
+export function stepLabelOf(
+  feature: { plan: FactoryPlan | null; steps: { step: string; title: string }[] } | null | undefined,
+  run: Pick<FactoryRun, "folder" | "command" | "step">,
+): string {
   if (run.step === "spec") return t("factory.step.spec");
   if (run.step === "review") return t("factory.step.review");
   if (run.step === "plan") return run.command === "review" ? t("factory.step.planReview") : t("factory.step.plan");
   const stage = /^stage:(\d+)$/.exec(run.step);
   if (stage?.[1] === undefined) return run.step;
-  const feature = board.features.find((f) => f.slug === run.feature);
-  if (feature !== undefined && feature.plan !== null && samePlanFolder(run.folder, feature.plan.folder)) {
+  if (feature !== undefined && feature !== null && feature.plan !== null && samePlanFolder(run.folder, feature.plan.folder)) {
     const row = feature.steps.find((s) => s.step === run.step);
     if (row !== undefined) return row.title;
   }
   return t("factory.step.stage", { number: stage[1] });
 }
 
-export function stepLabel(board: FactoryBoard, run: FactoryRun): string {
-  const title = runStepLabel(board, run);
+export function runStepLabel(board: FactoryBoard, run: Pick<FactoryRun, "feature" | "folder" | "command" | "step">): string {
+  return stepLabelOf(
+    board.features.find((f) => f.slug === run.feature),
+    run,
+  );
+}
+
+function withAutopilot(title: string, run: FactoryRun): string {
   return run.command === "autopilot" ? t("factory.run.autopilotStep", { step: title }) : title;
+}
+
+export function stepLabel(board: FactoryBoard, run: FactoryRun): string {
+  return withAutopilot(runStepLabel(board, run), run);
+}
+
+// Live-sessions FR-33: the step of a live session's factory job, with the autopilot prefix as `stepLabel` gives it.
+export function jobStepLabel(job: FactorySessionJob): string {
+  return withAutopilot(stepLabelOf(job.feature, job.run), job.run);
 }
 
 export function isNewerRun(candidate: FactoryRun, best: FactoryRun): boolean {

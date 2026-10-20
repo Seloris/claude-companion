@@ -8,6 +8,7 @@ import type {
   FactoryRecap,
   FactoryRun,
   FactorySession,
+  FactorySessionJob,
   FactoryState,
   FactoryWorkspace,
 } from "./factory.schema.js";
@@ -25,6 +26,9 @@ import {
 export const STALE_AFTER_MS = 60_000;
 
 const SESSION_ID = /^[\w-]+$/;
+
+// The mod's command for a free request: the export records it as a run, but it is no factory job.
+export const OFF_WORKFLOW = "off-workflow";
 
 type CachedRead = { kind: "board"; board: FactoryExport } | { kind: "unsupported"; schemaVersion: number | null };
 
@@ -152,10 +156,86 @@ export function createFactoryService({
     return inflight;
   }
 
-  return { getFactoryState };
+  // The job of each live session, through the single flight and the file cache: a live poll re-reads only the changed boards.
+  async function getSessionJobs(): Promise<Map<string, FactorySessionJob>> {
+    return matchSessionJobs(await getFactoryState());
+  }
+
+  return { getFactoryState, getSessionJobs };
 }
 
 export type FactoryService = ReturnType<typeof createFactoryService>;
+
+interface JobCandidate {
+  board: FactoryBoard;
+  run: FactoryRun;
+  source: FactorySessionJob["source"];
+}
+
+const updatedAtMs = (run: FactoryRun) => new Date(run.updatedAt).getTime();
+
+// The main loop wins over a subagent's run, then the latest change.
+function isBetterLiveRun(candidate: FactoryRun, best: FactoryRun): boolean {
+  if ((candidate.agentId === null) !== (best.agentId === null)) return candidate.agentId === null;
+  return updatedAtMs(candidate) > updatedAtMs(best);
+}
+
+function bestBySession(candidates: JobCandidate[], isBetter: (a: FactoryRun, b: FactoryRun) => boolean): Map<string, JobCandidate> {
+  const best = new Map<string, JobCandidate>();
+  for (const candidate of candidates) {
+    const current = best.get(candidate.run.sessionId);
+    if (current === undefined || isBetter(candidate.run, current.run)) best.set(candidate.run.sessionId, candidate);
+  }
+  return best;
+}
+
+function toJob({ board, run, source }: JobCandidate): FactorySessionJob {
+  const feature = run.feature === null ? undefined : board.features.find((candidate) => candidate.slug === run.feature);
+  return {
+    fileName: board.fileName,
+    root: board.root,
+    isStale: board.isStale,
+    scannedAt: board.scannedAt,
+    markers: board.markers,
+    source,
+    run,
+    feature:
+      feature === undefined
+        ? null
+        : {
+            slug: feature.slug,
+            title: feature.title,
+            plan: feature.plan,
+            autopilot: feature.autopilot,
+            next: feature.next,
+            steps: feature.steps.map(({ step, title, marker }) => ({ step, title, marker })),
+          },
+  };
+}
+
+// Factory-board FR-31: the factory job of each session, by session id, over every board of every workspace, a stale one
+// included (an unsupported or unreadable board is not in the state). A live run wins over a board's session entry (the
+// fresher one); among live runs the main loop wins over a subagent's, then the latest change; among session entries the
+// latest change. Live-sessions FR-34: when the winning run is off the workflow, the session has no job, so an older
+// factory run of the same session never shows while it works off the workflow.
+export function matchSessionJobs(state: FactoryState): Map<string, FactorySessionJob> {
+  const boards = state.workspaces.flatMap((workspace) => workspace.boards);
+  const live = bestBySession(
+    boards.flatMap((board) => board.live.map((run): JobCandidate => ({ board, run, source: "live" }))),
+    isBetterLiveRun,
+  );
+  const sessions = bestBySession(
+    boards.flatMap((board) => board.sessions.map((run): JobCandidate => ({ board, run, source: "session" }))),
+    (candidate, best) => updatedAtMs(candidate) > updatedAtMs(best),
+  );
+  const jobs = new Map<string, FactorySessionJob>();
+  for (const [sessionId, candidate] of [...sessions, ...live]) {
+    if (candidate.source === "session" && live.has(sessionId)) continue;
+    if (candidate.run.command === OFF_WORKFLOW) jobs.delete(sessionId);
+    else jobs.set(sessionId, toJob(candidate));
+  }
+  return jobs;
+}
 
 function runsOf(board: FactoryExport): ExportRun[] {
   return [

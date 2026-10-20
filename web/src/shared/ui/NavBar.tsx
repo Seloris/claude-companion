@@ -17,25 +17,39 @@ export interface NavBarItem {
 }
 
 // `isWide`: the page under the bar is wider than the others (--live-width), and the bar lines up with it.
-export function NavBar({ label, items, isWide = false }: { label: string; items: NavBarItem[]; isWide?: boolean }) {
+// `brand`: the application's name, drawn before the links as text, not a link.
+export function NavBar({
+  label,
+  items,
+  brand,
+  isWide = false,
+}: {
+  label: string;
+  items: NavBarItem[];
+  brand?: string;
+  isWide?: boolean;
+}) {
   return (
     <nav className={styles.nav} aria-label={label}>
-      <ul className={isWide ? `${styles.list} ${styles.wide}` : styles.list}>
-        {items.map((item) => (
-          <li key={item.label}>
-            {/* `end`: an item is current on its own path only; NavLink sets aria-current="page" on it. */}
-            <NavLink className={styles.link} to={item.to} end>
-              <span className={styles.label}>{item.label}</span>
-              {item.badges?.map((badge) => (
-                <Badge key={badge.label} tone={badge.tone}>
-                  <span aria-hidden="true">{badge.count}</span>
-                  <span className={styles.srOnly}>{badge.label}</span>
-                </Badge>
-              ))}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+      <div className={isWide ? `${styles.bar} ${styles.wide}` : styles.bar}>
+        {brand !== undefined && <span className={styles.brand}>{brand}</span>}
+        <ul className={styles.list}>
+          {items.map((item) => (
+            <li key={item.label}>
+              {/* `end`: an item is current on its own path only; NavLink sets aria-current="page" on it. */}
+              <NavLink className={styles.link} to={item.to} end>
+                <span className={styles.label}>{item.label}</span>
+                {item.badges?.map((badge) => (
+                  <Badge key={badge.label} tone={badge.tone}>
+                    <span aria-hidden="true">{badge.count}</span>
+                    <span className={styles.srOnly}>{badge.label}</span>
+                  </Badge>
+                ))}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </div>
     </nav>
   );
 }

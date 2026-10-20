@@ -3,12 +3,27 @@
   padding: 20px 16px 0;
 }
 
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 24px;
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+
+/* The application's name: bold text before the links, never a link. */
+.brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text);
+}
+
 .list {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 24px;
-  max-width: var(--content-width);
-  margin: 0 auto;
+  margin: 0;
   padding: 0;
   list-style: none;
 }

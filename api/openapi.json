@@ -1970,6 +1970,16 @@
             "items": {
               "$ref": "#/components/schemas/RunningSubagent"
             }
+          },
+          "factory": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactorySessionJob"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1992,7 +2002,8 @@
           "waitingFor",
           "queuedPrompts",
           "currentActivity",
-          "runningSubagents"
+          "runningSubagents",
+          "factory"
         ]
       },
       "LiveStatus": {
@@ -2155,6 +2166,143 @@
           "description",
           "currentTool",
           "since"
+        ]
+      },
+      "FactorySessionJob": {
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "root": {
+            "type": "string"
+          },
+          "isStale": {
+            "type": "boolean"
+          },
+          "scannedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "markers": {
+            "type": "object",
+            "properties": {
+              "review": {
+                "type": "string"
+              },
+              "browser": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "review",
+              "browser"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "live",
+              "session"
+            ]
+          },
+          "run": {
+            "$ref": "#/components/schemas/FactoryRun"
+          },
+          "feature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryJobFeature"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "fileName",
+          "root",
+          "isStale",
+          "scannedAt",
+          "markers",
+          "source",
+          "run",
+          "feature"
+        ]
+      },
+      "FactoryJobFeature": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autopilot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryNextPrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryJobStep"
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "plan",
+          "autopilot",
+          "next",
+          "steps"
+        ]
+      },
+      "FactoryJobStep": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "marker": {
+            "$ref": "#/components/schemas/FactoryMarker"
+          }
+        },
+        "required": [
+          "step",
+          "title",
+          "marker"
         ]
       },
       "LogRetentionStatus": {

@@ -185,6 +185,40 @@ export const factoryStateSchema = z
   })
   .meta({ id: "FactoryState" });
 
+// A step of the job's feature, without its runs: what the live tile's stage segments draw.
+export const factoryJobStepSchema = z
+  .object({ step: z.string(), title: z.string(), marker: factoryMarkerSchema })
+  .meta({ id: "FactoryJobStep" });
+
+// The feature of a job, reduced to what the live tile draws: the live poll never carries a whole board.
+export const factoryJobFeatureSchema = z
+  .object({
+    slug: z.string(),
+    title: z.string(),
+    plan: z.union([factoryPlanSchema, z.null()]),
+    autopilot: z.union([factoryRunSchema, z.null()]),
+    next: z.union([factoryNextPromptSchema, z.null()]),
+    steps: z.array(factoryJobStepSchema),
+  })
+  .meta({ id: "FactoryJobFeature" });
+
+// The job of one live session, as factory-board FR-31 matches it over every board.
+export const factorySessionJobSchema = z
+  .object({
+    fileName: z.string(),
+    root: z.string(),
+    // The board's staleness (FR-11): its runs are the state of the last scan.
+    isStale: z.boolean(),
+    scannedAt: z.iso.datetime(),
+    markers: z.object({ review: z.string(), browser: z.string() }),
+    // `live`: a run of the board's live list; `session`: its sessions list, the phase then always set.
+    source: z.enum(["live", "session"]),
+    run: factoryRunSchema,
+    // Null: the run has no feature, or the board does not list it.
+    feature: z.union([factoryJobFeatureSchema, z.null()]),
+  })
+  .meta({ id: "FactorySessionJob" });
+
 export type FactoryRun = z.infer<typeof factoryRunSchema>;
 export type FactorySession = z.infer<typeof factorySessionSchema>;
 export type FactoryActivity = z.infer<typeof factoryActivitySchema>;
@@ -194,6 +228,8 @@ export type FactoryPluginVersions = z.infer<typeof factoryPluginVersionsSchema>;
 export type FactoryBoard = z.infer<typeof factoryBoardSchema>;
 export type FactoryWorkspace = z.infer<typeof factoryWorkspaceSchema>;
 export type FactoryState = z.infer<typeof factoryStateSchema>;
+export type FactoryJobFeature = z.infer<typeof factoryJobFeatureSchema>;
+export type FactorySessionJob = z.infer<typeof factorySessionJobSchema>;
 
 registry.registerPath({
   method: "get",

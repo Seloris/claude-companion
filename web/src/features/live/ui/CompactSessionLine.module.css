@@ -1,0 +1,142 @@
+/* FR-40: one row per session; the lines share the same column widths, so the pill, the band and what counts line up. */
+.line {
+  --tile-tone: var(--accent);
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1.6fr) 150px minmax(0, 1.4fr) minmax(0, 2fr) 64px auto;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+  padding: 10px 14px;
+  background: var(--item-bg);
+  border: var(--item-border);
+  border-left: 3px solid var(--tile-tone);
+  border-radius: var(--item-radius);
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 400ms;
+}
+
+.awaiting {
+  --tile-tone: var(--status-awaiting);
+}
+
+.finished {
+  --tile-tone: var(--status-finished);
+}
+
+/* FR-18: the halo of a change, as on the tile. */
+.isHighlighted {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tile-tone) 45%, transparent);
+}
+
+.color {
+  width: 10px;
+  height: 10px;
+  background: var(--workspace-color);
+  border-radius: var(--check-radius);
+}
+
+.identity {
+  display: grid;
+  min-width: 0;
+}
+
+.title,
+.facts,
+.what {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.facts {
+  font-size: 0.82em;
+  color: var(--text-muted);
+}
+
+.pill {
+  display: flex;
+  min-width: 0;
+}
+
+.factory {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.92em;
+}
+
+.whatCell {
+  display: grid;
+  min-width: 0;
+}
+
+.what {
+  font-size: 0.92em;
+}
+
+.question,
+.recap {
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+}
+
+.question {
+  background: var(--status-awaiting-soft);
+}
+
+.recap {
+  background: var(--live-done-soft);
+}
+
+.since {
+  font-size: 0.86em;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.actions svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Below 1024 px the seven parts no longer fit one row: the line wraps, the title and the pill first, then the rest. */
+@media (max-width: 1023px) {
+  .line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .identity {
+    flex: 1 1 0;
+  }
+
+  .factory,
+  .whatCell {
+    flex: 1 1 100%;
+  }
+
+  .since {
+    text-align: left;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+}

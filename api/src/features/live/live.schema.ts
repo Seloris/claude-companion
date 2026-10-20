@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { registry } from "../../shared/openapi.js";
+import { factorySessionJobSchema } from "../factory/factory.schema.js";
 
 export const liveStatusSchema = z.enum(["running", "awaitingAnswer", "idle"]).meta({ id: "LiveStatus" });
 
@@ -57,6 +58,9 @@ export const liveSessionSchema = z
     // Null: the session is not running, or its activity is unknown (no log yet).
     currentActivity: currentActivitySchema.nullable(),
     runningSubagents: z.array(runningSubagentSchema),
+    // The factory job the boards export for the session (live-sessions FR-32, factory-board FR-31); null outside the
+    // workflow. Not `.nullable()`: on a shared entity the OpenAPI generator emits an unsatisfiable `allOf` with null.
+    factory: z.union([factorySessionJobSchema, z.null()]),
   })
   .meta({ id: "LiveSession" });
 

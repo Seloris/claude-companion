@@ -41,16 +41,6 @@ export function ChevronIcon() {
   );
 }
 
-export function QuestionIcon() {
-  return (
-    <svg {...iconProps}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8" />
-      <path d="M12 17h.01" />
-    </svg>
-  );
-}
-
 export function CheckIcon() {
   return (
     <svg {...iconProps}>
@@ -95,6 +85,24 @@ export function CopyIcon() {
     <svg {...iconProps}>
       <rect x="9" y="9" width="11" height="11" rx="2" />
       <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    </svg>
+  );
+}
+
+export function ClockIcon() {
+  return (
+    <svg {...iconProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+export function ArrowUpRightIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M7 17 17 7" />
+      <path d="M8 7h9v9" />
     </svg>
   );
 }

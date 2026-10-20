@@ -10,6 +10,14 @@ import type { StatusFile } from "../../src/features/live/live.source.js";
 import { sessions } from "../../src/features/workspaces/workspaces.table.js";
 import { buildSession, buildWorkspace } from "../factories.js";
 import {
+  NOW,
+  buildBoardExport,
+  buildExportFeature,
+  buildExportRun,
+  buildExportSession,
+  writeBoard,
+} from "../factory/factory-builders.js";
+import {
   SESSION_ID,
   askUserQuestionBlock,
   assistantLine,
@@ -208,6 +216,7 @@ describe("live routes", () => {
           queuedPrompts: [],
           currentActivity: { kind: "tool", toolName: "Bash", skill: null, since: at(290) },
           runningSubagents: [],
+          factory: null,
         });
       });
 
@@ -759,6 +768,253 @@ describe("live routes", () => {
       });
     });
 
+    describe("factory job", () => {
+      // The test clock starts at the builders' NOW, so a board scanned 5 s before it is fresh.
+      const iso = (time: number) => new Date(time).toISOString();
+
+      it("attaches the board's live run, its staleness, markers and feature to the live session", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        const folder = ".planning/features/demo/dev-plans/20261020-090000-demo";
+        const run = buildExportRun({ sessionId: SESSION_ID, folder, phase: "working" });
+        const step = { step: "stage:1", title: "Stage 1 · api", detail: "", marker: "running" as const, runs: [run] };
+        const next = { label: "Stage 2 · web", prompt: `/factory:implement ${folder}/ — stage 2 (web)` };
+        const plan = {
+          folder,
+          title: "Demo plan",
+          stages: [{ number: 1, title: "api", commit: null, sha: null, done: 1, total: 2 }],
+          validationDone: 0,
+          validationTotal: 3,
+          reviewDone: false,
+          isDraft: false,
+        };
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({ live: [run], features: [buildExportFeature({ plan, autopilot: run, next, steps: [step] })] }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        const servedRun = {
+          sessionId: SESSION_ID,
+          feature: "demo",
+          folder,
+          command: "implement",
+          step: "stage:1",
+          lastStep: null,
+          agentId: null,
+          status: "running",
+          since: iso(run.since),
+          updatedAt: iso(run.updatedAt),
+          isStored: false,
+          phase: "working",
+          pendingCommit: null,
+          recap: null,
+        };
+        expect(session.factory).toEqual({
+          fileName: "C--WS-demo.json",
+          root: "C:\\WS\\demo",
+          isStale: false,
+          scannedAt: iso(NOW - 5_000),
+          markers: { review: " — with review", browser: " — with browser test" },
+          source: "live",
+          run: servedRun,
+          feature: {
+            slug: "demo",
+            title: "Demo feature",
+            plan,
+            autopilot: servedRun,
+            next: { ...next, all: null, autopilot: null },
+            steps: [{ step: "stage:1", title: "Stage 1 · api", marker: "running" }],
+          },
+        });
+      });
+
+      it("prefers a live run over the session entry of the same session", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({
+            live: [buildExportRun({ sessionId: SESSION_ID, step: "stage:2", updatedAt: NOW - 60_000 })],
+            sessions: [buildExportSession({ sessionId: SESSION_ID, step: "stage:1", updatedAt: NOW - 1_000 })],
+          }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toMatchObject({ source: "live", run: { step: "stage:2" } });
+      });
+
+      it("prefers the main loop over a subagent's run, then the latest change", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await startSession({ pid: 12, sessionId: "other" });
+        await writeBoard(
+          ctx.boardsDir,
+          "a.json",
+          buildBoardExport({
+            root: "C:\\WS\\a",
+            live: [
+              buildExportRun({ sessionId: SESSION_ID, step: "stage:1", updatedAt: NOW - 60_000 }),
+              buildExportRun({ sessionId: "other", step: "stage:1", updatedAt: NOW - 60_000 }),
+            ],
+          }),
+        );
+        await writeBoard(
+          ctx.boardsDir,
+          "b.json",
+          buildBoardExport({
+            root: "C:\\WS\\b",
+            live: [
+              buildExportRun({ sessionId: SESSION_ID, step: "stage:2", agentId: "agent-1", updatedAt: NOW - 1_000 }),
+              buildExportRun({ sessionId: "other", step: "stage:2", updatedAt: NOW - 1_000 }),
+            ],
+          }),
+        );
+
+        // Act
+        const state = await getLive();
+
+        // Assert
+        const steps = Object.fromEntries(
+          state.workspaces.flatMap((workspace) => workspace.sessions).map((session) => [session.sessionId, session.factory?.run.step]),
+        );
+        expect(steps).toEqual({ [SESSION_ID]: "stage:1", other: "stage:2" });
+      });
+
+      it("takes the board's session entry when no live run names the session", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({
+            sessions: [
+              buildExportSession({ sessionId: SESSION_ID, step: "stage:1", phase: "interrupted", updatedAt: NOW - 60_000 }),
+              buildExportSession({ sessionId: SESSION_ID, step: "stage:2", phase: "job-done", updatedAt: NOW - 1_000 }),
+            ],
+          }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toMatchObject({ source: "session", run: { step: "stage:2", phase: "job-done" } });
+      });
+
+      it("gives no factory job when the session's latest run is off the workflow", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({
+            live: [buildExportRun({ sessionId: SESSION_ID, command: "off-workflow", step: "off-workflow", feature: null })],
+            sessions: [buildExportSession({ sessionId: SESSION_ID, updatedAt: NOW - 600_000 })],
+          }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toBeNull();
+      });
+
+      it("keeps the job of a stale board, marked stale", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({ scannedAt: NOW - 60_001, sessions: [buildExportSession({ sessionId: SESSION_ID })] }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toMatchObject({ isStale: true, scannedAt: iso(NOW - 60_001), source: "session" });
+      });
+
+      it("gives a null feature when the board does not list the run's feature", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(
+          ctx.boardsDir,
+          "C--WS-demo.json",
+          buildBoardExport({ live: [buildExportRun({ sessionId: SESSION_ID, feature: "unlisted" })], features: [buildExportFeature()] }),
+        );
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toMatchObject({ run: { feature: "unlisted" }, feature: null });
+      });
+
+      it("gives no factory job without a boards folder, and still answers 200", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await rm(ctx.boardsDir, { recursive: true });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toBeNull();
+      });
+
+      it("still answers, every session without a factory job, when the boards cannot be read", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const service = createLiveService({
+          workspacesRepo: createWorkspacesRepository(ctx.db),
+          ingestion: ctx.ingestion,
+          clock: ctx.clock,
+          sessionsDir: ctx.sessionsDir,
+          logsDir: ctx.logsDir,
+          scratchRoot: ctx.scratchRoot,
+          isPidAlive: (pid) => ctx.alivePids.has(pid),
+          findRepoRoot: () => null,
+          findFactoryJobs: () => Promise.reject(new Error("boards busy")),
+        });
+
+        // Act
+        const first = await service.getLiveState();
+        const second = await service.getLiveState();
+
+        // Assert
+        expect([first, second].map((state) => state.workspaces[0]?.sessions[0]?.factory)).toEqual([null, null]);
+        expect(errors).toHaveBeenCalledTimes(1);
+        errors.mockRestore();
+      });
+
+      it("ignores a board of an unsupported version", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+        await writeBoard(ctx.boardsDir, "C--WS-demo.json", {
+          ...buildBoardExport({ live: [buildExportRun({ sessionId: SESSION_ID })] }),
+          schemaVersion: 3,
+        });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session.factory).toBeNull();
+      });
+    });
+
     describe("unreadable live state", () => {
       it("says so, with no session, when the sessions folder is missing (FR-12)", async () => {
         // Arrange
@@ -845,6 +1101,7 @@ describe("live routes", () => {
             return true;
           },
           findRepoRoot: () => null,
+          findFactoryJobs: async () => new Map(),
         });
 
         // Act

@@ -77,6 +77,14 @@ const retention = createRetentionService({
 });
 const workspaces = createWorkspacesService({ workspacesRepo });
 const dashboard = createDashboardService({ dashboardRepo: createDashboardRepository(db), clock: systemClock });
+const factory = createFactoryService({
+  workspacesRepo,
+  clock: systemClock,
+  boardsDir: config.CLAUDE_FACTORY_BOARD_DIR,
+  pluginsFile: config.CLAUDE_PLUGINS_FILE,
+  scratchRoot,
+  findRepoRoot,
+});
 const live = createLiveService({
   workspacesRepo,
   ingestion,
@@ -86,15 +94,7 @@ const live = createLiveService({
   scratchRoot,
   isPidAlive,
   findRepoRoot,
-});
-
-const factory = createFactoryService({
-  workspacesRepo,
-  clock: systemClock,
-  boardsDir: config.CLAUDE_FACTORY_BOARD_DIR,
-  pluginsFile: config.CLAUDE_PLUGINS_FILE,
-  scratchRoot,
-  findRepoRoot,
+  findFactoryJobs: () => factory.getSessionJobs(),
 });
 
 server.off("request", starting);

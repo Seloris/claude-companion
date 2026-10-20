@@ -2,19 +2,23 @@ import { useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { formatDuration } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
+import { usePromptSwitches } from "../../../shared/lib/promptSwitches.ts";
 import { useClosedMarks } from "../../../shared/lib/useClosedMarks.ts";
 import { useNow } from "../../../shared/lib/useNow.ts";
+import { Disclosure } from "../../../shared/ui/Disclosure.tsx";
 import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
 import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
-import { useFactoryStateQuery } from "../../factory/data/useFactoryStateQuery.ts";
-import { factoryLines } from "../../factory/ui/factoryLines.ts";
+import { Switch } from "../../../shared/ui/Switch.tsx";
+import { setCompactMode, useCompactMode } from "../data/compactMode.ts";
 import { requestNotificationPermission, useNotificationPermission } from "../data/notificationPermission.ts";
 import { setNotificationSettings, useNotificationSettings } from "../data/notificationSettings.ts";
 import { useLiveStateQuery } from "../data/useLiveStateQuery.ts";
-import { buildColumns, flattenWorkspaces, toClosable, workspaceChoices } from "../ui/board.ts";
+import { buildColumns, flattenWorkspaces, tileState, toClosable, workspaceChoices, type BoardSession } from "../ui/board.ts";
+import { CompactBoard } from "../ui/CompactBoard.tsx";
 import { IdleGroup } from "../ui/IdleGroup.tsx";
+import { pillLabel } from "../ui/labels.ts";
 import { LiveBoard, type ColumnId } from "../ui/LiveBoard.tsx";
 import { NotificationSettings } from "../ui/NotificationSettings.tsx";
 import { WorkspaceFilter } from "../ui/WorkspaceFilter.tsx";
@@ -47,13 +51,9 @@ function LivePage() {
     if (requestedWorkspace !== null) setSelectedWorkspace(requestedWorkspace);
   }
   const [selectedTab, setSelectedTab] = useState<ColumnId>("awaiting");
-  // Factory-board FR-31: a tile shows the factory job of its session. No line while the factory query is pending or failed,
-  // and its error is never shown here: the live page is about the live state.
-  const factoryQuery = useFactoryStateQuery();
-  const factoryLinesBySession = useMemo(
-    () => (factoryQuery.data === undefined ? new Map<string, string>() : factoryLines(factoryQuery.data)),
-    [factoryQuery.data],
-  );
+  // FR-39, BR-22: the compact mode, kept by the browser. FR-38: the prompt switches the factory page sets.
+  const isCompact = useCompactMode();
+  const switches = usePromptSwitches();
 
   const live = liveQuery.data;
   // Every live session of the last read, never a filtered list: the tracking is kept against it.
@@ -63,7 +63,9 @@ function LivePage() {
     [live],
   );
   const all = readable ?? [];
-  const tracking = useStatusTracking(readable, liveQuery.dataUpdatedAt, now);
+  // FR-01, FR-32: a session's column and pill, its factory job (on the live state, `factory`) included.
+  const stateOf = (session: BoardSession) => tileState(session, { isClosed: marks.isClosed });
+  const tracking = useStatusTracking(readable, liveQuery.dataUpdatedAt, now, stateOf);
 
   const choices = workspaceChoices(all);
   // A filtered workspace that left the live state falls back to every workspace.
@@ -72,17 +74,20 @@ function LivePage() {
   const buckets = buildColumns(visible, { isClosed: marks.isClosed, enteredAt: tracking.enteredAt });
   const columns = { awaiting: buckets.awaiting, running: buckets.running, finished: buckets.finished };
 
-  // FR-18: what a screen reader hears for a change is what the tile shows, so a session that just finished is "Terminée".
-  const finishedIds = new Set(buckets.finished.map((session) => session.sessionId));
+  // FR-18: what a screen reader hears for a change is what the tile shows: its pill.
   const visibleIds = new Set(visible.map((session) => session.sessionId));
   const announcements = tracking.changes
     .filter((change) => visibleIds.has(change.sessionId))
-    .map((change) =>
-      t("live.announce.change", {
-        title: change.title,
-        status: t(finishedIds.has(change.sessionId) ? "live.status.finished" : `live.status.${change.status}`),
-      }),
-    );
+    .map((change) => t("live.announce.change", { title: change.title, status: pillLabel(change.pill) }));
+  const boardProps = {
+    columns,
+    now,
+    isHighlighted: tracking.isHighlighted,
+    stateOf,
+    switches,
+    onClose: (session: BoardSession) => marks.close([toClosable(session)]),
+    onCloseAll: () => marks.close(buckets.finished.map(toClosable)),
+  };
 
   function renderContent() {
     if (liveQuery.isPending) return <LoadingState>{t("common.state.loading")}</LoadingState>;
@@ -97,16 +102,11 @@ function LivePage() {
     if (all.length === 0) return <EmptyState>{t("live.state.empty")}</EmptyState>;
     return (
       <>
-        <LiveBoard
-          columns={columns}
-          now={now}
-          selected={selectedTab}
-          isHighlighted={tracking.isHighlighted}
-          factoryLineOf={(session) => factoryLinesBySession.get(session.sessionId) ?? null}
-          onSelect={setSelectedTab}
-          onClose={(session) => marks.close([toClosable(session)])}
-          onCloseAll={() => marks.close(buckets.finished.map(toClosable))}
-        />
+        {isCompact ? (
+          <CompactBoard {...boardProps} />
+        ) : (
+          <LiveBoard {...boardProps} selected={selectedTab} onSelect={setSelectedTab} />
+        )}
         <IdleGroup sessions={buckets.idle} now={now} />
         {/* FR-18: each status change is announced to a screen reader. */}
         <div className={styles.srOnly} role="status" aria-live="polite">
@@ -132,23 +132,31 @@ function LivePage() {
               })}
             </p>
           )}
+        </div>
+        <div className={styles.bar}>
           {isShowingSessions && (
             // FR-21: how long ago the page read the live state.
             <p className={styles.summary}>
               {t("live.page.updated", { duration: formatDuration(Math.max(0, now.getTime() - liveQuery.dataUpdatedAt)) })}
             </p>
           )}
+          <Switch label={t("live.compact.label")} checked={isCompact} onChange={setCompactMode} />
+          {/* FR-23: the notification settings, folded in the page's bar until opened. */}
+          <div className={styles.notifications}>
+            <Disclosure summary={t("live.notify.heading")}>
+              <NotificationSettings
+                permission={permission}
+                settings={notificationSettings}
+                onEnable={requestNotificationPermission}
+                onChange={setNotificationSettings}
+              />
+            </Disclosure>
+          </div>
         </div>
-        {isShowingSessions && all.length > 0 && (
-          <WorkspaceFilter choices={choices} total={all.length} selected={filter} onSelect={setSelectedWorkspace} />
-        )}
       </header>
-      <NotificationSettings
-        permission={permission}
-        settings={notificationSettings}
-        onEnable={requestNotificationPermission}
-        onChange={setNotificationSettings}
-      />
+      {isShowingSessions && all.length > 0 && (
+        <WorkspaceFilter choices={choices} total={all.length} selected={filter} onSelect={setSelectedWorkspace} />
+      )}
       {renderContent()}
     </main>
   );

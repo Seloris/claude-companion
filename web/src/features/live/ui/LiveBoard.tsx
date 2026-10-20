@@ -1,24 +1,25 @@
 import { t } from "../../../shared/lib/i18n/index.ts";
+import type { PromptSwitches } from "../../../shared/lib/promptSwitches.ts";
 import { Button } from "../../../shared/ui/Button.tsx";
 import { Tabs, tabPanelId } from "../../../shared/ui/Tabs.tsx";
-import type { BoardSession } from "./board.ts";
+import type { BoardSession, TileState } from "./board.ts";
 import styles from "./LiveBoard.module.css";
 import { LiveColumn, type ColumnTone } from "./LiveColumn.tsx";
 import { LiveSessionTile } from "./LiveSessionTile.tsx";
-import { StatusIcon } from "./StatusPill.tsx";
 
 export type ColumnId = ColumnTone;
 
-const COLUMN_IDS: ColumnId[] = ["awaiting", "running", "finished"];
+export const COLUMN_IDS: ColumnId[] = ["awaiting", "running", "finished"];
 const TABS_ID = "live-board";
 
-// FR-01: the three columns, `Question posée` first. FR-22: below 768 px a tab list picks the one column shown.
+// FR-01: the three columns, `Vous attend` first. FR-22: below 768 px a tab list picks the one column shown.
 export function LiveBoard({
   columns,
   now,
   selected,
   isHighlighted,
-  factoryLineOf,
+  stateOf,
+  switches,
   onSelect,
   onClose,
   onCloseAll,
@@ -27,7 +28,8 @@ export function LiveBoard({
   now: Date;
   selected: ColumnId;
   isHighlighted: (session: BoardSession) => boolean;
-  factoryLineOf: (session: BoardSession) => string | null;
+  stateOf: (session: BoardSession) => TileState;
+  switches: PromptSwitches;
   onSelect: (id: ColumnId) => void;
   onClose: (session: BoardSession) => void;
   onCloseAll: () => void;
@@ -49,22 +51,20 @@ export function LiveBoard({
             key={id}
             id={tabPanelId(TABS_ID, id)}
             tone={id}
-            icon={<StatusIcon status={id} />}
             title={t(`live.column.${id}.title`)}
-            caption={t(`live.column.${id}.caption`)}
             count={columns[id].length}
             emptyLabel={t(`live.column.${id}.empty`)}
             isSelected={id === selected}
-            footer={id === "finished" ? <Button onClick={onCloseAll}>{t("live.column.closeAll")}</Button> : undefined}
+            action={id === "finished" ? <Button onClick={onCloseAll}>{t("live.column.closeAll")}</Button> : undefined}
           >
             {columns[id].map((session) => (
               <li key={session.sessionId}>
                 <LiveSessionTile
                   session={session}
-                  kind={id}
+                  state={stateOf(session)}
                   now={now}
                   isHighlighted={isHighlighted(session)}
-                  factoryLine={factoryLineOf(session)}
+                  switches={switches}
                   onClose={() => onClose(session)}
                 />
               </li>

@@ -41,6 +41,9 @@ src/
     web.ts                  serves the built front and its SPA fallback when the API is started with `--web-dir`
 drizzle/                    generated migrations (SQL + meta), never edited by hand
 scripts/export-openapi.ts   imports the features' schema modules and the registry, writes the OpenAPI document; no database, no listen
+scripts/demo.ts             the live demo runner (`npm run demo`): sleepers, dataset, the API on port 3101
+scripts/demo/               its generator: logs, status files and factory boards of the demo sessions, built with the test builders
+fixtures/live-demo/         the generated demo dataset, git-ignored (pids and times change at every run)
 test/
   setup.ts                  in-memory PGlite, migrations, createApp, test clock
   {feature}/                one test file per router (route tests) and per service when its rules need it
@@ -57,6 +60,7 @@ The layers are the plan's sections, in this order: `db` (tables, migration), `se
 | `start` | `node dist/server.js`; with `--web-dir {folder}` it also serves the built front (the root's `npm start` passes `../web/dist`) |
 | `db:generate` | `drizzle-kit generate` |
 | `db:migrate` | `drizzle-kit migrate`, a second process on the PGlite folder: only with the API stopped; the API applies the migrations itself at start-up |
+| `demo` | generates the live demo under `fixtures/live-demo/`, starts one sleeping process per fake session and runs the API on it on port 3101 with the database `.data/pglite-demo`; Ctrl+C stops all of it |
 
 ## Conventions
 
@@ -111,4 +115,5 @@ The `write-api-tests` skill reads this table.
 - The port is bound before PGlite is opened, so a second instance on the same port (`npm start` at the root, or `npm run dev`) exits before touching the database. An instance on another `PORT` with the same `PGLITE_DIR` is not guarded.
 - PGlite allows one process per data folder: stop the API before `npm run db:migrate` or `drizzle-kit studio`, and say so in the report.
 - Reset the local database: stop the API, delete `.data/pglite`, start it again.
+- Demo: `npm run demo` serves fake live sessions and factory boards from `fixtures/live-demo/` on http://localhost:3101, with its own database `.data/pglite-demo` (wiped at each start), so the real API keeps 3100 and `.data/pglite` and the fake sessions never reach the real history. It reads nothing of `~/.claude`. Restart it after an api change (no watch). Without a terminal to press Ctrl+C in, stop it by killing the process listening on 3101: the runner then kills its sleepers.
 - Source data: the Claude Code session logs, read only, from `~/.claude/projects` (one folder per workspace, one `{session id}.jsonl` per session); `CLAUDE_PROJECTS_DIR` points elsewhere (tests, another machine). The live state of the running sessions is read the same way, from `~/.claude/sessions` (one `{pid}.json` per running process; the `*.key` files beside them hold credentials and are never opened); `CLAUDE_SESSIONS_DIR` points elsewhere. The refresh also reads those status files (`*.json` only), solely for `hostSessionId`: the desktop app's `local_<uuid>` of a session, behind the desktop link `claude://claude.ai/epitaxy/{id}`, which appears in no session log. The log retention (`cleanupPeriodDays`, nothing else) is read from Claude Code's user settings, `~/.claude/settings.json`; `CLAUDE_SETTINGS_FILE` points elsewhere. The factory boards are read the same way, from `~/.claude/factory-board`: one `{root}.json` per project root, written by the factory-board mod at each rescan, `schemaVersion` 1 or 2 (2 adds the run phases, the activity and the sessions; 1 is still read), whose reference contract is the mod's `types/index.d.ts`; `CLAUDE_FACTORY_BOARD_DIR` points elsewhere. Each board carries the factory and factory-board plugin versions Claude Code installed for its root (project or local scope, else user scope), read from `~/.claude/plugins/installed_plugins.json` and nothing else of that folder; `CLAUDE_PLUGINS_FILE` points elsewhere. The API never writes in any of these five places.

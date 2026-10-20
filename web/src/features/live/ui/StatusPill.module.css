@@ -1,26 +1,43 @@
 .pill {
+  --pill-tone: var(--accent);
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 6px;
   padding: 1px 10px;
   font-size: 0.86em;
   font-weight: 600;
+  white-space: nowrap;
   border-radius: var(--radius-pill);
 }
 
-.awaiting {
-  color: var(--status-awaiting);
-  background: var(--status-awaiting-soft);
-}
-
-.running {
+.working {
+  --pill-tone: var(--accent);
   color: var(--accent-soft-text);
   background: var(--accent-soft);
 }
 
+.attention {
+  --pill-tone: var(--live-commit);
+  color: var(--live-commit);
+  background: var(--live-commit-soft);
+}
+
+.done {
+  --pill-tone: var(--live-done);
+  color: var(--live-done);
+  background: var(--live-done-soft);
+}
+
 .finished {
+  --pill-tone: var(--status-finished);
   color: var(--status-finished);
   background: var(--status-finished-soft);
+}
+
+.muted {
+  color: var(--text-muted);
+  background: var(--surface-2);
 }
 
 .pill svg {
@@ -31,7 +48,7 @@
 .dot {
   width: 8px;
   height: 8px;
-  background: var(--accent);
+  background: var(--pill-tone);
   border-radius: var(--radius-pill);
 }
 
@@ -42,7 +59,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .dot {
+  .working .dot {
     animation: pulse 1.6s ease-in-out infinite;
   }
 }
