@@ -36,7 +36,7 @@ src/
                             NavBar (the navigation: links as props, counts as `badges`), ButtonLink (an <a> with the button's look, variant: quiet, ghost), Disclosure (a native <details>, folded until opened),
                             Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), ToggleChipGroup (toggle chips, several pressed), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, QuestionIcon, CheckIcon, EyeIcon, BranchIcon, DesktopIcon, CopyIcon)
       theme/                fonts.ts (the skin's font imports) and skin.css (its tokens), both written by factory-init: never edited; base.css (the page), overrides.css (this application's values)
-    lib/                    utils, i18n; useNow.ts (the current time, re-read every interval), useClipboard.ts (copy text, with its copied/failed state), useClosedMarks.ts (the Clôturée marks of the sessions, kept by the browser, shared by the live page and the factory board), desktopLink.ts (isDesktopLink: the only desktop-app href the pages render)
+    lib/                    utils, i18n; useNow.ts (the current time, re-read every interval), useClipboard.ts (copy text, with its copied/failed state), useClosedMarks.ts (the Clôturée marks of the sessions, kept by the browser, made on the live page and honoured by the factory board's Activité), desktopLink.ts (isDesktopLink: the only desktop-app href the pages render)
 ```
 
 ## Package scripts

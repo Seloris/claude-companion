@@ -8,13 +8,11 @@ import type {
   FactoryFeatureState,
   FactoryPhase,
   FactoryRun,
-  FactorySession,
 } from "../data/factoryTypes.ts";
 
-// The `Clôturée` marks of the page (BR-04), held once per page and passed down.
+// The Clôturée marks made on the live page (BR-04), read once per page and passed down to the Activité.
 export interface FactoryClosedMarks {
   isClosed: (session: Closable) => boolean;
-  close: (sessions: Closable[]) => void;
 }
 
 export function phaseLabel(phase: FactoryActivityPhase): string {
@@ -43,11 +41,6 @@ export function isUnderwayPhase(phase: FactoryActivityPhase): boolean {
 export function isUnderway(run: FactoryRun): boolean {
   const phase = shownPhase(run);
   return phase === null ? run.status === "running" || run.status === "waiting" : isUnderwayPhase(phase);
-}
-
-// BR-04: what a mark is checked against. A working session has no turn end, so it is never closed.
-export function toClosableSession(session: FactorySession): Closable {
-  return { sessionId: session.sessionId, turnEndedAt: session.phase === "working" ? null : session.updatedAt };
 }
 
 // Null when the activity has no session: there is nothing to close.

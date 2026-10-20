@@ -12,7 +12,7 @@ import styles from "./WorkspaceFactorySection.module.css";
 export function WorkspaceFactorySection({ workspaceId }: { workspaceId: number }) {
   const query = useFactoryStateQuery();
   const view = useFactoryView();
-  // BR-04: one instance for the section, so that every board sees a mark made on another.
+  // BR-04: the Clôturée marks made on the live page, read once for the section (a mark made in another tab arrives through the storage event); the Activité honours them.
   const closedMarks = useClosedMarks();
   const now = useNow(1000);
   const [isReview, setReview] = useState(false);

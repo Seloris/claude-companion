@@ -16,14 +16,12 @@ import styles from "./FactoryBoardView.module.css";
 import { FactoryActivity } from "./FactoryActivity.tsx";
 import { FactoryFeatureCard } from "./FactoryFeatureCard.tsx";
 import { FactoryLiveRuns } from "./FactoryLiveRuns.tsx";
-import { FactorySessions } from "./FactorySessions.tsx";
 import {
   cardId,
   FILTER_ORDER,
   STATE_COLOR,
   STATE_ORDER,
   stateLabel,
-  toClosableSession,
   type FactoryClosedMarks,
 } from "./labels.ts";
 
@@ -31,7 +29,7 @@ function isFeatureState(id: string): id is FactoryFeatureState {
   return FILTER_ORDER.some((state) => state === id);
 }
 
-// One board: its branch line (FR-10), its age (FR-11), its activity (FR-27), its sessions (FR-28), its live runs (FR-12), its filters (FR-14) and its cards by state.
+// One board: its branch line (FR-10), its age (FR-11), its activity (FR-27), its live runs (FR-12), its filters (FR-14) and its cards by state.
 export function FactoryBoardView({
   board,
   now,
@@ -166,12 +164,6 @@ export function FactoryBoardView({
       {board.activity !== null && (
         <FactoryActivity board={board} activity={board.activity} now={now} isClosed={closedMarks.isClosed} />
       )}
-      <FactorySessions
-        board={board}
-        now={now}
-        isClosed={closedMarks.isClosed}
-        onClose={(session) => closedMarks.close([toClosableSession(session)])}
-      />
       {renderContent()}
     </section>
   );

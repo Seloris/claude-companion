@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-// BR-10: the `Clôturée` marks, in this browser only, shared by the live page and the factory board (factory-board BR-04).
+// BR-10: the Clôturée marks, in this browser only, made on the live page and honoured by the factory board's Activité (factory-board BR-04).
 // The key predates `Clôturer` (it was `Vu`) and is kept so that the marks already made stay.
 const STORAGE_KEY = "claude-companion.live.seen";
 

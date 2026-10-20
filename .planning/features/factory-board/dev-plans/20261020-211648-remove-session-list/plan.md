@@ -36,6 +36,7 @@ The plan's commit also carries a wording fix of the live-sessions spec (write-sp
 - Stages → one, `web`. Review after it → yes (the autonomous default).
 - Prepare step → kept (`web` declares `commands.prepare`); `src/api/schema.d.ts` must come out unchanged. If it changes, another session's uncommitted contract is in the working tree: the file is not staged.
 - Web unit tests → none (`web/CLAUDE.md`); the browser test covers the stage.
+- Review finding: the `FactorySession` alias of `web/src/features/factory/data/factoryTypes.ts` has no importer left → kept (the file names every entity of the contract, `FactoryTimelineStep` is already unused there; `board.sessions` is still part of the contract).
 
 ## web
 
@@ -84,15 +85,15 @@ None: `web/CLAUDE.md` has no unit tests on the front. The browser test of Valida
 
 ### Stage 1 — web
 Commit: `refactor(factory-board): web — drop the factory session list`
-- [ ] Prepare: client regenerated from `api/openapi.json` (unchanged)
-- [ ] pages: `FactoryPage` and `WorkspaceFactorySection` comments reworded; `useClosedMarks` kept
-- [ ] ui: `FactorySessions.tsx` and its CSS deleted; `FactoryBoardView` without the list; `FactoryClosedMarks` narrowed to `isClosed`, `toClosableSession` removed; `useClosedMarks.ts` comment; `factory.sessions.*` keys removed
-- [ ] Conventions: `web/CLAUDE.md` `useClosedMarks.ts` line reworded
+- [x] Prepare: client regenerated from `api/openapi.json` (unchanged)
+- [x] pages: `FactoryPage` and `WorkspaceFactorySection` comments reworded; `useClosedMarks` kept
+- [x] ui: `FactorySessions.tsx` and its CSS deleted; `FactoryBoardView` without the list; `FactoryClosedMarks` narrowed to `isClosed`, `toClosableSession` removed; `useClosedMarks.ts` comment; `factory.sessions.*` keys removed
+- [x] Conventions: `web/CLAUDE.md` `useClosedMarks.ts` line reworded
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill). Scenarios, against the real `~/.claude/factory-board` (never written):
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [-] Browser test: not run (autopilot without browser test). The change tested in `web` (`test-in-browser` skill). Scenarios, against the real `~/.claude/factory-board` (never written):
   - the factory page shows no session list and no `Clôturer` on any board; each board reads branch line, `Activité`, live runs, filters, cards;
   - a workspace page's factory section shows the same board, without the list;
   - a `job done` session that is the board's `Activité`: `Clôturer` on its live tile turns the `Activité` to `au repos`, with the factory page open in another tab and after navigating to the factory page in the same tab;
