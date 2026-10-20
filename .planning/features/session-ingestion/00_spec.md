@@ -2,11 +2,11 @@
 
 > **Slug**: `session-ingestion`
 > **Status**: Approved
-> **Last updated**: 2026-10-19
+> **Last updated**: 2026-10-20
 
 ## TL;DR
 
-The person runs Claude Code in many workspaces on one PC and has no overview of what was done where. This feature reads the Claude Code session logs, stores each session once in the application's database, keeps it up to date incrementally, and shows a first recap: the workspaces, then the sessions of each workspace.
+The person runs Claude Code in many workspaces on one PC and has no overview of what was done where. This feature reads the Claude Code session logs, stores each session once in the application's database, keeps it up to date incrementally, and shows a first recap: the workspaces, then the sessions of each workspace. It keeps the history up to date in the background while the application runs, and warns the person before Claude Code deletes a log the application has not read yet.
 
 ## Problem
 
@@ -20,6 +20,8 @@ Claude Code writes one log file per session under `~/.claude/projects`, in folde
 - Live updates while a session runs: the data changes on a refresh only.
 - Search, filters, charts and cross-workspace statistics: the dashboard is a later feature.
 - Changing or deleting sessions, or anything in the logs folder.
+- Changing Claude Code's log retention: the application reads the setting, the person changes it in Claude Code.
+- Refreshing while the application is closed: no background service outside the application.
 - Several users or a sign-in: the application is local and single-user.
 
 ## Domain Glossary
@@ -34,10 +36,12 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `Sous-agent` | `Subagent` | A helper agent a session launched; its activity counts toward its session | New |
 | `Prompt` | `Prompt` | A message or a slash command the person typed in a session | New |
 | `Actualisation` | `Refresh` | One pass that reads the new and changed log files into the database | New |
+| `Actualisation périodique` | `PeriodicRefresh` | A `Refresh` the application starts by itself at the interval the person chose | New |
+| `Durée de conservation` | `LogRetention` | The number of days Claude Code keeps a log file after its last change before deleting it | New |
 
 ## Functional Requirements
 
-- **FR-01** — A refresh runs automatically when the application starts, and the person can start one from the recap at any time.
+- **FR-01** — A refresh runs automatically when the application starts and then as a `PeriodicRefresh` (FR-13), and the person can start one from the recap at any time.
 - **FR-02** — A refresh reads only the log files that are new or changed since the previous refresh, so that it stays fast as the history grows.
 - **FR-03** — A refresh ends with a report shown to the person: sessions added, sessions updated, sessions archived, unreadable lines skipped, and its duration.
 - **FR-04** — Each session records its title, start and end time, duration, the models used, its git branch, its origin (CLI, desktop app, IDE…), its number of prompts, its tokens per model (input, output, cache read, cache write) and its number of subagents.
@@ -49,6 +53,9 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **FR-10** — A workspace's page lists its sessions from the most recent to the oldest, each with its title, date, duration, models, branch, tokens and whether it is archived; opening a session shows its prompts.
 - **FR-11** — While a refresh runs, the refresh control shows it is in progress and the data already stored stays browsable.
 - **FR-12** — When the logs folder is missing or holds no session, the recap says so and names the folder it reads.
+- **FR-13** — The person chooses the interval of the `PeriodicRefresh` in the refresh control, among off, 5, 10, 30 and 60 minutes, 10 by default; the choice applies at once and survives a restart of the application.
+- **FR-14** — The workspaces page shows the `LogRetention` in force, the date of the oldest log file and the number of sessions whose log has disappeared and that only the database still holds, so that the person sees what the application already saves.
+- **FR-15** — The workspaces page shows a warning banner when at least one log file holds changes no refresh has read yet and Claude Code will delete it in less than 7 days, with the number of such files and the nearest deletion date, so that the person refreshes before losing them.
 
 ## Business Rules
 
@@ -63,6 +70,9 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **BR-09** — A session whose working directory changes along the way belongs, whole, to the workspace of its first working directory, so that no session is counted twice.
 - **BR-10** — A session started in a subfolder of a git repository belongs to that repository's workspace; a folder outside any repository is its own workspace.
 - **BR-11** — A refresh that does not find the logs folder archives no session, so that a misplaced or missing folder never marks the whole history as archived.
+- **BR-12** — A `PeriodicRefresh` is an ordinary refresh: it reads only the new and changed files, it is skipped when another refresh runs (BR-06), and its report replaces the previous one.
+- **BR-13** — The `LogRetention` comes from Claude Code's settings, which the application only reads; when the setting is missing, unreadable or invalid, it is 30 days (Claude Code's default) and the page says the default applies.
+- **BR-14** — A log file's deletion date is its last change plus the `LogRetention`: the application estimates it, it does not know when Claude Code actually cleans up.
 
 ## UX Flow
 
@@ -71,3 +81,5 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - The person clicks a workspace: its sessions, most recent first.
 - The person opens a session: its details and its prompts, in order.
 - From the workspaces page, the person starts a refresh, or shows the Scratch group with the switch.
+- In the refresh control, the person picks the interval of the periodic refresh; the history then stays up to date while the application runs.
+- Under the refresh control, a discreet line gives the retention in force, the oldest log and the sessions only the database holds; when a log not read yet is about to be deleted, a banner replaces it until a refresh reads the file.
