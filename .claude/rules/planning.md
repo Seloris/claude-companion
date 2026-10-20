@@ -1,5 +1,5 @@
 ---
-description: "Feature planning under .planning/: folder layout, dev-plan folder and plan.md structure (one section per component, sub-divided by its layers), Progress and Validation checklists, plan header, reserved slugs, images and technical debt. Use when writing a spec or a plan."
+description: "Feature planning under .planning/: folder layout, dev-plan folder and plan.md structure (one section per component, sub-divided by its layers), Progress and Validation checklists, plan header, reserved slugs, images, ideas and technical debt. Use when writing a spec or a plan."
 paths:
   - "**/.planning/**"
 ---
@@ -14,6 +14,8 @@ paths:
     dev-plans/{YYYYMMDD}-{HHmmss}-{type}-{name}/
       plan.md                   the whole plan
       assets/                   plan-specific images (wireframes, reference designs)
+  retros/{YYYYMMDD}-{HHmmss}-{name}.md   one After Action Review per session that taught something
+  ideas.md
   technical-debt.md
 ```
 
@@ -61,6 +63,7 @@ Feature: `{slug}` · Components: `api`, `web` · Spec: US-03, FR-02, BR-05
 | Header line | Feature slug, the components touched (manifest names, in stage order), spec ids covered. |
 | Context | Why this iteration and what it changes. Optional: a Mermaid `flowchart TD` when the interactions are non-trivial. |
 | Decisions | Each question the person answered while planning, and each decision spanning several steps: `- {question or decision} → {answer} ({impact})`. |
+| Decisions taken autonomously | Written only in autonomous mode (`autopilot`): each question answered without the person, `- {question} → {answer taken} ({reason})`. Absent otherwise. |
 | One section per component touched | Named after the component, in stage order, with one `###` subsection per layer of that component's `layers` that the plan touches, in the component's order. Each subsection says what to create or change, precisely enough to implement without guessing: entities, use cases, contracts (routes, request and response fields, authorization), persistence, state and actions, pages and components. Reference the previous component's handoff instead of duplicating its contract. |
 | Conventions | Changes to `CLAUDE.md` files, `.claude/` (rules, settings) or the factory plugin: file, change, rationale. Required whenever the plan introduces or changes a convention. |
 | Tests | **Mandatory.** Per component: the unit tests to write and the integration tests to add or update, following that component's testing conventions, or "none" with the reason. The implementation writes exactly these tests. |
@@ -126,7 +129,7 @@ Infer the header instead of asking for it, and state it at the top of the plan p
 
 - **Feature slug:** list `.planning/features/` and reuse an existing slug first; say whether it is existing or new.
 - **Components:** the manifest components the plan touches, in stage order (none for `tooling` unless it touches a component).
-- **Branch:** on the base branch, a new `{commit type}/{slug}-{name}` (commit type as above); on another branch, that branch. Whoever creates the branch (`write-plan` for a plan, `implement` for a request without a plan) has the person validate its name first.
+- **Branch:** on the base branch, a new `{commit type}/{slug}-{name}` (commit type as above), or `feat/{slug}` for a spec written before any plan; on another branch, that branch. Whoever creates the branch (`write-spec` for a spec on its own, `write-plan` for a plan, `implement` for a request without a plan) has the person validate its name first.
 
 ## Reserved slugs
 
@@ -140,6 +143,22 @@ Neither has a `00_spec.md`.
 ## Images
 
 Save an image the person shares at the moment it is shared: in the plan's `assets/` by default, in the feature's `assets/` when it outlives the iteration. Name it in kebab-case after its content and reference it from `plan.md` or the spec: `![what it shows](./assets/{name}.png)`.
+
+## Retros: `.planning/retros/`
+
+Written only through the `retro` skill, which holds their template: one file per session, with or without a plan, its lessons `open` until `/factory:retro apply` applies, rejects or forwards them. Once committed, a retro changes only in its lessons' Status.
+
+## Ideas: `.planning/ideas.md`
+
+The person's ideas, not yet specified, grouped by scope: one section per component, feature or `app`, a new scope's section added at the bottom; in a section, new items appended at the bottom, no priorities or metadata:
+
+```
+## <scope>
+
+- {YYYY-MM-DD} — **<Short title>:** <The idea in a sentence or two, as the person put it>.
+```
+
+Title: 3–6 words, sentence case. An idea that spans several scopes goes under `app`. An agent appends an idea only when the person asks, in their words; it never reorders, rewrites or removes one. The person removes an idea once it has become a spec, or once dropped.
 
 ## Technical debt: `.planning/technical-debt.md`
 

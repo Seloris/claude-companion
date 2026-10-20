@@ -13,19 +13,30 @@ import {
 } from "../data/factoryView.ts";
 import type { FactoryBoard, FactoryFeatureState } from "../data/factoryTypes.ts";
 import styles from "./FactoryBoardView.module.css";
+import { FactoryActivity } from "./FactoryActivity.tsx";
 import { FactoryFeatureCard } from "./FactoryFeatureCard.tsx";
 import { FactoryLiveRuns } from "./FactoryLiveRuns.tsx";
-import { cardId, FILTER_ORDER, STATE_COLOR, STATE_ORDER, stateLabel } from "./labels.ts";
+import { FactorySessions } from "./FactorySessions.tsx";
+import {
+  cardId,
+  FILTER_ORDER,
+  STATE_COLOR,
+  STATE_ORDER,
+  stateLabel,
+  toClosableSession,
+  type FactoryClosedMarks,
+} from "./labels.ts";
 
 function isFeatureState(id: string): id is FactoryFeatureState {
   return FILTER_ORDER.some((state) => state === id);
 }
 
-// One board: its branch line (FR-10), its age (FR-11), its live runs (FR-12), its filters (FR-14) and its cards by state.
+// One board: its branch line (FR-10), its age (FR-11), its activity (FR-27), its sessions (FR-28), its live runs (FR-12), its filters (FR-14) and its cards by state.
 export function FactoryBoardView({
   board,
   now,
   view,
+  closedMarks,
   isReview,
   isBrowser,
   onReviewChange,
@@ -34,6 +45,7 @@ export function FactoryBoardView({
   board: FactoryBoard;
   now: Date;
   view: FactoryView;
+  closedMarks: FactoryClosedMarks;
   isReview: boolean;
   isBrowser: boolean;
   onReviewChange: (checked: boolean) => void;
@@ -143,8 +155,23 @@ export function FactoryBoardView({
           <span>{t("factory.board.scanned", { when: formatRelative(board.scannedAt, now) })}</span>
         </p>
         <p className={styles.root}>{board.root}</p>
+        <p className={styles.root}>
+          {t("factory.board.plugins", {
+            factory: board.plugins.factory ?? t("factory.board.pluginMissing"),
+            factoryBoard: board.plugins.factoryBoard ?? t("factory.board.pluginMissing"),
+          })}
+        </p>
       </header>
       {board.isStale && <Banner>{t("factory.board.stale", { when: formatDateTime(board.scannedAt) })}</Banner>}
+      {board.activity !== null && (
+        <FactoryActivity board={board} activity={board.activity} now={now} isClosed={closedMarks.isClosed} />
+      )}
+      <FactorySessions
+        board={board}
+        now={now}
+        isClosed={closedMarks.isClosed}
+        onClose={(session) => closedMarks.close([toClosableSession(session)])}
+      />
       {renderContent()}
     </section>
   );

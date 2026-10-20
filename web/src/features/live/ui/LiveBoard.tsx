@@ -18,17 +18,19 @@ export function LiveBoard({
   now,
   selected,
   isHighlighted,
+  factoryLineOf,
   onSelect,
-  onMarkSeen,
-  onMarkAllSeen,
+  onClose,
+  onCloseAll,
 }: {
   columns: Record<ColumnId, BoardSession[]>;
   now: Date;
   selected: ColumnId;
   isHighlighted: (session: BoardSession) => boolean;
+  factoryLineOf: (session: BoardSession) => string | null;
   onSelect: (id: ColumnId) => void;
-  onMarkSeen: (session: BoardSession) => void;
-  onMarkAllSeen: () => void;
+  onClose: (session: BoardSession) => void;
+  onCloseAll: () => void;
 }) {
   return (
     <div className={styles.board}>
@@ -53,7 +55,7 @@ export function LiveBoard({
             count={columns[id].length}
             emptyLabel={t(`live.column.${id}.empty`)}
             isSelected={id === selected}
-            footer={id === "finished" ? <Button onClick={onMarkAllSeen}>{t("live.column.markAllSeen")}</Button> : undefined}
+            footer={id === "finished" ? <Button onClick={onCloseAll}>{t("live.column.closeAll")}</Button> : undefined}
           >
             {columns[id].map((session) => (
               <li key={session.sessionId}>
@@ -62,7 +64,8 @@ export function LiveBoard({
                   kind={id}
                   now={now}
                   isHighlighted={isHighlighted(session)}
-                  onMarkSeen={() => onMarkSeen(session)}
+                  factoryLine={factoryLineOf(session)}
+                  onClose={() => onClose(session)}
                 />
               </li>
             ))}

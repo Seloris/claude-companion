@@ -1,0 +1,23 @@
+.commit {
+  display: grid;
+  gap: 2px;
+}
+
+.label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82em;
+  font-weight: 600;
+}
+
+.message {
+  margin: 0;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface-2);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-control);
+}

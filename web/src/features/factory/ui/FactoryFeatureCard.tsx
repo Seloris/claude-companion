@@ -6,7 +6,7 @@ import type { FactoryBoard, FactoryFeature } from "../data/factoryTypes.ts";
 import styles from "./FactoryFeatureCard.module.css";
 import { FactoryStageSegments } from "./FactoryStageSegments.tsx";
 import { FactoryTimeline } from "./FactoryTimeline.tsx";
-import { cardId, STATE_COLOR, stateLabel, stepTitle } from "./labels.ts";
+import { cardId, runStepLabel, STATE_COLOR, stateLabel, withPlanName } from "./labels.ts";
 
 // FR-13, FR-15: a feature as a card framed in its state's colour; the header unfolds the timeline.
 export function FactoryFeatureCard({
@@ -51,7 +51,9 @@ export function FactoryFeatureCard({
         <span className={styles.slug}>{feature.slug}</span>
         <span className={styles.state}>{stateLabel(feature.state)}</span>
         {autopilot !== null && (
-          <Badge tone="attention">{t("factory.card.autopilot", { step: stepTitle(board, autopilot) })}</Badge>
+          <Badge tone="attention">
+            {t("factory.card.autopilot", { step: withPlanName(runStepLabel(board, autopilot), autopilot.folder) })}
+          </Badge>
         )}
         <FactoryStageSegments feature={feature} />
         {feature.title !== feature.slug && <span className={styles.title}>{feature.title}</span>}

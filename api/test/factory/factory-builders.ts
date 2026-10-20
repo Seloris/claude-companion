@@ -1,10 +1,15 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { FactoryExport } from "../../src/features/factory/factory.source.js";
+import type {
+  ExportActivity,
+  ExportSession,
+  FactoryExportV1,
+  FactoryExportV2,
+} from "../../src/features/factory/factory.source.js";
 
-// Valid v1 objects shaped like the mod's own export (its types/index.d.ts): never copies of real files.
-type ExportFeature = FactoryExport["features"][number];
-type ExportRun = FactoryExport["live"][number];
+// Valid objects shaped like the mod's own export (its types/index.d.ts): never copies of real files.
+type ExportFeature = FactoryExportV2["features"][number];
+type ExportRun = FactoryExportV2["live"][number];
 
 // The test clock starts here; boards are scanned relative to it.
 export const NOW = Date.parse("2026-01-01T00:00:00.000Z");
@@ -40,7 +45,19 @@ export function buildExportFeature(overrides: Partial<ExportFeature> = {}): Expo
   };
 }
 
-export function buildBoardExport(overrides: Partial<FactoryExport> = {}): FactoryExport {
+export function buildExportSession(overrides: Partial<ExportSession> = {}): ExportSession {
+  return { ...buildExportRun(), phase: "job-done", ...overrides };
+}
+
+export function buildExportActivity(overrides: Partial<ExportActivity> = {}): ExportActivity {
+  return { phase: "idle", sessionId: null, feature: null, step: null, since: null, pendingCommit: null, recap: null, ...overrides };
+}
+
+export function buildBoardExport(overrides: Partial<FactoryExportV2> = {}): FactoryExportV2 {
+  return { ...buildBoardExportV1(), schemaVersion: 2, activity: buildExportActivity(), sessions: [], ...overrides };
+}
+
+export function buildBoardExportV1(overrides: Partial<FactoryExportV1> = {}): FactoryExportV1 {
   return {
     schemaVersion: 1,
     scannedAt: NOW - 5_000,

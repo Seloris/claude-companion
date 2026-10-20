@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { formatDuration } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
+import { useClosedMarks } from "../../../shared/lib/useClosedMarks.ts";
 import { useNow } from "../../../shared/lib/useNow.ts";
 import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
 import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
+import { useFactoryStateQuery } from "../../factory/data/useFactoryStateQuery.ts";
+import { factoryLines } from "../../factory/ui/factoryLines.ts";
 import { requestNotificationPermission, useNotificationPermission } from "../data/notificationPermission.ts";
 import { setNotificationSettings, useNotificationSettings } from "../data/notificationSettings.ts";
 import { useLiveStateQuery } from "../data/useLiveStateQuery.ts";
-import { useSeenMarks } from "../data/useSeenMarks.ts";
-import { buildColumns, flattenWorkspaces, workspaceChoices } from "../ui/board.ts";
+import { buildColumns, flattenWorkspaces, toClosable, workspaceChoices } from "../ui/board.ts";
 import { IdleGroup } from "../ui/IdleGroup.tsx";
 import { LiveBoard, type ColumnId } from "../ui/LiveBoard.tsx";
 import { NotificationSettings } from "../ui/NotificationSettings.tsx";
@@ -31,7 +33,7 @@ function readWorkspaceState(state: unknown): string | null {
 function LivePage() {
   const liveQuery = useLiveStateQuery({ isPolling: false });
   const now = useNow(NOW_TICK_MS);
-  const seen = useSeenMarks();
+  const marks = useClosedMarks();
   const permission = useNotificationPermission();
   const notificationSettings = useNotificationSettings();
   const location = useLocation();
@@ -45,9 +47,16 @@ function LivePage() {
     if (requestedWorkspace !== null) setSelectedWorkspace(requestedWorkspace);
   }
   const [selectedTab, setSelectedTab] = useState<ColumnId>("awaiting");
+  // Factory-board FR-31: a tile shows the factory job of its session. No line while the factory query is pending or failed,
+  // and its error is never shown here: the live page is about the live state.
+  const factoryQuery = useFactoryStateQuery();
+  const factoryLinesBySession = useMemo(
+    () => (factoryQuery.data === undefined ? new Map<string, string>() : factoryLines(factoryQuery.data)),
+    [factoryQuery.data],
+  );
 
   const live = liveQuery.data;
-  // Every live session of the last read, never a filtered list: the tracking and the marks are kept against it.
+  // Every live session of the last read, never a filtered list: the tracking is kept against it.
   // A folder that cannot be read says nothing about the sessions: it gives no list.
   const readable = useMemo(
     () => (live !== undefined && live.isSessionsDirReadable ? flattenWorkspaces(live) : null),
@@ -56,21 +65,15 @@ function LivePage() {
   const all = readable ?? [];
   const tracking = useStatusTracking(readable, liveQuery.dataUpdatedAt, now);
 
-  const { prune } = seen;
-  useEffect(() => {
-    // Marks of sessions no longer live are forgotten against a successful, readable read only.
-    if (readable !== null && !liveQuery.isError) prune(new Set(readable.map((session) => session.sessionId)));
-  }, [readable, liveQuery.isError, prune]);
-
   const choices = workspaceChoices(all);
   // A filtered workspace that left the live state falls back to every workspace.
   const filter = choices.some((choice) => choice.key === selectedWorkspace) ? selectedWorkspace : null;
   const visible = filter === null ? all : all.filter((session) => session.workspace.key === filter);
-  const buckets = buildColumns(visible, { now, isSeen: seen.isSeen, enteredAt: tracking.enteredAt });
-  const columns = { awaiting: buckets.awaiting, running: buckets.running, finished: buckets.recentlyFinished };
+  const buckets = buildColumns(visible, { isClosed: marks.isClosed, enteredAt: tracking.enteredAt });
+  const columns = { awaiting: buckets.awaiting, running: buckets.running, finished: buckets.finished };
 
   // FR-18: what a screen reader hears for a change is what the tile shows, so a session that just finished is "Terminée".
-  const finishedIds = new Set(buckets.recentlyFinished.map((session) => session.sessionId));
+  const finishedIds = new Set(buckets.finished.map((session) => session.sessionId));
   const visibleIds = new Set(visible.map((session) => session.sessionId));
   const announcements = tracking.changes
     .filter((change) => visibleIds.has(change.sessionId))
@@ -99,9 +102,10 @@ function LivePage() {
           now={now}
           selected={selectedTab}
           isHighlighted={tracking.isHighlighted}
+          factoryLineOf={(session) => factoryLinesBySession.get(session.sessionId) ?? null}
           onSelect={setSelectedTab}
-          onMarkSeen={(session) => seen.markSeen([session])}
-          onMarkAllSeen={() => seen.markSeen(buckets.recentlyFinished)}
+          onClose={(session) => marks.close([toClosable(session)])}
+          onCloseAll={() => marks.close(buckets.finished.map(toClosable))}
         />
         <IdleGroup sessions={buckets.idle} now={now} />
         {/* FR-18: each status change is announced to a screen reader. */}

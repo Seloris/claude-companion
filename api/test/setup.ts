@@ -80,6 +80,8 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
   // The factory-board mod's folder, in the temp root: never the real ~/.claude/factory-board.
   const boardsDir = path.join(tempRoot, "factory-board");
   await mkdir(boardsDir);
+  // Claude Code's installed plugins, in the temp root, absent until a test writes it: never the real ~/.claude/plugins.
+  const pluginsFile = path.join(tempRoot, "installed_plugins.json");
   const ingestionRepo = createIngestionRepository(db);
   const workspacesRepo = createWorkspacesRepository(db);
   const ingestion = createIngestionService({ ingestionRepo, workspacesRepo, clock, logsDir, sessionsDir, scratchRoot });
@@ -105,7 +107,7 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
   let current = buildLive();
   const live = { getLiveState: () => current.getLiveState() };
   const buildFactory = () =>
-    createFactoryService({ workspacesRepo, clock, boardsDir, scratchRoot, findRepoRoot: () => null });
+    createFactoryService({ workspacesRepo, clock, boardsDir, pluginsFile, scratchRoot, findRepoRoot: () => null });
   // Same as the live service: its cache of the last good reads is in memory.
   let currentFactory = buildFactory();
   const factory = { getFactoryState: () => currentFactory.getFactoryState() };
@@ -187,6 +189,7 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
     tempRoot,
     sessionsDir,
     boardsDir,
+    pluginsFile,
     settingsFile,
     alivePids,
     timer,

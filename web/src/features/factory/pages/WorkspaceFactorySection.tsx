@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { t } from "../../../shared/lib/i18n/index.ts";
+import { useClosedMarks } from "../../../shared/lib/useClosedMarks.ts";
 import { useNow } from "../../../shared/lib/useNow.ts";
 import { useFactoryView } from "../data/factoryView.ts";
 import { useFactoryStateQuery } from "../data/useFactoryStateQuery.ts";
@@ -11,6 +12,8 @@ import styles from "./WorkspaceFactorySection.module.css";
 export function WorkspaceFactorySection({ workspaceId }: { workspaceId: number }) {
   const query = useFactoryStateQuery();
   const view = useFactoryView();
+  // BR-04: one instance for the section, so that every board sees a mark made on another.
+  const closedMarks = useClosedMarks();
   const now = useNow(1000);
   const [isReview, setReview] = useState(false);
   const [isBrowser, setBrowser] = useState(false);
@@ -26,6 +29,7 @@ export function WorkspaceFactorySection({ workspaceId }: { workspaceId: number }
           board={board}
           now={now}
           view={view}
+          closedMarks={closedMarks}
           isReview={isReview}
           isBrowser={isBrowser}
           onReviewChange={setReview}

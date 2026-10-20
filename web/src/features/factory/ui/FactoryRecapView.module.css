@@ -1,0 +1,27 @@
+.recap {
+  display: grid;
+  gap: 2px;
+}
+
+.text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82em;
+  font-weight: 600;
+}
+
+.commits {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}

@@ -1,4 +1,4 @@
-import { readdir, rm, stat, unlink, utimes } from "node:fs/promises";
+import { readdir, rm, stat, unlink, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +6,16 @@ import { createFactoryService } from "../../src/features/factory/factory.service
 import { factoryStateSchema, type FactoryState } from "../../src/features/factory/factory.schema.js";
 import { buildSession, buildWorkspace } from "../factories.js";
 import { createTestContext } from "../setup.js";
-import { NOW, buildBoardExport, buildExportFeature, buildExportRun, writeBoard } from "./factory-builders.js";
+import {
+  NOW,
+  buildBoardExport,
+  buildBoardExportV1,
+  buildExportActivity,
+  buildExportFeature,
+  buildExportRun,
+  buildExportSession,
+  writeBoard,
+} from "./factory-builders.js";
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -117,10 +126,14 @@ describe("factory routes", () => {
         since: iso(run.since),
         updatedAt: iso(run.updatedAt),
         isStored: false,
+        phase: null,
+        pendingCommit: null,
+        recap: null,
       });
       expect(state.workspaces).toHaveLength(1);
       expect(state.workspaces[0]?.boards).toEqual([
         {
+          schemaVersion: 2,
           fileName: "C--WS-demo.json",
           root: "C:\\WS\\demo",
           branch: "feat/demo",
@@ -152,6 +165,9 @@ describe("factory routes", () => {
               steps: [{ step: "stage:1", title: "Stage 1 — api", detail: "abc1234", marker: "done", runs: [servedRun(stageRun)] }],
             },
           ],
+          activity: { phase: "idle", sessionId: null, feature: null, step: null, since: null, pendingCommit: null, recap: null, isStored: false },
+          sessions: [],
+          plugins: { factory: null, factoryBoard: null },
         },
       ]);
     });
@@ -201,10 +217,169 @@ describe("factory routes", () => {
     });
   });
 
+  describe("the export versions", () => {
+    const recap = { text: "Done.", commits: [{ sha: "abc1234", subject: "feat(demo): api" }] };
+
+    it("serves a version 1 board with no activity, no sessions and no run phase (FR-04, BR-02)", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExportV1({ live: [buildExportRun()] }));
+
+      // Act
+      const state = await getState();
+
+      // Assert
+      const board = state.workspaces[0]?.boards[0];
+      expect(board).toMatchObject({ schemaVersion: 1, activity: null, sessions: [] });
+      expect(board?.live[0]).toMatchObject({ phase: null, pendingCommit: null, recap: null });
+    });
+
+    it("serves the phase, the pending commit and the recap of every run as exported (BR-02, FR-24 to FR-26)", async () => {
+      // Arrange
+      const withPhase = (overrides: Parameters<typeof buildExportRun>[0] = {}) =>
+        buildExportRun({ phase: "awaiting-commit", pendingCommit: "feat(demo): api", recap, ...overrides });
+      const feature = buildExportFeature({
+        autopilot: withPhase({ command: "autopilot" }),
+        steps: [{ step: "stage:1", title: "Stage 1", detail: "", marker: "done", runs: [withPhase({ phase: "job-done" })] }],
+      });
+      await write("C--WS-demo.json", buildBoardExport({ live: [withPhase()], features: [feature] }));
+
+      // Act
+      const state = await getState();
+
+      // Assert
+      const board = state.workspaces[0]?.boards[0];
+      const expected = { phase: "awaiting-commit", pendingCommit: "feat(demo): api", recap };
+      expect(board?.live[0]).toMatchObject(expected);
+      expect(board?.features[0]?.autopilot).toMatchObject(expected);
+      expect(board?.features[0]?.steps[0]?.runs[0]).toMatchObject({ ...expected, phase: "job-done" });
+    });
+
+    it("serves a run without phase as phase null, whatever its status (BR-02)", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport({ live: [buildExportRun({ status: "done" })] }));
+
+      // Act
+      const state = await getState();
+
+      // Assert
+      expect(state.workspaces[0]?.boards[0]?.live[0]).toMatchObject({ status: "done", phase: null });
+    });
+
+    it("serves the activity as exported, with since as ISO (FR-27)", async () => {
+      // Arrange
+      const activity = buildExportActivity({
+        phase: "awaiting-commit",
+        sessionId: "11111111-1111-4111-8111-111111111111",
+        feature: "demo",
+        step: "stage:1",
+        since: NOW - 60_000,
+        pendingCommit: "feat(demo): api",
+        recap,
+      });
+      await write("C--WS-demo.json", buildBoardExport({ activity }));
+
+      // Act
+      const state = await getState();
+
+      // Assert
+      expect(state.workspaces[0]?.boards[0]?.activity).toEqual({ ...activity, since: iso(NOW - 60_000), isStored: false });
+    });
+
+    it("serves an idle activity with nulls and isStored false (FR-27)", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport({ activity: buildExportActivity() }));
+
+      // Act
+      const state = await getState();
+
+      // Assert
+      expect(state.workspaces[0]?.boards[0]?.activity).toEqual({
+        phase: "idle",
+        sessionId: null,
+        feature: null,
+        step: null,
+        since: null,
+        pendingCommit: null,
+        recap: null,
+        isStored: false,
+      });
+    });
+
+    it("serves the sessions in the exported order, each with its phase (FR-28)", async () => {
+      // Arrange
+      const sessions = [
+        buildExportSession({ sessionId: "aaaaaaaa-1111-4111-8111-111111111111", phase: "awaiting-answer", recap }),
+        buildExportSession({ sessionId: "bbbbbbbb-1111-4111-8111-111111111111", phase: "job-done" }),
+        buildExportSession({ sessionId: "cccccccc-1111-4111-8111-111111111111", phase: "interrupted", status: "interrupted" }),
+      ];
+      await write("C--WS-demo.json", buildBoardExport({ sessions }));
+
+      // Act
+      const state = await getState();
+
+      // Assert
+      const served = state.workspaces[0]?.boards[0]?.sessions;
+      expect(served?.map((session) => [session.sessionId.slice(0, 8), session.phase])).toEqual([
+        ["aaaaaaaa", "awaiting-answer"],
+        ["bbbbbbbb", "job-done"],
+        ["cccccccc", "interrupted"],
+      ]);
+      expect(served?.[0]?.recap).toEqual(recap);
+    });
+
+    it("marks the sessions and the activity as stored when the history holds their session (FR-19)", async () => {
+      // Arrange
+      const known = buildSession();
+      await ctx.seed.session(buildWorkspace({ path: "C:\\WS\\demo" }), known);
+      const unknownId = "22222222-2222-4222-8222-222222222222";
+      await write(
+        "C--WS-demo.json",
+        buildBoardExport({
+          sessions: [buildExportSession({ sessionId: known.sessionId }), buildExportSession({ sessionId: unknownId })],
+          activity: buildExportActivity({ phase: "job-done", sessionId: known.sessionId }),
+        }),
+      );
+      await write(
+        "C--WS-other.json",
+        buildBoardExport({ root: "C:\\WS\\other", activity: buildExportActivity({ phase: "job-done", sessionId: unknownId }) }),
+      );
+
+      // Act
+      const state = await getState();
+
+      // Assert
+      const boards = state.workspaces.flatMap((workspace) => workspace.boards);
+      const demo = boards.find((board) => board.root === "C:\\WS\\demo");
+      const other = boards.find((board) => board.root === "C:\\WS\\other");
+      expect(demo?.sessions.map((session) => session.isStored)).toEqual([true, false]);
+      expect(demo?.activity?.isStored).toBe(true);
+      expect(other?.activity?.isStored).toBe(false);
+    });
+
+    it.each([
+      ["an unknown run phase", { live: [{ ...buildExportRun(), phase: "sleeping" }] }],
+      ["an unknown activity phase", { activity: { ...buildExportActivity(), phase: "sleeping" } }],
+      ["no sessions", { sessions: undefined }],
+      ["no activity", { activity: undefined }],
+    ])("keeps the last board when a version 2 file holds %s (FR-21)", async (_name, broken) => {
+      // Arrange
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      await write("C--WS-demo.json", buildBoardExport({ branch: "feat/first" }));
+      await getState();
+
+      // Act
+      await write("C--WS-demo.json", { ...buildBoardExport({ branch: "feat/second" }), ...broken });
+      const state = await getState();
+
+      // Assert
+      expect(state.workspaces[0]?.boards[0]?.branch).toBe("feat/first");
+    });
+  });
+
   describe("the files", () => {
     it("lists a file of another version as unsupported and draws no board for it (FR-04)", async () => {
       // Arrange
-      await write("v2.json", { ...buildBoardExport(), schemaVersion: 2 });
+      await write("v3.json", { ...buildBoardExport(), schemaVersion: 3 });
       await write("none.json", { root: "C:\\WS\\x" });
       await write("array.json", []);
 
@@ -216,7 +391,7 @@ describe("factory routes", () => {
       expect(state.unsupportedFiles).toEqual([
         { fileName: "array.json", schemaVersion: null },
         { fileName: "none.json", schemaVersion: null },
-        { fileName: "v2.json", schemaVersion: 2 },
+        { fileName: "v3.json", schemaVersion: 3 },
       ]);
     });
 
@@ -298,7 +473,7 @@ describe("factory routes", () => {
     it("leaves the boards folder unchanged after reads (BR-01)", async () => {
       // Arrange
       await write("a.json", buildBoardExport({ root: "C:\\WS\\a" }));
-      await write("b.json", { ...buildBoardExport(), schemaVersion: 2 });
+      await write("b.json", { ...buildBoardExport(), schemaVersion: 3 });
       await write("c.json", "{ broken");
       vi.spyOn(console, "error").mockImplementation(() => undefined);
       const snapshot = async () =>
@@ -464,6 +639,75 @@ describe("factory routes", () => {
 
       // Assert
       expect(findStoredSessionIds).toHaveBeenCalledWith(["11111111-1111-4111-8111-111111111111"]);
+    });
+  });
+
+  describe("the plugin versions", () => {
+    const install = (overrides: Record<string, unknown>) => ({
+      scope: "project",
+      projectPath: "C:\\WS\\demo",
+      installPath: "C:\\cache",
+      version: "1.0.0",
+      installedAt: "2026-10-01T00:00:00.000Z",
+      lastUpdated: "2026-10-01T00:00:00.000Z",
+      ...overrides,
+    });
+    const writePlugins = (plugins: Record<string, unknown[]>) =>
+      writeFile(ctx.pluginsFile, JSON.stringify({ version: 2, plugins }), "utf8");
+
+    async function boardPlugins() {
+      const state = await getState();
+      return state.workspaces[0]?.boards[0]?.plugins;
+    }
+
+    it("serves the versions installed for the board's project", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport());
+      await writePlugins({
+        "factory@webapp-factory": [
+          install({ projectPath: "C:\\WS\\other", version: "0.6.0" }),
+          install({ projectPath: "c:/ws/demo/", version: "0.7.0" }),
+        ],
+        "factory-board@webapp-factory": [install({ version: "0.11.0" })],
+      });
+
+      // Act
+      const plugins = await boardPlugins();
+
+      // Assert
+      expect(plugins).toEqual({ factory: "0.7.0", factoryBoard: "0.11.0" });
+    });
+
+    it("falls back to the user scope, the latest update first", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport());
+      await writePlugins({
+        "factory@webapp-factory": [
+          install({ scope: "user", projectPath: undefined, version: "0.5.0" }),
+          install({ scope: "user", projectPath: undefined, version: "0.6.0", lastUpdated: "2026-10-02T00:00:00.000Z" }),
+        ],
+        "factory-board@webapp-factory": [install({ projectPath: "C:\\WS\\other" })],
+      });
+
+      // Act
+      const plugins = await boardPlugins();
+
+      // Assert
+      expect(plugins).toEqual({ factory: "0.6.0", factoryBoard: null });
+    });
+
+    it("serves no version when the plugins file is missing or invalid", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport());
+
+      // Act
+      const missing = await boardPlugins();
+      await writeFile(ctx.pluginsFile, "{ not json", "utf8");
+      const invalid = await boardPlugins();
+
+      // Assert
+      expect(missing).toEqual({ factory: null, factoryBoard: null });
+      expect(invalid).toEqual({ factory: null, factoryBoard: null });
     });
   });
 });

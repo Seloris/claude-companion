@@ -92,6 +92,7 @@ const factory = createFactoryService({
   workspacesRepo,
   clock: systemClock,
   boardsDir: config.CLAUDE_FACTORY_BOARD_DIR,
+  pluginsFile: config.CLAUDE_PLUGINS_FILE,
   scratchRoot,
   findRepoRoot,
 });

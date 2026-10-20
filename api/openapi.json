@@ -961,6 +961,22 @@
       "FactoryBoard": {
         "type": "object",
         "properties": {
+          "schemaVersion": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  1
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  2
+                ]
+              }
+            ]
+          },
           "fileName": {
             "type": "string"
           },
@@ -1024,9 +1040,29 @@
             "items": {
               "$ref": "#/components/schemas/FactoryFeature"
             }
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryActivity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactorySession"
+            }
+          },
+          "plugins": {
+            "$ref": "#/components/schemas/FactoryPluginVersions"
           }
         },
         "required": [
+          "schemaVersion",
           "fileName",
           "root",
           "branch",
@@ -1038,7 +1074,10 @@
           "error",
           "markers",
           "live",
-          "features"
+          "features",
+          "activity",
+          "sessions",
+          "plugins"
         ]
       },
       "FactoryRun": {
@@ -1090,6 +1129,32 @@
           },
           "isStored": {
             "type": "boolean"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryPhase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pendingCommit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryRecap"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1103,7 +1168,10 @@
           "status",
           "since",
           "updatedAt",
-          "isStored"
+          "isStored",
+          "phase",
+          "pendingCommit",
+          "recap"
         ]
       },
       "FactoryRunStatus": {
@@ -1113,6 +1181,49 @@
           "waiting",
           "done",
           "interrupted"
+        ]
+      },
+      "FactoryPhase": {
+        "type": "string",
+        "enum": [
+          "working",
+          "awaiting-commit",
+          "awaiting-answer",
+          "job-done",
+          "interrupted"
+        ]
+      },
+      "FactoryRecap": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "commits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sha": {
+                  "type": "string"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sha",
+                "subject"
+              ]
+            }
+          }
+        },
+        "required": [
+          "text",
+          "commits"
         ]
       },
       "FactoryFeature": {
@@ -1371,6 +1482,187 @@
           "running",
           "next",
           "pending"
+        ]
+      },
+      "FactoryActivity": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "$ref": "#/components/schemas/FactoryActivityPhase"
+          },
+          "sessionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "feature": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "pendingCommit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryRecap"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isStored": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "phase",
+          "sessionId",
+          "feature",
+          "step",
+          "since",
+          "pendingCommit",
+          "recap",
+          "isStored"
+        ]
+      },
+      "FactoryActivityPhase": {
+        "type": "string",
+        "enum": [
+          "working",
+          "awaiting-commit",
+          "awaiting-answer",
+          "job-done",
+          "interrupted",
+          "idle"
+        ]
+      },
+      "FactorySession": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "feature": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "lastStep": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agentId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/FactoryRunStatus"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isStored": {
+            "type": "boolean"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/FactoryPhase"
+          },
+          "pendingCommit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactoryRecap"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "feature",
+          "folder",
+          "command",
+          "step",
+          "lastStep",
+          "agentId",
+          "status",
+          "since",
+          "updatedAt",
+          "isStored",
+          "phase",
+          "pendingCommit",
+          "recap"
+        ]
+      },
+      "FactoryPluginVersions": {
+        "type": "object",
+        "properties": {
+          "factory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "factoryBoard": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "factory",
+          "factoryBoard"
         ]
       },
       "RefreshStatus": {

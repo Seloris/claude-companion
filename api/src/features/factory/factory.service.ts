@@ -1,8 +1,25 @@
 import type { Clock } from "../../shared/clock.js";
 import { resolveWorkspace, type ResolvedWorkspace } from "../ingestion/ingestion.workspace.js";
 import type { WorkspacesRepository } from "../workspaces/workspaces.repository.js";
-import type { FactoryBoard, FactoryFeature, FactoryRun, FactoryState, FactoryWorkspace } from "./factory.schema.js";
-import { listBoardFiles, readBoardFile, type ExportRun, type FactoryExport } from "./factory.source.js";
+import type {
+  FactoryBoard,
+  FactoryFeature,
+  FactoryPluginVersions,
+  FactoryRecap,
+  FactoryRun,
+  FactorySession,
+  FactoryState,
+  FactoryWorkspace,
+} from "./factory.schema.js";
+import {
+  listBoardFiles,
+  readBoardFile,
+  readInstalledPlugins,
+  type ExportRun,
+  type ExportSession,
+  type FactoryExport,
+  type PluginInstall,
+} from "./factory.source.js";
 
 // FR-11: a board scanned more than this long ago is frozen, no session of its project runs the mod.
 export const STALE_AFTER_MS = 60_000;
@@ -21,12 +38,14 @@ export function createFactoryService({
   workspacesRepo,
   clock,
   boardsDir,
+  pluginsFile,
   scratchRoot,
   findRepoRoot,
 }: {
   workspacesRepo: Pick<WorkspacesRepository, "findWorkspacesByPathKeys" | "findStoredSessionIds">;
   clock: Clock;
   boardsDir: string;
+  pluginsFile: string;
   scratchRoot: string;
   findRepoRoot: (cwd: string) => string | null;
 }) {
@@ -85,15 +104,25 @@ export function createFactoryService({
 
     // FR-19: one query for the runs of every board.
     const sessionIds = new Set<string>();
-    for (const { board } of exported) for (const run of runsOf(board)) if (SESSION_ID.test(run.sessionId)) sessionIds.add(run.sessionId);
+    for (const { board } of exported) {
+      for (const run of runsOf(board)) if (SESSION_ID.test(run.sessionId)) sessionIds.add(run.sessionId);
+      if (board.schemaVersion === 2 && board.activity.sessionId !== null && SESSION_ID.test(board.activity.sessionId)) {
+        sessionIds.add(board.activity.sessionId);
+      }
+    }
     const storedSessions = await workspacesRepo.findStoredSessionIds([...sessionIds]);
+
+    const plugins = exported.length === 0 ? [] : await readInstalledPlugins(pluginsFile);
 
     const groups = new Map<string, { workspace: ResolvedWorkspace; boards: FactoryBoard[] }>();
     exported.forEach(({ fileName, board }, index) => {
       const workspace = resolved[index];
       if (workspace === undefined) return;
       const group = groups.get(workspace.pathKey) ?? { workspace, boards: [] };
-      group.boards.push(toBoard(fileName, board, now.getTime(), storedSessions));
+      group.boards.push({
+        ...toBoard(fileName, board, now.getTime(), storedSessions),
+        plugins: pluginVersionsFor(board.root, plugins),
+      });
       groups.set(workspace.pathKey, group);
     });
 
@@ -131,8 +160,13 @@ export type FactoryService = ReturnType<typeof createFactoryService>;
 function runsOf(board: FactoryExport): ExportRun[] {
   return [
     ...board.live,
+    ...(board.schemaVersion === 2 ? board.sessions : []),
     ...board.features.flatMap((feature) => [...(feature.autopilot === null ? [] : [feature.autopilot]), ...feature.steps.flatMap((step) => step.runs)]),
   ];
+}
+
+function toRecap(recap: NonNullable<ExportRun["recap"]>): FactoryRecap {
+  return { text: recap.text, commits: recap.commits.map(({ sha, subject }) => ({ sha, subject })) };
 }
 
 function toRun(run: ExportRun, storedSessions: Set<string>): FactoryRun {
@@ -148,13 +182,27 @@ function toRun(run: ExportRun, storedSessions: Set<string>): FactoryRun {
     since: new Date(run.since).toISOString(),
     updatedAt: new Date(run.updatedAt).toISOString(),
     isStored: storedSessions.has(run.sessionId),
+    // BR-02: the phase is served as exported, never derived from the status.
+    phase: run.phase ?? null,
+    pendingCommit: run.pendingCommit ?? null,
+    recap: run.recap == null ? null : toRecap(run.recap),
   };
+}
+
+function toSession(session: ExportSession, storedSessions: Set<string>): FactorySession {
+  return { ...toRun(session, storedSessions), phase: session.phase };
 }
 
 // BR-02: the board is passed through as exported. Only the epoch-ms fields become ISO strings, the absent optional
 // fields become null, and the fields the application does not draw are dropped.
-function toBoard(fileName: string, board: FactoryExport, nowMs: number, storedSessions: Set<string>): FactoryBoard {
+function toBoard(
+  fileName: string,
+  board: FactoryExport,
+  nowMs: number,
+  storedSessions: Set<string>,
+): Omit<FactoryBoard, "plugins"> {
   return {
+    schemaVersion: board.schemaVersion,
     fileName,
     root: board.root,
     branch: board.branch,
@@ -216,7 +264,43 @@ function toBoard(fileName: string, board: FactoryExport, nowMs: number, storedSe
         })),
       }),
     ),
+    activity:
+      board.schemaVersion === 1
+        ? null
+        : {
+            phase: board.activity.phase,
+            sessionId: board.activity.sessionId,
+            feature: board.activity.feature,
+            step: board.activity.step,
+            since: board.activity.since === null ? null : new Date(board.activity.since).toISOString(),
+            pendingCommit: board.activity.pendingCommit,
+            recap: board.activity.recap === null ? null : toRecap(board.activity.recap),
+            isStored: board.activity.sessionId !== null && storedSessions.has(board.activity.sessionId),
+          },
+    sessions: board.schemaVersion === 1 ? [] : board.sessions.map((session) => toSession(session, storedSessions)),
   };
+}
+
+// Windows paths: the separators and the case do not tell two folders apart.
+const samePath = (a: string, b: string) => {
+  const normalize = (value: string) => value.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  return normalize(a) === normalize(b);
+};
+
+// The install Claude Code loads for the project: its project or local scope, else the user scope; the latest update wins.
+function versionFor(name: string, root: string, plugins: PluginInstall[]): string | null {
+  const installs = plugins.filter((install) => install.name === name);
+  const inProject = installs.filter((install) => install.projectPath !== null && samePath(install.projectPath, root));
+  const candidates = inProject.length > 0 ? inProject : installs.filter((install) => install.scope === "user");
+  const latest = candidates.reduce<PluginInstall | null>(
+    (best, install) => (best === null || install.lastUpdated > best.lastUpdated ? install : best),
+    null,
+  );
+  return latest?.version ?? null;
+}
+
+function pluginVersionsFor(root: string, plugins: PluginInstall[]): FactoryPluginVersions {
+  return { factory: versionFor("factory", root, plugins), factoryBoard: versionFor("factory-board", root, plugins) };
 }
 
 // A stale board's live runs do not count as live: no mod runs, their state is the one of the last scan (FR-11).

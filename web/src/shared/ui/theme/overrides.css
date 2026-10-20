@@ -41,6 +41,13 @@
   --factory-state-spec: var(--text-muted);
   --factory-state-empty: var(--text-muted);
   --factory-state-done: var(--factory-done);
+  /* The phase of a factory session; the dark values follow the variables they alias. */
+  --factory-phase-working: var(--accent);
+  --factory-phase-awaiting-commit: var(--status-awaiting);
+  --factory-phase-awaiting-answer: var(--status-awaiting);
+  --factory-phase-job-done: var(--factory-done);
+  --factory-phase-interrupted: var(--text-muted);
+  --factory-phase-idle: var(--text-muted);
 }
 
 @media (prefers-color-scheme: dark) {

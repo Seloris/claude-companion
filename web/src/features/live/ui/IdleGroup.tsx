@@ -11,7 +11,7 @@ import { RecapLink } from "./RecapLink.tsx";
 import text from "./texts.module.css";
 import { WorkspaceChip } from "./WorkspaceChip.tsx";
 
-// FR-07: the idle sessions that are not recently finished, folded in one group, each reduced to its workspace, its title, since when it is idle
+// FR-07: the idle sessions that are not finished, folded in one group, each reduced to its workspace, its title, since when it is idle
 // and the link that opens it in the desktop app when it has one.
 export function IdleGroup({ sessions, now }: { sessions: BoardSession[]; now: Date }) {
   if (sessions.length === 0) return null;

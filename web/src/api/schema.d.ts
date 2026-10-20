@@ -718,6 +718,7 @@ export interface components {
             boards: components["schemas"]["FactoryBoard"][];
         };
         FactoryBoard: {
+            schemaVersion: 1 | 2;
             fileName: string;
             root: string;
             branch: string | null;
@@ -734,6 +735,9 @@ export interface components {
             };
             live: components["schemas"]["FactoryRun"][];
             features: components["schemas"]["FactoryFeature"][];
+            activity: components["schemas"]["FactoryActivity"] | null;
+            sessions: components["schemas"]["FactorySession"][];
+            plugins: components["schemas"]["FactoryPluginVersions"];
         };
         FactoryRun: {
             sessionId: string;
@@ -749,9 +753,21 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             isStored: boolean;
+            phase: components["schemas"]["FactoryPhase"] | null;
+            pendingCommit: string | null;
+            recap: components["schemas"]["FactoryRecap"] | null;
         };
         /** @enum {string} */
         FactoryRunStatus: "running" | "waiting" | "done" | "interrupted";
+        /** @enum {string} */
+        FactoryPhase: "working" | "awaiting-commit" | "awaiting-answer" | "job-done" | "interrupted";
+        FactoryRecap: {
+            text: string | null;
+            commits: {
+                sha: string;
+                subject: string;
+            }[];
+        };
         FactoryFeature: {
             slug: string;
             title: string;
@@ -803,6 +819,41 @@ export interface components {
         };
         /** @enum {string} */
         FactoryMarker: "done" | "running" | "next" | "pending";
+        FactoryActivity: {
+            phase: components["schemas"]["FactoryActivityPhase"];
+            sessionId: string | null;
+            feature: string | null;
+            step: string | null;
+            /** Format: date-time */
+            since: string | null;
+            pendingCommit: string | null;
+            recap: components["schemas"]["FactoryRecap"] | null;
+            isStored: boolean;
+        };
+        /** @enum {string} */
+        FactoryActivityPhase: "working" | "awaiting-commit" | "awaiting-answer" | "job-done" | "interrupted" | "idle";
+        FactorySession: {
+            sessionId: string;
+            feature: string | null;
+            folder: string | null;
+            command: string;
+            step: string;
+            lastStep: string | null;
+            agentId: string | null;
+            status: components["schemas"]["FactoryRunStatus"];
+            /** Format: date-time */
+            since: string;
+            /** Format: date-time */
+            updatedAt: string;
+            isStored: boolean;
+            phase: components["schemas"]["FactoryPhase"];
+            pendingCommit: string | null;
+            recap: components["schemas"]["FactoryRecap"] | null;
+        };
+        FactoryPluginVersions: {
+            factory: string | null;
+            factoryBoard: string | null;
+        };
         RefreshStatus: {
             isRunning: boolean;
             /** Format: date-time */

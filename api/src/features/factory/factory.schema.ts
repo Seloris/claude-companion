@@ -7,6 +7,17 @@ export const factoryFeatureStateSchema = z
   .meta({ id: "FactoryFeatureState" });
 export const factoryMarkerSchema = z.enum(["done", "running", "next", "pending"]).meta({ id: "FactoryMarker" });
 
+export const factoryPhaseSchema = z
+  .enum(["working", "awaiting-commit", "awaiting-answer", "job-done", "interrupted"])
+  .meta({ id: "FactoryPhase" });
+export const factoryActivityPhaseSchema = z
+  .enum(["working", "awaiting-commit", "awaiting-answer", "job-done", "interrupted", "idle"])
+  .meta({ id: "FactoryActivityPhase" });
+
+export const factoryRecapSchema = z
+  .object({ text: z.string().nullable(), commits: z.array(z.object({ sha: z.string(), subject: z.string() })) })
+  .meta({ id: "FactoryRecap" });
+
 export const factoryRunSchema = z
   .object({
     sessionId: z.string(),
@@ -21,8 +32,32 @@ export const factoryRunSchema = z
     updatedAt: z.iso.datetime(),
     // True: the history holds the session, so it has a page (FR-19).
     isStored: z.boolean(),
+    // Null when the export carries none (an older export or run), never derived from the status (BR-02). It is read
+    // with the status, as the mod's `runPhase` does.
+    phase: z.union([factoryPhaseSchema, z.null()]),
+    // The commit message the turn ended on.
+    pendingCommit: z.string().nullable(),
+    // The done footer of the turn.
+    recap: z.union([factoryRecapSchema, z.null()]),
   })
   .meta({ id: "FactoryRun" });
+
+// A session's latest main-loop run, phase always set by the mod (FR-28).
+export const factorySessionSchema = factoryRunSchema.extend({ phase: factoryPhaseSchema }).meta({ id: "FactorySession" });
+
+// FR-27: the mod's pick of the session that most needs the person, never recomputed here.
+export const factoryActivitySchema = z
+  .object({
+    phase: factoryActivityPhaseSchema,
+    sessionId: z.string().nullable(),
+    feature: z.string().nullable(),
+    step: z.string().nullable(),
+    since: z.iso.datetime().nullable(),
+    pendingCommit: z.string().nullable(),
+    recap: z.union([factoryRecapSchema, z.null()]),
+    isStored: z.boolean(),
+  })
+  .meta({ id: "FactoryActivity" });
 
 export const factoryPromptSchema = z.object({ label: z.string(), prompt: z.string() }).meta({ id: "FactoryPrompt" });
 
@@ -85,8 +120,15 @@ export const factoryFeatureSchema = z
   })
   .meta({ id: "FactoryFeature" });
 
+// The plugin versions Claude Code installed for the board's project (its project or local scope first, else the user
+// scope); null when none is installed or the plugins file cannot be read.
+export const factoryPluginVersionsSchema = z
+  .object({ factory: z.string().nullable(), factoryBoard: z.string().nullable() })
+  .meta({ id: "FactoryPluginVersions" });
+
 export const factoryBoardSchema = z
   .object({
+    schemaVersion: z.union([z.literal(1), z.literal(2)]),
     fileName: z.string(),
     root: z.string(),
     branch: z.string().nullable(),
@@ -101,6 +143,11 @@ export const factoryBoardSchema = z
     markers: z.object({ review: z.string(), browser: z.string() }),
     live: z.array(factoryRunSchema),
     features: z.array(factoryFeatureSchema),
+    // Null on a version 1 export.
+    activity: z.union([factoryActivitySchema, z.null()]),
+    // Empty on a version 1 export.
+    sessions: z.array(factorySessionSchema),
+    plugins: factoryPluginVersionsSchema,
   })
   .meta({ id: "FactoryBoard" });
 
@@ -139,7 +186,11 @@ export const factoryStateSchema = z
   .meta({ id: "FactoryState" });
 
 export type FactoryRun = z.infer<typeof factoryRunSchema>;
+export type FactorySession = z.infer<typeof factorySessionSchema>;
+export type FactoryActivity = z.infer<typeof factoryActivitySchema>;
+export type FactoryRecap = z.infer<typeof factoryRecapSchema>;
 export type FactoryFeature = z.infer<typeof factoryFeatureSchema>;
+export type FactoryPluginVersions = z.infer<typeof factoryPluginVersionsSchema>;
 export type FactoryBoard = z.infer<typeof factoryBoardSchema>;
 export type FactoryWorkspace = z.infer<typeof factoryWorkspaceSchema>;
 export type FactoryState = z.infer<typeof factoryStateSchema>;

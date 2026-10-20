@@ -4,7 +4,7 @@ import { t, tp } from "../../../shared/lib/i18n/index.ts";
 import { isDesktopLink } from "../../../shared/lib/desktopLink.ts";
 import { Button } from "../../../shared/ui/Button.tsx";
 import { ButtonLink } from "../../../shared/ui/ButtonLink.tsx";
-import { BranchIcon, DesktopIcon, EyeIcon } from "../../../shared/ui/icons.tsx";
+import { BranchIcon, CheckIcon, DesktopIcon } from "../../../shared/ui/icons.tsx";
 import type { BoardSession } from "./board.ts";
 import { originLabel, waitingForLabel } from "./labels.ts";
 import styles from "./LiveSessionTile.module.css";
@@ -55,13 +55,15 @@ export function LiveSessionTile({
   kind,
   now,
   isHighlighted,
-  onMarkSeen,
+  factoryLine,
+  onClose,
 }: {
   session: BoardSession;
   kind: PillStatus;
   now: Date;
   isHighlighted: boolean;
-  onMarkSeen: () => void;
+  factoryLine: string | null;
+  onClose: () => void;
 }) {
   const turnMs =
     session.turnStartedAt === null
@@ -142,6 +144,14 @@ export function LiveSessionTile({
           </span>
         </p>
       )}
+      {factoryLine !== null && (
+        // Factory-board FR-31: the factory job the session runs, from the factory boards.
+        <p className={`${styles.factory} ${text.muted}`} role="note" aria-label={t("live.tile.factoryLabel")}>
+          <span className={text.clamp} title={factoryLine}>
+            {factoryLine}
+          </span>
+        </p>
+      )}
       <footer className={styles.footer}>
         <span className={`${styles.when} ${text.muted}`}>
           {kind === "finished"
@@ -153,9 +163,9 @@ export function LiveSessionTile({
         </span>
         <span className={styles.actions}>
           {kind === "finished" && (
-            <Button aria-label={t("live.tile.seenLabel", { title: session.title })} onClick={onMarkSeen}>
-              <EyeIcon />
-              {t("live.tile.seen")}
+            <Button aria-label={t("live.tile.closeLabel", { title: session.title })} onClick={onClose}>
+              <CheckIcon />
+              {t("live.tile.close")}
             </Button>
           )}
           {session.desktopLink !== null && isDesktopLink(session.desktopLink) && (

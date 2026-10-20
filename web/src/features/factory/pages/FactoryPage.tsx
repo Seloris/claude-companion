@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { t } from "../../../shared/lib/i18n/index.ts";
+import { useClosedMarks } from "../../../shared/lib/useClosedMarks.ts";
 import { useNow } from "../../../shared/lib/useNow.ts";
 import { Banner } from "../../../shared/ui/Banner.tsx";
 import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
@@ -15,6 +16,8 @@ import styles from "./FactoryPage.module.css";
 function FactoryPage() {
   const query = useFactoryStateQuery();
   const view = useFactoryView();
+  // BR-04: one instance for the page, so that every board sees a mark made on another.
+  const closedMarks = useClosedMarks();
   // The scan age and the durations keep ticking between two polls.
   const now = useNow(1000);
   // The two switches are page state, off by default, shared by all the cards of the page (FR-18).
@@ -46,6 +49,7 @@ function FactoryPage() {
               workspace={workspace}
               now={now}
               view={view}
+              closedMarks={closedMarks}
               isReview={isReview}
               isBrowser={isBrowser}
               onReviewChange={setReview}

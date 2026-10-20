@@ -1,6 +1,60 @@
 import { formatDuration } from "../../../shared/lib/format.ts";
 import { t } from "../../../shared/lib/i18n/index.ts";
-import type { FactoryBoard, FactoryFeatureState, FactoryRun } from "../data/factoryTypes.ts";
+import type { Closable } from "../../../shared/lib/useClosedMarks.ts";
+import type {
+  FactoryActivity,
+  FactoryActivityPhase,
+  FactoryBoard,
+  FactoryFeatureState,
+  FactoryPhase,
+  FactoryRun,
+  FactorySession,
+} from "../data/factoryTypes.ts";
+
+// The `Clôturée` marks of the page (BR-04), held once per page and passed down.
+export interface FactoryClosedMarks {
+  isClosed: (session: Closable) => boolean;
+  close: (sessions: Closable[]) => void;
+}
+
+export function phaseLabel(phase: FactoryActivityPhase): string {
+  return t(`factory.phase.${phase}`);
+}
+
+// FR-24: the phase to show on a run. The mod carries a turn's phase over through later status changes, so the status
+// wins while a turn runs or once it is interrupted (a reading of the contract, the mod's `runPhase`; not a derived state, BR-02).
+export function shownPhase(run: FactoryRun): FactoryPhase | null {
+  if (run.status === "running") return "working";
+  if (run.status === "interrupted") return "interrupted";
+  return run.phase;
+}
+
+// FR-24: the phase label, else the status label for an older export or run.
+export function runStateLabel(run: FactoryRun): string {
+  const phase = shownPhase(run);
+  return phase === null ? runStatusLabel(run.status) : phaseLabel(phase);
+}
+
+// A phase that is not over: on a stale board it is suffixed "au dernier scan".
+export function isUnderwayPhase(phase: FactoryActivityPhase): boolean {
+  return phase === "working" || phase === "awaiting-commit" || phase === "awaiting-answer";
+}
+
+export function isUnderway(run: FactoryRun): boolean {
+  const phase = shownPhase(run);
+  return phase === null ? run.status === "running" || run.status === "waiting" : isUnderwayPhase(phase);
+}
+
+// BR-04: what a mark is checked against. A working session has no turn end, so it is never closed.
+export function toClosableSession(session: FactorySession): Closable {
+  return { sessionId: session.sessionId, turnEndedAt: session.phase === "working" ? null : session.updatedAt };
+}
+
+// Null when the activity has no session: there is nothing to close.
+export function toClosableActivity(activity: FactoryActivity): Closable | null {
+  if (activity.sessionId === null) return null;
+  return { sessionId: activity.sessionId, turnEndedAt: activity.phase === "working" ? null : activity.since };
+}
 
 export function stateLabel(state: FactoryFeatureState): string {
   return t(`factory.state.${state}`);
@@ -25,20 +79,73 @@ export const STATE_COLOR: Record<FactoryFeatureState, string> = {
   done: "var(--factory-state-done)",
 };
 
-// A label of the step a run works on, not a state: the title of the feature's row with that step, else a fallback.
-export function stepTitle(board: FactoryBoard, run: FactoryRun): string {
-  const row = board.features.find((feature) => feature.slug === run.feature)?.steps.find((s) => s.step === run.step);
-  if (row !== undefined) return row.title;
+// FR-29: the plan folders compare with slashes normalised and no trailing one; a null folder matches nothing.
+export function samePlanFolder(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return false;
+  return normalizeFolder(a) === normalizeFolder(b);
+}
+
+function normalizeFolder(folder: string): string {
+  return folder.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+// FR-30: the plan's name, the folder's last segment without its `{date}-{time}-` prefix; null when the run has no folder.
+export function planName(folder: string | null): string | null {
+  if (folder === null) return null;
+  const segment = normalizeFolder(folder).split("/").pop() ?? "";
+  return segment.replace(/^\d{8}-\d{6}-/, "");
+}
+
+// A step label followed by the run's plan name, when it has one.
+export function withPlanName(label: string, folder: string | null): string {
+  const name = planName(folder);
+  return name === null || name === "" ? label : `${label} · ${name}`;
+}
+
+// FR-29, BR-02: the label of the step a run works on. The timeline rows belong to the plan the board follows, so a stage
+// title is used only for a run of that plan; a run of another plan of the feature never reads a stage title of the followed one.
+export function runStepLabel(board: FactoryBoard, run: Pick<FactoryRun, "feature" | "folder" | "command" | "step">): string {
   if (run.step === "spec") return t("factory.step.spec");
-  if (run.step === "plan") return t("factory.step.plan");
   if (run.step === "review") return t("factory.step.review");
+  if (run.step === "plan") return run.command === "review" ? t("factory.step.planReview") : t("factory.step.plan");
   const stage = /^stage:(\d+)$/.exec(run.step);
-  return stage?.[1] === undefined ? run.step : t("factory.step.stage", { number: stage[1] });
+  if (stage?.[1] === undefined) return run.step;
+  const feature = board.features.find((f) => f.slug === run.feature);
+  if (feature !== undefined && feature.plan !== null && samePlanFolder(run.folder, feature.plan.folder)) {
+    const row = feature.steps.find((s) => s.step === run.step);
+    if (row !== undefined) return row.title;
+  }
+  return t("factory.step.stage", { number: stage[1] });
 }
 
 export function stepLabel(board: FactoryBoard, run: FactoryRun): string {
-  const title = stepTitle(board, run);
+  const title = runStepLabel(board, run);
   return run.command === "autopilot" ? t("factory.run.autopilotStep", { step: title }) : title;
+}
+
+export function isNewerRun(candidate: FactoryRun, best: FactoryRun): boolean {
+  return new Date(candidate.updatedAt).getTime() > new Date(best.updatedAt).getTime();
+}
+
+// The main-loop run wins over a subagent's, then the latest change.
+export function isBetterRun(candidate: FactoryRun, best: FactoryRun): boolean {
+  if ((candidate.agentId === null) !== (best.agentId === null)) return candidate.agentId === null;
+  return isNewerRun(candidate, best);
+}
+
+// FR-29, FR-30: the run an activity comes from, among the board's live runs then its sessions: same session, feature and step.
+export function findSessionRun(
+  board: FactoryBoard,
+  target: { sessionId: string; feature: string | null; step: string },
+): FactoryRun | null {
+  const matches = (run: FactoryRun) =>
+    run.sessionId === target.sessionId && run.feature === target.feature && run.step === target.step;
+  for (const runs of [board.live, board.sessions]) {
+    let best: FactoryRun | null = null;
+    for (const run of runs) if (matches(run) && (best === null || isBetterRun(run, best))) best = run;
+    if (best !== null) return best;
+  }
+  return null;
 }
 
 // FR-12, FR-15: a run in progress counts from its status's start up to now, or up to the last scan on a frozen board;

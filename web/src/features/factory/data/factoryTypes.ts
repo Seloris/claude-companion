@@ -10,4 +10,9 @@ export type FactoryRun = components["schemas"]["FactoryRun"];
 export type FactoryTimelineStep = components["schemas"]["FactoryTimelineStep"];
 export type FactoryNextPrompt = components["schemas"]["FactoryNextPrompt"];
 export type FactoryPrompt = components["schemas"]["FactoryPrompt"];
+export type FactoryPhase = components["schemas"]["FactoryPhase"];
+export type FactoryActivityPhase = components["schemas"]["FactoryActivityPhase"];
+export type FactoryRecap = components["schemas"]["FactoryRecap"];
+export type FactorySession = components["schemas"]["FactorySession"];
+export type FactoryActivity = components["schemas"]["FactoryActivity"];
 

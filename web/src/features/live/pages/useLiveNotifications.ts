@@ -85,7 +85,7 @@ export function useLiveNotifications(liveQuery: ReturnType<typeof useLiveStateQu
     handledRef.current = dataUpdatedAt;
 
     const sessions = flattenWorkspaces(data);
-    const tracked = trackNotifications(baselineRef.current, sessions, new Date(dataUpdatedAt));
+    const tracked = trackNotifications(baselineRef.current, sessions, data.readAt);
     baselineRef.current = tracked.baseline;
 
     const held = heldRef.current;
@@ -114,8 +114,8 @@ export function useLiveNotifications(liveQuery: ReturnType<typeof useLiveStateQu
 }
 
 // BR-12: the session's previous notification is closed first, since a replacement under the same tag is silent in
-// Chrome. FR-28: a click brings the window forward and opens the live page on the session's workspace, without marking
-// anything `Vu` (BR-17).
+// Chrome. FR-28: a click brings the window forward and opens the live page on the session's workspace, without closing
+// the session (BR-17).
 function show(held: Map<string, Held>, live: LiveNotification, navigateRef: { current: ReturnType<typeof useNavigate> }): void {
   const { sessionId, workspace } = live.session;
   closeHeld(held, sessionId);

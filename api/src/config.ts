@@ -13,6 +13,8 @@ const envSchema = z.object({
   CLAUDE_SETTINGS_FILE: z.string().default(path.join(os.homedir(), ".claude", "settings.json")),
   // The factory-board mod's export, one JSON per project root, read only.
   CLAUDE_FACTORY_BOARD_DIR: z.string().default(path.join(os.homedir(), ".claude", "factory-board")),
+  // Claude Code's installed plugins, read only for the factory and factory-board versions.
+  CLAUDE_PLUGINS_FILE: z.string().default(path.join(os.homedir(), ".claude", "plugins", "installed_plugins.json")),
   // The desktop app's scratch workspaces live under it; unset outside Windows.
   APPDATA: z.string().default(""),
 });

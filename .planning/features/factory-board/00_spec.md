@@ -7,7 +7,7 @@
 
 ## TL;DR
 
-The projects built with the factory workflow have a factory board inside Claude Code (the factory-board mod's pane): their features, the plan timeline of each, and the factory sessions at work. It is visible only inside a Claude Code session of that one project. This feature shows every project's board in the application, with each project's workspace, and draws it as the pane does. The board is read from the export the mod writes, and the application only draws it.
+The projects built with the factory workflow have a factory board inside Claude Code (the factory-board mod's pane): their features, the plan timeline of each, and the factory sessions at work. It is visible only inside a Claude Code session of that one project. This feature shows every project's board in the application, with each project's workspace, and draws it as the pane does. The board is read from the export the mod writes, and the application only draws it, with where each factory session stands for the person: at work, waiting for a commit's yes or another answer, its job done with its recap, or interrupted.
 
 ## Problem
 
@@ -18,7 +18,7 @@ The person drives several factory projects at once, often through autopilots and
 - Acting on a project: the application never writes a plan, a spec, `factory.yaml` or the board, never fills a Claude Code prompt box and never starts a session; it copies prompts to the clipboard only.
 - Recomputing the board: the states, the markers, the steps' runs, the live runs and the prompts are the mod's; the application draws them as exported, without correcting them.
 - The pane's controls that write or that the export does not carry: the plan picker (only the default plan's timeline is exported), `Nouvelle feature`, `Squasher`, the models screen, `Marquer comme fait`, the rescan.
-- Showing the factory step on the live page's tiles: a later evolution of `live-sessions`.
+- Changing the live page beyond the factory line of FR-31: a tile's column, order, state and `Clôturer` stay `live-sessions`', and the folded `Idle` group carries no factory line.
 - Making the board fresher than the mod writes it (every 10 seconds, after a commit and at each turn's end): a faster rescan is a change of the mod.
 
 ## Domain Glossary
@@ -33,6 +33,12 @@ The person drives several factory projects at once, often through autopilots and
 | `Étape` | `TimelineStep` | One row of a feature's timeline (`Spec`, `Plan`, one per stage, `Revue finale`), with its marker: done, running, next or pending | New |
 | `Run` | `FactoryRun` | One session working on one `TimelineStep` of one feature, with its command and status (`en cours`, `attend une réponse`, `terminé`, `interrompu`), kept as history once over | New |
 | `Prompt suivant` | `NextPrompt` | The factory command the mod prepares for a feature's next step, with its chained and autopilot variants | New |
+| `Phase` | `FactoryPhase` | Where a factory session stands for the person at the end of its last turn: `au travail`, `attend la validation du commit`, `attend une réponse`, `job done`, `interrompue` | New |
+| `Activité` | `FactoryActivity` | A project's state at a glance: the factory session that most needs the person (a commit to validate, then another answer, then a turn at work), else the latest; `au repos` without any | New |
+| `Récap` | `FactoryRecap` | What a session's job done says it did: its short recap line and its commits | New |
+| `Session factory` | `FactorySession` | A session's latest `FactoryRun` of its main conversation, as the mod lists it for a month | New |
+| `Session en direct` | `LiveSession` | A session running on this machine, drawn as a tile on the live page (live-sessions) | Reused |
+| `Clôturée` | `Closed` | The person's mark that they are done with a session (live-sessions) | Reused |
 | `Tableau figé` | `StaleBoard` | A `FactoryBoard` whose last scan is more than 60 seconds old: no session of its project has the mod running | New |
 
 ## Functional Requirements
@@ -75,16 +81,50 @@ The person drives several factory projects at once, often through autopilots and
 - **FR-22** — A board file that disappears removes its board.
 - **FR-23** — The state filters and the unfolded card are kept by the person's browser, and survive a reload.
 
+### Phases and sessions
+
+- **FR-24** — Each `FactoryRun` shows its `Phase` when the export carries one, and its status otherwise (an older export or an older run), so that the person reads what the session waits for, not only that it waits.
+- **FR-25** — A session `attend la validation du commit` shows the commit message it proposed, so that the person knows what they are asked to approve before opening the session.
+- **FR-26** — A session `job done` shows its `Récap`: the recap line, else the subjects of its commits when the job wrote no recap line.
+- **FR-27** — Each board is headed by its `Activité`: the `Phase`, the feature and step, since when, and the commit message or the `Récap` it carries; `au repos` when the project has none, or when its session is `Clôturée`.
+- **FR-28** — Each board lists its `FactorySession`s, most recently changed first, one line each with its `Phase`, feature, step, since when and session link; a session `job done` or `interrompue` stays listed until the person clicks `Clôturer` on it, and comes back once a later turn of it ends.
+
+### Step labels and plan names
+
+- **FR-29** — A `FactoryRun`'s step reads `Spec`, `Plan`, `Revue du plan` (a run of the `review` command on the `plan` step), `Revue finale`, or for a stage the title its own plan (the run's plan folder) gives that stage when the export carries that plan's stages (it is the feature's followed plan), else `Stage N`, so that a run is never labelled with a stage of another plan of its feature.
+- **FR-30** — Every live run line, timeline run line, `FactorySession` line, autopilot mark and the `Activité` names the run's plan: the last folder of its plan folder without its timestamp (`add-session-phases`), the `Activité` taking the plan of its session's run; a run that names no plan folder shows no plan name, so that two `Revue finale` of the same feature are told apart.
+
+### Live page
+
+- **FR-31** — On the live page, the tile of a `LiveSession` found by its session among a board's live runs or `FactorySession`s carries a factory line: its feature (`nouvelle feature` without one), its step (FR-29), its plan name (FR-30) and its `Phase` (its status without one, FR-24), the live run winning over the `FactorySession` when both name it, so that the person reads which factory job a running session does without opening the factory page.
+
 ## Business Rules
 
 - **BR-01** — The application only reads the boards folder: it never writes, moves or deletes a board file, even a long-stale one.
 - **BR-02** — The board is drawn as exported: a state, a marker, a run's status or a prompt is never derived again or corrected by the application, a `StaleBoard`'s included (FR-11 marks it, never changes it).
 - **BR-03** — A `FactoryRun` exists only for sessions started with a `/factory:` command: a session typed without one never appears on a board, only on the live page.
+- **BR-04** — `Clôturer` is the person's mark, kept by their browser and shared with the live page (live-sessions BR-10): it hides a session from the lists of FR-28 and from the `Activité` of FR-27, and never changes a `Phase` or anything else the mod exported (BR-02).
 
 ## UX Flow
 
 - Navigation → `Factory`: the boards grouped by workspace, live ones first.
-- Each board: branch line and scan age (frozen banner when stale) → live runs → state filters → cards by state, the finalized ones folded.
+- Each board: branch line and scan age (frozen banner when stale) → its `Activité` → its sessions with their phase, a `job done` with its recap and `Clôturer` → live runs → state filters → cards by state, the finalized ones folded.
 - A card unfolds into its timeline; the step at hand shows its prompt buttons and the two switches; a click copies the prompt.
 - A run's session opens the stored session page.
 - Workspaces page: factory badge on a workspace → its page → factory section with its boards.
+- Live page: a factory session's tile reads e.g. `factory-board · Revue finale · add-session-phases · job done` under its usual content.
+
+## Decisions taken autonomously
+
+- Feature slug → `factory-board`, existing (the factory line on the live tile is a factory-board requirement, like the workspace section; the live-sessions spec is unchanged).
+- Where does a stage title come from when the run's plan is not the feature's followed plan? → `Stage N` (the export carries the stages of the followed plan only and the application reads no `plan.md`; so most past stage runs, e.g. session 81c1825f on `add-status-board`, read `Stage N` with their plan name beside it).
+- Do `Spec`, `Plan`, `Revue du plan` and `Revue finale` depend on the run's plan? → No, fixed labels (they name no stage of a plan).
+- Do the timeline's run lines and the autopilot mark follow FR-29 and FR-30 too? → Yes (they are run lines; the timeline rows' own titles stay as exported, BR-02).
+- Plan name of a run without a plan folder (`write-spec`, a `write-plan` whose folder does not exist yet)? → None shown (nothing to name).
+- Plan name of the `Activité`, which the export gives without a folder? → The plan of its session's run among the live runs and `FactorySession`s, none when not found (same session, same run).
+- Which run gives the live tile its factory line when the session is both a live run and a `FactorySession`? → The live run (the fresher one).
+- A `StaleBoard`'s sessions on the live page? → Still matched, the line showing the phase at the last scan (BR-02; the tile's own state stays live-sessions').
+- A board of an unsupported version (FR-04)? → Not used for the live tiles (it is not drawn anywhere).
+- Does the folded `Idle` group of the live page carry the factory line? → No, the column tiles only (the group's lines are kept compact).
+- Is the live tile's factory line a link to the factory page? → No (not asked; the tile's own links stay live-sessions').
+- Does a `Clôturée` session's tile lose its factory line? → No rule added: the tile follows live-sessions, the line follows the tile.

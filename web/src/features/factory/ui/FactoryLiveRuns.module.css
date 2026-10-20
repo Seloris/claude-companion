@@ -50,20 +50,29 @@
   border-radius: var(--radius-pill);
 }
 
-.running {
+.running,
+.working {
   color: var(--accent-soft-text);
   background: var(--accent-soft);
 }
 
-.waiting {
+.waiting,
+.awaiting-commit,
+.awaiting-answer {
   color: var(--status-awaiting);
   background: var(--status-awaiting-soft);
 }
 
 .done,
+.job-done,
 .interrupted {
   color: var(--text-muted);
   background: var(--surface-2);
+}
+
+.commit {
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
 .feature {

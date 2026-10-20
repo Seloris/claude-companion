@@ -3,7 +3,9 @@ base_branch: develop
 language:
   chat: fr
   repo: en
-models: standard
+models:
+  preset: standard
+  implementer: opus
 components:
   - name: api
     path: api
