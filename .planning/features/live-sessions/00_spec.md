@@ -42,7 +42,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `État` | `LiveStatus` | What a `LiveSession` is doing from the person's point of view: `En cours` (`Running`), `Question posée` (`AwaitingAnswer`) or `Au repos` (`Idle`) | New |
 | `Activité courante` | `CurrentActivity` | What a `Running` session is doing right now: a tool, a skill, an agent, or thinking | New |
 | `Prompt en file d'attente` | `QueuedPrompt` | A `Prompt` the person sent while the session was busy, not yet taken up | New |
-| `Tour` | `Turn` | One `Prompt` and the work Claude Code does on it, until the session is `Idle` again | New |
+| `Tour` | `Turn` | One `Prompt`, or a message that restarts Claude without the person (a background task's notification, a message from another session), and the work Claude Code does on it, until the session is `Idle` again | New |
 | `Dernière réponse` | `LastReply` | The last text Claude wrote to the person in the latest `Turn` of a session | New |
 | `Terminée récemment` | `RecentlyFinished` | An `Idle` `LiveSession` whose `Turn` just ended and that the person has not marked `Vu` yet | New |
 | `Vu` | `Seen` | The person's mark that they have taken note of a `RecentlyFinished` session's latest `Turn` | New |
