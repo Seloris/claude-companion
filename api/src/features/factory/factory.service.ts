@@ -174,7 +174,8 @@ export function createFactoryService({
     // FR-37: no run of the session names a plan folder.
     if (picked === null || picked.run.folder === null) return { plan: null };
     const { root } = picked.board;
-    const { folder } = picked.run;
+    // The pick drops a folder empty after trimming; the one it keeps is read and served trimmed, as the pick saw it.
+    const folder = picked.run.folder.trim();
     const { path, content } = await readPlanFile(root, folder);
     return { plan: { folder, root, path, title: content === null ? null : planTitle(content), content } };
   }

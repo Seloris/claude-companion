@@ -235,6 +235,8 @@ export async function readPlanFile(root: string, folder: string): Promise<{ path
   try {
     const [realRoot, realTarget] = await Promise.all([realpath(root), realpath(target)]);
     if (isOutside(path.relative(realRoot, realTarget))) return unread;
+    // BR-05: a plan.md linked to another file of the root (a .env) is no plan.
+    if (path.basename(realTarget) !== "plan.md") return unread;
     const file = await stat(realTarget);
     if (!file.isFile() || file.size > PLAN_MAX_BYTES) return unread;
     return { path: target, content: await readFile(realTarget, "utf8") };

@@ -232,7 +232,7 @@ export const factorySessionPlanParamsSchema = z.object({ sessionId: z.string().r
 // The plan a session works on: the plan.md of the folder its factory run names, under the run's board root (FR-32).
 export const factorySessionPlanSchema = z
   .object({
-    // As exported: relative to `root`, forward slashes.
+    // As exported, trimmed: relative to `root`, forward slashes.
     folder: z.string(),
     // The board's root, the run's own checkout or worktree (FR-35).
     root: z.string(),

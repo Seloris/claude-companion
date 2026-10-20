@@ -1,4 +1,4 @@
-import { mkdir, readdir, rm, stat, unlink, utimes, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, symlink, unlink, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1073,6 +1073,36 @@ describe("factory routes", () => {
 
       // Assert
       expect(body).toEqual({ plan: null });
+    });
+
+    it("reads and serves the folder trimmed, as the pick saw it (FR-33, FR-35)", async () => {
+      // Arrange
+      await writePlan(root, folder, "# Trimmed");
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run({ folder: `  ${folder}	` })] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan).toMatchObject({ folder, path: path.resolve(root, folder, "plan.md"), title: "Trimmed" });
+    });
+
+    it("reads no other file of the root through a plan.md linked to it (BR-05)", async (context) => {
+      // Arrange
+      await mkdir(path.join(root, folder), { recursive: true });
+      await writeFile(path.join(root, ".env"), "SECRET=1");
+      try {
+        await symlink(path.join(root, ".env"), path.join(root, folder, "plan.md"), "file");
+      } catch {
+        context.skip("file symlinks need rights this machine does not grant");
+      }
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run()] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan).toMatchObject({ path: path.resolve(root, folder, "plan.md"), title: null, content: null });
     });
 
     it("returns no content for a file larger than the size cap (FR-36)", async () => {

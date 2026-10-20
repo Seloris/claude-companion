@@ -97,7 +97,10 @@ flowchart TD
 - Stage 1: the plan folders of the route tests live under the context's `tempRoot` (`project-roots`), removed in `afterEach` (and wiped by `reset()` anyway).
 - Stage 2: `factoryTypes.ts`, not listed by the plan → gains the `FactorySessionPlan` and `FactorySessionPlanResponse` aliases (the feature names the contract's entities there once).
 - Stage 2: the path in the FR-36 line in `--font-mono` → the `factory.plan.unreadable` message is split around its `{path}` placeholder, the path drawn in its own span.
-- Stage 2 review, api finding (`pickPlanRun`'s folder filter trims the folder, `readPlanFile` resolves the untrimmed one, so `" x "` reads a path with spaces) → left open, not fixed in the web stage (the skill: findings on another component are reported, not fixed); `Review` stays `[ ]` for the final review to settle it.
+- Stage 2 review, api finding (`pickPlanRun`'s folder filter trims the folder, `readPlanFile` resolves the untrimmed one, so `" x "` reads a path with spaces) → left open, not fixed in the web stage (the skill: findings on another component are reported, not fixed); `Review` stays `[ ]` for the final review to settle it; fixed in the final review.
+- Final review: the trimmed folder → `getSessionPlan` trims the picked folder once, reads and serves it trimmed (`folder` in the response is trimmed; the contract comment says so). New route test "reads and serves the folder trimmed, as the pick saw it".
+- Final review, finding 1 (a `plan.md` linked to another file of the root, a `.env`, passed the real-path check and was served) → fixed: `readPlanFile` refuses a real target whose name is not `plan.md` (BR-05). Its route test needs file-symlink rights: it skips itself on a machine that lacks them, as this one (Windows without Developer Mode). A hard link stays undetectable and is accepted (local, single-user).
+- Final review, finding 2 (the `folder` contract comment said "As exported") → fixed: "As exported, trimmed". A `//` comment, so `api/openapi.json` is unchanged.
 
 ## api
 
@@ -272,7 +275,7 @@ Commit: `feat(factory-board): web — a folded plan section in the session recap
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
 - [x] Tests: the full `test` command of `api` green on the plan's final code
 - [-] Browser test: not run (autopilot without browser test). Scenarios:
   - session page, against the real API on 3100 (`~/.claude/factory-board` and the projects read only): a session that ran `/factory:implement` on a plan of this repository shows a folded `Plan` section under its facts, headed `{plan name} · {title}`. Unfolded, it shows the plan with its headings, lists, ticked and unticked checkboxes, tables and code blocks; links read as text, and no image loads;
