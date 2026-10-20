@@ -34,6 +34,8 @@ The board and the counts in the tab's title still have to be looked at: while th
 - A factory band or a `Hors workflow` mark in the folded `Idle` group: its lines stay short (FR-07).
 - Notifications for other changes (a session starting to run, a change of `CurrentActivity`, a session leaving the page): only a question and, on request, the end of a turn need the person.
 - Sharing the notification settings across browsers or devices: like the `Clôturée` marks, they belong to the browser the person set them in.
+- A recap dialog anywhere but the live page: the workspace's session list, the factory page and a notification's click (FR-28) keep opening their pages as before.
+- A live recap in the dialog: it shows the stored history as of the last `Refresh`, like the stored page.
 
 ## Domain Glossary
 
@@ -82,7 +84,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **FR-07** — The `Idle` sessions that are not `Finished` are folded in one group for the whole page, each reduced to its title, its `Workspace`, since when it is idle and its `DesktopLink` when it has one (FR-31), and unfold on demand.
 - **FR-08** — The sessions of the `ScratchGroup` are always shown, their `Workspace` named as the group, without the switch of the workspaces page: a running session is never noise.
 - **FR-09** — When no session is live, the page says so.
-- **FR-10** — Each `LiveSession` links to its stored session page through an arrow action (↗) when the history already holds it; a session not yet refreshed shows the action greyed out, so that the tile's actions do not move once it is.
+- **FR-10** — Each `LiveSession` opens its stored session in a recap dialog over the live page (FR-42) through an arrow action (↗) when the history already holds it; a session not yet refreshed shows the action greyed out, so that the tile's actions do not move once it is.
 
 ### Freshness
 
@@ -120,6 +122,12 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 ### Opening a session
 
 - **FR-31** — A `LiveSession` that comes from the Claude desktop app (its origin, FR-02) and has a `DesktopLink` offers to open it in the desktop app, through an app icon on its tile and on its line in the folded `Idle` group, so that the person jumps from the board to the session.
+- **FR-42** — The arrow (FR-10) of a tile, of a compact line and of a line of the folded `Idle` group opens, in a dialog over the live page, the same recap as the session's stored page (session-ingestion, session-activity): its facts, tokens, activity, subagents and tools, so that the person reads a session's history without leaving the board.
+- **FR-43** — The recap dialog links to the session's full stored page, and its links to the workspace and to the dashboard leave the live page as on the stored page.
+- **FR-44** — The recap dialog closes with `Escape`, a close button or a click outside it, and the live page is then as the person left it: same workspace filter, same `Mode compact`, same scroll, the focus back on the arrow that opened it.
+- **FR-45** — The live page's address names the session whose recap dialog is open, so that a reload reopens it and the browser's back button closes it.
+- **FR-46** — While the recap dialog is open the board behind it keeps updating (FR-11), and the dialog stays open when its session leaves the page (BR-01), so that a recap being read never disappears under the person.
+- **FR-47** — On a phone-sized screen the recap dialog fills the screen.
 
 ### The factory workflow on a tile
 
@@ -180,7 +188,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - The person reads the reply and clicks `Clôturer`: the tile moves to the folded idle group. Left alone, it stays in `Terminées`.
 - The person picks one workspace in the filter: the three columns and the idle group show its sessions only.
 - The person closes a session: it leaves the page, and a refresh updates its recap in the history.
-- The person clicks a session's link: its stored page, with its prompts and activity.
+- The person clicks a session's arrow: its recap opens in a dialog over the board, with its prompts and activity; `Escape` closes it, the board unchanged behind it.
 - On the live page, the person turns notifications on and accepts the browser's request: `Question posée` notifications are on; `Tour terminé` stays off until they tick it.
 - The person works in another window with the workspaces page open: a session asks a question, a notification names its workspace, its title and the question.
 - The person clicks the notification: the application's tab comes to the front on the live page, filtered on that workspace, the waiting tile in `Question posée`.
@@ -226,3 +234,18 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - factory-board FR-31 (the factory line on the live tile) and its non-goal "Changing the live page beyond the factory line of FR-31" → superseded by FR-32 to FR-38 here; left for the plan (write-spec called mode on factory-board): this commit holds the live-sessions spec only.
 - factory-board FR-31 and its non-goals (plan `add-factory-phases`, 2026-10-20) → revised there in called mode, in the plan's commit: the factory line becomes the band, the phase the pill.
 - The mod records a free request as a run (`off-workflow` command) → such a session is `OffWorkflow` (~FR-34, glossary) (it runs no factory job; reading it as one would give a band with no feature and no step).
+- Feature slug (recap in a dialog, 2026-10-20) → `live-sessions`, existing (the arrow FR-10 and the board belong to this feature).
+- Branch → `develop`, no `feat/live-sessions` (the person works directly on `develop`, as the caller asked).
+- Which "open a session" becomes a pop-up? → The arrow to the stored session (FR-10) only; the desktop-app link (FR-31) and the copy-and-open buttons (FR-36, FR-38) are unchanged (they open another application, a dialog cannot hold it).
+- A browser window or a dialog in the page? → A dialog in the page (a browser pop-up is blocked or opens as a tab, and hides the board).
+- Where does the arrow open the dialog? → Tile, compact line and folded `Idle` group (FR-42) (one arrow, one behaviour).
+- What does the dialog show? → The same recap as the stored page (FR-42) (one recap to read and to maintain).
+- Can the full page still be reached? → Yes, a link in the dialog (FR-43) (the page stays the reference, and a new tab from it is possible).
+- How does it close, and what does the board keep? → `Escape`, a close button, a click outside; filter, compact mode, scroll and focus kept (FR-44) (the point is not to lose one's place).
+- Does the dialog have its own address? → Yes (FR-45) (a reload keeps it, the back button closes it as the person expects).
+- The session ends while its dialog is open? → The dialog stays open, the board updates behind it (FR-46) (the stored history outlives the process, BR-01).
+- A session not yet stored? → The arrow stays greyed out (FR-10 unchanged) (no recap to show).
+- Phone-sized screen? → The dialog fills the screen (FR-47) (a floating dialog does not fit).
+- Does a dialog offer a `ResumeCommand` for a live session? → No, BR-18 already rules it out; no new rule (the recap's reopen action already follows it).
+- Other pages (workspace session list, factory page, notification click)? → Unchanged (non-goal) (the request names the live page only).
+- Does the dialog's recap update live? → No (non-goal) (it is the stored history, refreshed when the session leaves, FR-13).
