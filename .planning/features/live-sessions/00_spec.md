@@ -19,7 +19,8 @@ The board and the counts in the tab's title still have to be looked at: while th
 
 ## Non-goals
 
-- Acting on a session: sending it a prompt, answering its question, stopping it. The page observes only.
+- Acting on a session: sending it a prompt, answering its question, stopping it. The page observes only; opening a desktop-app session in the desktop app (FR-31) is its one shortcut.
+- Opening a session of the CLI or of an IDE from its tile: the application cannot bring a terminal to the front, and a resume command would start a second process (BR-18).
 - Tokens and costs of a running session: tokens come from the stored history, after the fact.
 - Sessions of other machines, cloud sessions, conversations of claude.ai and of the Claude desktop chat.
 - The relation between a session and the sessions it started: each live session stands on its own, under its workspace.
@@ -50,6 +51,8 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 | `Dernière réponse` | `LastReply` | The last text Claude wrote to the person in the latest `Turn` of a session | New |
 | `Terminée récemment` | `RecentlyFinished` | An `Idle` `LiveSession` whose `Turn` just ended and that the person has not marked `Vu` yet | New |
 | `Vu` | `Seen` | The person's mark that they have taken note of a `RecentlyFinished` session's latest `Turn` | New |
+| `Lien bureau` | `DesktopLink` | A link that opens a `Session` in the Claude desktop app | Reused |
+| `Commande de reprise` | `ResumeCommand` | The command that reopens a `Session` in a terminal (session-ingestion) | Reused |
 | `Notification` | `LiveNotification` | A browser notification about one `LiveSession`, of one of two kinds: `Question posée` (it became `AwaitingAnswer`) or `Tour terminé` (it became `RecentlyFinished`) | New |
 
 ## Functional Requirements
@@ -62,7 +65,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **FR-04** — A `Running` session lists its running subagents, each with its type, its description, its current tool and since when it runs, so that a long review or exploration is visible as such.
 - **FR-05** — An `AwaitingAnswer` session shows the question Claude Code asked, shortened, so that the person knows what to answer before opening the session.
 - **FR-06** — Long texts (last prompt, queued prompts, question, agent description) are shortened on the page, so that one screen holds every session.
-- **FR-07** — The `Idle` sessions that are not `RecentlyFinished` are folded in one group for the whole page, each reduced to its title, its `Workspace` and since when it is idle, and unfold on demand.
+- **FR-07** — The `Idle` sessions that are not `RecentlyFinished` are folded in one group for the whole page, each reduced to its title, its `Workspace`, since when it is idle and its `DesktopLink` when it has one (FR-31), and unfold on demand.
 - **FR-08** — The sessions of the `ScratchGroup` are always shown, their `Workspace` named as the group, without the switch of the workspaces page: a running session is never noise.
 - **FR-09** — When no session is live, the page says so.
 - **FR-10** — Each `LiveSession` links to its stored session page when the history already holds it; a session not yet refreshed has no link.
@@ -99,6 +102,10 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **FR-29** — When the browser refuses notifications (permission denied, or no support), the live page says so and how to allow them again, instead of a switch that does nothing.
 - **FR-30** — A `Question posée` notification is withdrawn once its session is no longer `AwaitingAnswer` (answered, or ended), so that only the questions still waiting remain.
 
+### Opening a session
+
+- **FR-31** — A `LiveSession` that comes from the Claude desktop app (its origin, FR-02) and has a `DesktopLink` offers to open it in the desktop app, from its tile and from its line in the folded `Idle` group, so that the person jumps from the board to the session.
+
 ## Business Rules
 
 - **BR-01** — A session is live only while its Claude Code process is alive on this machine; a session whose process is gone leaves the page at once, with no "ended" status, and stays in the stored history like any other.
@@ -118,6 +125,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - **BR-15** — The workspace filter (FR-19) never applies to notifications: every `LiveSession` of this machine can notify.
 - **BR-16** — The notification settings are kept by the person's browser only, like the `Vu` marks (BR-10): they survive a reload and are forgotten with the browser's data.
 - **BR-17** — Clicking a `Tour terminé` notification does not mark the session `Vu`: the mark stays the person's act on the page.
+- **BR-18** — A `LiveSession` never offers a `ResumeCommand`, whatever its `LiveStatus` (session-ingestion BR-15): a second Claude Code process would write to the same log; a live session without a `DesktopLink` offers no way to open it.
 
 ## UX Flow
 
@@ -137,6 +145,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - The person works in another window with the workspaces page open: a session asks a question, a notification names its workspace, its title and the question.
 - The person clicks the notification: the application's tab comes to the front on the live page, filtered on that workspace, the waiting tile in `Question posée`.
 - The person answers in the session: the notification disappears.
+- On the tile of a desktop-app session, the person clicks to open it: the desktop app shows that session.
 
 ## Decisions taken autonomously
 
@@ -152,3 +161,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 - Does clicking a `Tour terminé` notification mark it `Vu`? → No (BR-17) (`Vu` stays an explicit act on the page).
 - A `Question posée` notification for a question already answered? → Withdrawn (FR-30) (a stale question would send the person to a session that no longer waits).
 - Browser refuses or cannot notify? → The live page says so and how to allow them again (FR-29) (a switch that silently does nothing would mislead).
+- Feature slug (opening a session) → `live-sessions`, existing (the tile and the folded group belong to this feature).
+- Does the folded `Idle` group offer the `DesktopLink` too? → Yes (~FR-07, FR-31) (an idle desktop session is the one the person most often reopens).
+- Does clicking a notification open the session in the desktop app? → No, FR-28 is unchanged (the notification brings the person to the board; the link stays on the tile).
+- Does opening the desktop app's link break "the page observes only"? → No, the non-goal is clarified (it writes nothing and sends nothing to the session).
