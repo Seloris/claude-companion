@@ -69,7 +69,8 @@ The parked technical questions, settled here:
   - `%` (cmd);
   - `!` (interactive bash);
   - a carriage return or a line feed;
-  - the sequence `\\` (bash folds it; this also excludes UNC paths).
+  - the sequence `\\` (bash folds it; this also excludes UNC paths);
+  - `[`, `]`, `*` and `?`: PowerShell's `pushd` is `Push-Location -Path`, which expands wildcards, so `C:\WS\a[1]` fails or lands in `C:\WS\a1`. `-LiteralPath` would break cmd and bash.
 
   A folder ending with `\` (a drive root) gets a `.` appended (`pushd "C:\."`), so that bash does not read `\"` as an escaped quote. The session id goes in only when it matches `^[\w-]+$` (it is a file name).
 - **How fast the copy button leaves a session that becomes live** (BR-15) → within the existing 3 s poll of the live state, which `AppLayout` already runs on every page.
@@ -101,7 +102,7 @@ The parked technical questions, settled here:
 - live-sessions spec delta? → none: "has a `DesktopLink`" in FR-31 is the live state's, which every desktop-app process carries.
 - Where is the desktop id kept? → its own table, no foreign key, upserted (it must survive `saveSession`'s delete and re-insert and the archive).
 - Which status files count? → every readable `*.json`, process alive or not, with `entrypoint` `claude-desktop` and a well-formed `hostSessionId` (the mapping does not depend on liveness).
-- Does serving the stored link re-check the session's stored origin (FR-04)? → no: the id is recorded only from a `claude-desktop` status file, the origin Claude Code declares for the process. A session started in the CLI and later opened in the desktop app gets the link.
+- Does serving the stored link re-check the session's stored origin (FR-04)? → yes: the stored link requires `origin === "claude-desktop"` (FR-16 names the origin). The live link follows the status file's `entrypoint`, the origin live-sessions FR-02 shows. A session started in the CLI and later opened in the desktop app gets the link only while it is live.
 - Two CLI sessions sharing one desktop id (a `/clear` inside one desktop session) → both keep the link, and it opens the desktop session as it is now (limitation, not handled).
 - A desktop session that starts and ends between two refreshes → never captured: once it is no longer live, it offers the command (limitation, BR-19). The refresh that live-sessions FR-13 starts when a session leaves comes after its status file is gone.
 - A session deleted in the desktop app → its stored link stays and opens the desktop app on a session it no longer has (limitation: the application cannot know).
@@ -147,7 +148,7 @@ New file `src/features/ingestion/ingestion.reopen.ts`, pure functions and consta
 - `toResumeCommand(startFolder: string | null, sessionId: string): string | null` returns `null` when:
   - the folder is null or empty;
   - the session id does not match `^[\w-]+$`;
-  - the folder contains `"`, `$`, a backtick, `%`, `!`, `\r`, `\n` or the sequence `\\` (BR-20).
+  - the folder contains `"`, `$`, a backtick, `%`, `!`, `\r`, `\n`, `[`, `]`, `*`, `?` or the sequence `\\` (BR-20).
 
   Otherwise, a folder ending with `\` gets a `.` appended, and the function returns `` `pushd "${folder}"\nclaude --resume ${sessionId}` ``. A comment gives the reason for each choice: newline, `pushd`, double quotes, no trailing newline.
 
@@ -172,7 +173,7 @@ New file `src/features/ingestion/ingestion.reopen.ts`, pure functions and consta
 
 `src/features/workspaces/workspaces.service.ts`, `toSessionSummary`:
 
-- `desktopLink: toDesktopLink(session.desktopSessionId)` (BR-19);
+- `desktopLink: session.origin === DESKTOP_ENTRYPOINT ? toDesktopLink(session.desktopSessionId) : null` (FR-16: a desktop-app origin; BR-19);
 - `resumeCommand: session.isArchived || desktopLink !== null ? null : toResumeCommand(session.startFolder, session.id)`, with comments citing BR-17, BR-18 and BR-20. BR-15 (live) is the web's.
 
 `src/features/live/live.service.ts`, `toEntry`: `desktopLink: toDesktopLink(desktopSessionIdOf(status))` (live-sessions FR-31).
@@ -254,7 +255,7 @@ Vitest, Arrange/Act/Assert, data from `test/factories.ts` and the log builders. 
 - `test/ingestion/ingestion.reopen.test.ts` (new, unit):
   - `toResumeCommand` gives exactly `pushd "C:\WS\my project"\nclaude --resume {id}` for a folder with a space, and the POSIX form for `/home/me/repo`;
   - it gives `pushd "C:\."` for the drive root `C:\`;
-  - it gives `null` for a null folder, for each of `"`, `$`, a backtick, `%`, `!`, `\n` and `\\` in the folder, and for a session id holding a character outside `[\w-]`;
+  - it gives `null` for a null folder, for each of `"`, `$`, a backtick, `%`, `!`, `\n`, `[`, `]`, `*`, `?` and `\\` in the folder, and for a session id holding a character outside `[\w-]`;
   - `toDesktopLink` builds the link for a well-formed id and gives `null` for an ill-formed one;
   - `desktopSessionIdOf` gives the id for `claude-desktop`, and `null` for `cli`, a missing `hostSessionId` or an ill-formed one.
 - `test/ingestion/ingestion.service.test.ts`:
@@ -268,7 +269,7 @@ Vitest, Arrange/Act/Assert, data from `test/factories.ts` and the log builders. 
   - `resumeCommand` is the exact two-line command with the start folder;
   - for a worktree session, the folder is the worktree's, not the workspace's path (BR-16);
   - an archived session has `resumeCommand: null` (BR-17);
-  - a session with a desktop link has `desktopLink` `claude://claude.ai/epitaxy/local_…` and `resumeCommand: null` (BR-18);
+  - a `claude-desktop` session with a recorded desktop id has `desktopLink` `claude://claude.ai/epitaxy/local_…` and `resumeCommand: null` (BR-18); a `cli` session with a recorded id has `desktopLink: null` and its command (FR-16);
   - an archived session keeps its `desktopLink`;
   - a null start folder gives `resumeCommand: null`, and so does a folder with `$` (BR-20).
 - `test/live/live.routes.test.ts`:
