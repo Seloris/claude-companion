@@ -120,8 +120,9 @@ export const factoryFeatureSchema = z
   })
   .meta({ id: "FactoryFeature" });
 
-// The plugin versions Claude Code installed for the board's project (its project or local scope first, else the user
-// scope); null when none is installed or the plugins file cannot be read.
+// The factory and factory-board versions Claude Code installed; null when none is installed or the plugins file cannot
+// be read. On a board: the install of its project (project or local scope first, else the user scope). From
+// /v1/factory/plugins: the latest install or update, every scope together (FR-39).
 export const factoryPluginVersionsSchema = z
   .object({ factory: z.string().nullable(), factoryBoard: z.string().nullable() })
   .meta({ id: "FactoryPluginVersions" });
@@ -237,5 +238,17 @@ registry.registerPath({
   summary: "Every factory board the factory-board mod exported, grouped by workspace",
   responses: {
     200: { description: "The factory boards", content: { "application/json": { schema: factoryStateSchema } } },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/v1/factory/plugins",
+  summary: "The factory and factory-board versions installed, for the header",
+  responses: {
+    200: {
+      description: "The installed plugin versions",
+      content: { "application/json": { schema: factoryPluginVersionsSchema } },
+    },
   },
 });

@@ -176,6 +176,7 @@ const pluginInstallSchema = z.looseObject({
   scope: z.string(),
   projectPath: z.string().optional(),
   version: z.string(),
+  installedAt: z.string().optional(),
   lastUpdated: z.string().optional(),
 });
 const installedPluginsSchema = z.looseObject({ plugins: z.record(z.string(), z.array(z.unknown())) });
@@ -186,10 +187,11 @@ export interface PluginInstall {
   scope: string;
   projectPath: string | null;
   version: string;
+  installedAt: string;
   lastUpdated: string;
 }
 
-// An unreadable or unexpected file gives no install: the board shows no version rather than an error.
+// An unreadable or unexpected file gives no install: the board and the header show no version rather than an error.
 export async function readInstalledPlugins(pluginsFile: string): Promise<PluginInstall[]> {
   let parsed: unknown;
   try {
@@ -204,8 +206,10 @@ export async function readInstalledPlugins(pluginsFile: string): Promise<PluginI
     return installs.flatMap((value) => {
       const install = pluginInstallSchema.safeParse(value);
       if (!install.success) return [];
-      const { scope, projectPath, version, lastUpdated } = install.data;
-      return [{ name, scope, projectPath: projectPath ?? null, version, lastUpdated: lastUpdated ?? "" }];
+      const { scope, projectPath, version, installedAt, lastUpdated } = install.data;
+      return [
+        { name, scope, projectPath: projectPath ?? null, version, installedAt: installedAt ?? "", lastUpdated: lastUpdated ?? "" },
+      ];
     });
   });
 }

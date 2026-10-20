@@ -99,6 +99,7 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
   const factory = {
     getFactoryState: () => currentFactory.getFactoryState(),
     getSessionJobs: () => currentFactory.getSessionJobs(),
+    getPluginVersions: () => currentFactory.getPluginVersions(),
   };
   const buildLive = () =>
     createLiveService({

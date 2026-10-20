@@ -43,6 +43,19 @@ describe("factory routes", () => {
     return factoryStateSchema.parse(response.body);
   }
 
+  // One install of Claude Code's installed_plugins.json.
+  const install = (overrides: Record<string, unknown>) => ({
+    scope: "project",
+    projectPath: "C:\\WS\\demo",
+    installPath: "C:\\cache",
+    version: "1.0.0",
+    installedAt: "2026-10-01T00:00:00.000Z",
+    lastUpdated: "2026-10-01T00:00:00.000Z",
+    ...overrides,
+  });
+  const writePlugins = (plugins: Record<string, unknown[]>) =>
+    writeFile(ctx.pluginsFile, JSON.stringify({ version: 2, plugins }), "utf8");
+
   // A write the service sees as a change even when the size stays the same: the modification time moves on.
   async function write(fileName: string, value: unknown) {
     const target = await writeBoard(ctx.boardsDir, fileName, value);
@@ -643,18 +656,6 @@ describe("factory routes", () => {
   });
 
   describe("the plugin versions", () => {
-    const install = (overrides: Record<string, unknown>) => ({
-      scope: "project",
-      projectPath: "C:\\WS\\demo",
-      installPath: "C:\\cache",
-      version: "1.0.0",
-      installedAt: "2026-10-01T00:00:00.000Z",
-      lastUpdated: "2026-10-01T00:00:00.000Z",
-      ...overrides,
-    });
-    const writePlugins = (plugins: Record<string, unknown[]>) =>
-      writeFile(ctx.pluginsFile, JSON.stringify({ version: 2, plugins }), "utf8");
-
     async function boardPlugins() {
       const state = await getState();
       return state.workspaces[0]?.boards[0]?.plugins;
@@ -708,6 +709,91 @@ describe("factory routes", () => {
       // Assert
       expect(missing).toEqual({ factory: null, factoryBoard: null });
       expect(invalid).toEqual({ factory: null, factoryBoard: null });
+    });
+  });
+
+  describe("GET /v1/factory/plugins", () => {
+    async function getPlugins(): Promise<unknown> {
+      const response = await request(ctx.app).get("/v1/factory/plugins").expect(200);
+      return response.body;
+    }
+
+    it("serves the latest install of each plugin across projects and scopes", async () => {
+      // Arrange
+      await writePlugins({
+        "factory@webapp-factory": [
+          install({ projectPath: "C:\\WS\\a", version: "0.7.0", lastUpdated: "2026-10-05T00:00:00.000Z" }),
+          install({ projectPath: "C:\\WS\\b", version: "0.8.0", lastUpdated: "2026-10-20T00:00:00.000Z" }),
+          install({ scope: "user", projectPath: undefined, version: "0.6.0", lastUpdated: "2026-09-01T00:00:00.000Z" }),
+        ],
+        "factory-board@webapp-factory": [install({ scope: "user", projectPath: undefined, version: "0.11.0" })],
+      });
+
+      // Act
+      const plugins = await getPlugins();
+
+      // Assert
+      expect(plugins).toEqual({ factory: "0.8.0", factoryBoard: "0.11.0" });
+    });
+
+    it("orders an install without lastUpdated by its installedAt", async () => {
+      // Arrange
+      await writePlugins({
+        "factory@webapp-factory": [
+          install({ version: "0.7.0", installedAt: "2026-10-01T00:00:00.000Z", lastUpdated: "2026-10-10T00:00:00.000Z" }),
+          install({ version: "0.8.0", installedAt: "2026-10-15T00:00:00.000Z", lastUpdated: undefined }),
+        ],
+      });
+
+      // Act
+      const plugins = await getPlugins();
+
+      // Assert
+      expect(plugins).toEqual({ factory: "0.8.0", factoryBoard: null });
+    });
+
+    it("serves null for a plugin with no install and ignores the other plugins", async () => {
+      // Arrange
+      await writePlugins({
+        "other@market": [install({ version: "9.9.9", lastUpdated: "2026-10-30T00:00:00.000Z" })],
+        "factory@webapp-factory": [install({ version: "0.8.0" })],
+      });
+
+      // Act
+      const plugins = await getPlugins();
+
+      // Assert
+      expect(plugins).toEqual({ factory: "0.8.0", factoryBoard: null });
+    });
+
+    it("serves null for both when the plugins file is missing or invalid", async () => {
+      // Act
+      const missing = await getPlugins();
+      await writeFile(ctx.pluginsFile, "{ not json", "utf8");
+      const invalid = await getPlugins();
+
+      // Assert
+      expect(missing).toEqual({ factory: null, factoryBoard: null });
+      expect(invalid).toEqual({ factory: null, factoryBoard: null });
+    });
+
+    it("serves a new version as soon as the file changes", async () => {
+      // Arrange
+      await writePlugins({ "factory@webapp-factory": [install({ version: "0.7.0" })] });
+      const before = await getPlugins();
+
+      // Act
+      await writePlugins({
+        "factory@webapp-factory": [
+          install({ version: "0.7.0" }),
+          install({ version: "0.8.0", lastUpdated: "2026-10-21T00:00:00.000Z" }),
+        ],
+      });
+      const after = await getPlugins();
+
+      // Assert
+      expect(before).toEqual({ factory: "0.7.0", factoryBoard: null });
+      expect(after).toEqual({ factory: "0.8.0", factoryBoard: null });
     });
   });
 });

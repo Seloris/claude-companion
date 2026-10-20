@@ -8,5 +8,9 @@ export function factoryRoutes({ factory }: { factory: FactoryService }): Router 
     res.json(await factory.getFactoryState());
   });
 
+  router.get("/v1/factory/plugins", async (_req, res) => {
+    res.json(await factory.getPluginVersions());
+  });
+
   return router;
 }

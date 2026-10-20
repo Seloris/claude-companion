@@ -196,6 +196,8 @@
   "layout.nav.liveRunning.other": "{count} sessions au travail",
   "layout.title.base": "claude-companion",
   "layout.title.awaiting": "({count}) claude-companion",
+  "layout.plugins.versions": "factory {factory} · factory-board {factoryBoard}",
+  "layout.plugins.missing": "non installé",
   "live.page.sessions.one": "{count} session ouverte sur cette machine",
   "live.page.sessions.other": "{count} sessions ouvertes sur cette machine",
   "live.page.projects.one": "dans {count} projet",

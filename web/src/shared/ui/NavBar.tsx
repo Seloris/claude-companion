@@ -18,16 +18,19 @@ export interface NavBarItem {
 
 // `isWide`: the page under the bar is wider than the others (--live-width), and the bar lines up with it.
 // `brand`: the application's name, drawn before the links as text, not a link.
+// `note`: a short text drawn after the links, at the right end of the bar (muted), e.g. versions.
 export function NavBar({
   label,
   items,
   brand,
   isWide = false,
+  note,
 }: {
   label: string;
   items: NavBarItem[];
   brand?: string;
   isWide?: boolean;
+  note?: string;
 }) {
   return (
     <nav className={styles.nav} aria-label={label}>
@@ -49,6 +52,7 @@ export function NavBar({
             </li>
           ))}
         </ul>
+        {note !== undefined && <p className={styles.note}>{note}</p>}
       </div>
     </nav>
   );

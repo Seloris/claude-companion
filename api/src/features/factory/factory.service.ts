@@ -161,7 +161,12 @@ export function createFactoryService({
     return matchSessionJobs(await getFactoryState());
   }
 
-  return { getFactoryState, getSessionJobs };
+  // No cache and no board needed (FR-41): the file is read at each call, a missing or invalid one gives both null (FR-40).
+  async function getPluginVersions(): Promise<FactoryPluginVersions> {
+    return latestPluginVersions(await readInstalledPlugins(pluginsFile));
+  }
+
+  return { getFactoryState, getSessionJobs, getPluginVersions };
 }
 
 export type FactoryService = ReturnType<typeof createFactoryService>;
@@ -381,6 +386,18 @@ function versionFor(name: string, root: string, plugins: PluginInstall[]): strin
 
 function pluginVersionsFor(root: string, plugins: PluginInstall[]): FactoryPluginVersions {
   return { factory: versionFor("factory", root, plugins), factoryBoard: versionFor("factory-board", root, plugins) };
+}
+
+// FR-39: the header belongs to no project: the latest install or update of each plugin, every scope together.
+export function latestPluginVersions(plugins: PluginInstall[]): FactoryPluginVersions {
+  const latestVersion = (name: string): string | null => {
+    const recency = (install: PluginInstall) => install.lastUpdated || install.installedAt;
+    const latest = plugins
+      .filter((install) => install.name === name)
+      .reduce<PluginInstall | null>((best, install) => (best === null || recency(install) > recency(best) ? install : best), null);
+    return latest?.version ?? null;
+  };
+  return { factory: latestVersion("factory"), factoryBoard: latestVersion("factory-board") };
 }
 
 // A stale board's live runs do not count as live: no mod runs, their state is the one of the last scan (FR-11).

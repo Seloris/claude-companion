@@ -2570,6 +2570,23 @@
         }
       }
     },
+    "/v1/factory/plugins": {
+      "get": {
+        "summary": "The factory and factory-board versions installed, for the header",
+        "responses": {
+          "200": {
+            "description": "The installed plugin versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryPluginVersions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Liveness of the API",

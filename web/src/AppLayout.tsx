@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { Outlet, useMatch, useSearchParams } from "react-router";
+import { usePluginVersionsQuery } from "./features/factory/data/usePluginVersionsQuery.ts";
 import { useLiveStateQuery } from "./features/live/data/useLiveStateQuery.ts";
 import { useLiveNotifications } from "./features/live/pages/useLiveNotifications.ts";
 import { columnCounts, flattenWorkspaces } from "./features/live/ui/board.ts";
@@ -7,7 +8,7 @@ import { useRefreshStatusQuery } from "./features/refresh/data/useRefreshStatusQ
 import { t, tp } from "./shared/lib/i18n/index.ts";
 import { NavBar, type NavBarBadge, type NavBarItem } from "./shared/ui/NavBar.tsx";
 
-// The shared navigation around every page (FR-14).
+// The shared navigation around every page (FR-14), with the installed plugin versions (factory-board FR-38).
 export function AppLayout() {
   const [searchParams] = useSearchParams();
   const scratchSuffix = searchParams.get("scratch") === "1" ? "?scratch=1" : "";
@@ -17,6 +18,15 @@ export function AppLayout() {
   useLiveNotifications(liveQuery);
   // The refresh the API starts when a live session ends (FR-13) is followed from every page, so that its end reloads the recap.
   useRefreshStatusQuery();
+  const pluginsQuery = usePluginVersionsQuery();
+  // FR-38, FR-40: the installed versions at the top right of every page; nothing while loading or when the api call fails.
+  const pluginsNote =
+    pluginsQuery.data === undefined || pluginsQuery.isError
+      ? undefined
+      : t("layout.plugins.versions", {
+          factory: pluginsQuery.data.factory ?? t("layout.plugins.missing"),
+          factoryBoard: pluginsQuery.data.factoryBoard ?? t("layout.plugins.missing"),
+        });
 
   // No count while loading, on error, on an unreadable folder or when nothing runs or waits; the counts never follow the
   // live page's workspace filter. FR-14, BR-20: `Vous attend` holds the commits to validate too, so the counts are the
@@ -49,7 +59,13 @@ export function AppLayout() {
 
   return (
     <>
-      <NavBar label={t("layout.nav.label")} brand={t("layout.nav.brand")} items={items} isWide={isLivePage} />
+      <NavBar
+        label={t("layout.nav.label")}
+        brand={t("layout.nav.brand")}
+        items={items}
+        isWide={isLivePage}
+        note={pluginsNote}
+      />
       <Outlet />
     </>
   );

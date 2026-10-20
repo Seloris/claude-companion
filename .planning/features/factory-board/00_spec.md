@@ -3,7 +3,7 @@
 > **Slug**: `factory-board`
 > **Tags**: #factory
 > **Status**: Approved
-> **Last updated**: 2026-10-20
+> **Last updated**: 2026-10-21
 
 ## TL;DR
 
@@ -21,6 +21,8 @@ The person drives several factory projects at once, often through autopilots and
 - Drawing the factory data on the live page: its tiles' pill, band, callouts, columns, order and `Clôturer` are `live-sessions`' (its FR-32 to FR-40, BR-20 to BR-22); this feature only says which run a tile shows (FR-31), and the folded `Idle` group carries no factory band.
 - A list of the factory sessions on the board: the live page shows the running ones, each tile with its factory band (FR-31), and closes them with `Clôturer` (live-sessions FR-17).
 - Making the board fresher than the mod writes it (every 10 seconds, after a commit and at each turn's end): a faster rescan is a change of the mod.
+- The version of any other installed plugin in the header, the other plugins of the factory's marketplace included: the application reads the installed plugins for the factory and factory-board versions only.
+- Installing, updating or comparing the plugins: the header shows the versions installed, never whether a newer one exists.
 
 ## Domain Glossary
 
@@ -40,6 +42,7 @@ The person drives several factory projects at once, often through autopilots and
 | `Session factory` | `FactorySession` | A session's latest `FactoryRun` of its main conversation, as the mod lists it for a month | New |
 | `Session en direct` | `LiveSession` | A session running on this machine, drawn as a tile on the live page (live-sessions) | Reused |
 | `Clôturée` | `Closed` | The person's mark that they are done with a session (live-sessions) | Reused |
+| `Versions des plugins` | `FactoryPluginVersions` | The versions of the factory plugin and of the factory-board mod that Claude Code has installed | New |
 | `Tableau figé` | `StaleBoard` | A `FactoryBoard` whose last scan is more than 60 seconds old: no session of its project has the mod running | New |
 
 ## Functional Requirements
@@ -99,12 +102,20 @@ The person drives several factory projects at once, often through autopilots and
 
 - **FR-31** — On the live page, the tile of a `LiveSession` found by its session among a board's live runs or `FactorySession`s carries a factory band, drawn as live-sessions FR-33 and FR-35 say: its feature (`nouvelle feature` without one), its step (FR-29), its plan name (FR-30) and the segments of its feature's stages (FR-13), its `Phase` moving to the tile's status pill (live-sessions FR-32); the live run wins over the `FactorySession` when both name it, the main loop over a subagent's run, then the latest change, and a run the mod records for a free request off the workflow gives no band (live-sessions FR-34), so that the person reads which factory job a session does without opening the factory page.
 
+### Plugin versions
+
+- **FR-38** — The application's header shows, at its top right on every page, the installed version of the factory plugin and of the factory-board mod, each named after its plugin (`factory 0.8.0 · factory-board 0.11.0`), so that the person knows which workflow and which board the projects run without opening a project.
+- **FR-39** — When the plugins installed in several projects or scopes differ in version, the header shows, for each plugin, the version of its most recently installed or updated install, so that it names the version the person uses now.
+- **FR-40** — A plugin with no install, or a plugins file that is missing or cannot be read, shows `non installé` in place of that plugin's version, never an error.
+- **FR-41** — A plugin installed or updated while the application runs shows its new version in the header at the latest at the next page load.
+
 ## Business Rules
 
 - **BR-01** — The application only reads the boards folder: it never writes, moves or deletes a board file, even a long-stale one.
 - **BR-02** — The board is drawn as exported: a state, a marker, a run's status or a prompt is never derived again or corrected by the application, a `StaleBoard`'s included (FR-11 marks it, never changes it).
 - **BR-03** — A `FactoryRun` exists only for sessions started with a `/factory:` command: a session typed without one never appears on a board, only on the live page.
 - **BR-04** — `Clôturer` is the person's mark, made on the live page and kept by their browser (live-sessions BR-10): it hides a session from the `Activité` of FR-27, and never changes a `Phase` or anything else the mod exported (BR-02).
+- **BR-07** — The application only reads Claude Code's installed plugins file, for the two versions of FR-38: it never writes, moves or deletes it.
 
 ## UX Flow
 
@@ -113,6 +124,7 @@ The person drives several factory projects at once, often through autopilots and
 - A card unfolds into its timeline; the step at hand shows its prompt buttons and the two switches; a click copies the prompt.
 - A run's session opens the stored session page.
 - Workspaces page: factory badge on a workspace → its page → factory section with its boards.
+- Header, on every page: the plugin versions at the top right, after the navigation links (FR-38).
 - Live page: a factory session's tile reads e.g. `Job done` in its pill and `factory-board › Revue finale · add-session-phases` with its stage segments in its band, under its title.
 
 ## Decisions taken autonomously
@@ -146,3 +158,16 @@ The person drives several factory projects at once, often through autopilots and
 - Are the `avec revue` and `test navigateur` switches shared with the live page? → Yes, kept by the browser (FR-23) (live-sessions FR-38 copies the next step's prompt "as the factory page's switches set them"; switches local to the page could not be read there).
 - The non-goal "Changing the live page beyond the factory line of FR-31" → revised: the live page draws the factory data (live-sessions FR-32 to FR-40); this feature keeps the match only.
 - The live runs on the workspace page's factory section (2026-10-20)? → Dropped, by the person's request (the live page shows the running sessions); the `Activité` (FR-27) stays, and the factory page keeps its live runs (FR-12).
+- Feature slug for the plugin versions in the header (2026-10-21) → `factory-board`, existing (it already reads the installed plugins for the factory and factory-board versions; tag #factory).
+- Branch → `feat/factory-board-header-versions`, cut from `develop` (`develop` is the base branch; `feat/factory-board` is taken, and CONTRIBUTING names branches `{type}/{slug}-{name}`).
+- Ids of the new requirements → FR-38 to FR-41 and BR-07 (the unmerged branch `feat/factory-board-session-plan` already adds FR-32 to FR-37, BR-05 and BR-06 to this spec; the ids stay distinct when both merge).
+- Which plugins does "WebFactory plugins et le board" name? → The factory plugin and the factory-board mod (the two the application already reads; the root rule limits the read to them).
+- How is each one labelled? → By its plugin name, `factory` and `factory-board`, with its version (the same names as the board's own line).
+- Which version when installs differ across projects? → The most recently installed or updated one (the header belongs to no project; it is the version the person last took).
+- A plugin not installed, or the plugins file unreadable? → `non installé` for that plugin, no error (the board's line already reads so; a header never shows an error).
+- On which pages? → Every page (the header is shared).
+- How fresh? → At the latest at the next page load (versions change rarely; no live update asked).
+- Is the version a link (changelog, marketplace)? → No (not asked).
+- Does the header say a newer version exists? → No, non-goal (the application reads nothing beyond the installed plugins file).
+- The board's own per-project plugin line? → Stays as it is (not asked; it names the project's install, the header the person's latest).
+- On a narrow screen? → Left to the plan (a look, no business rule); the versions stay readable.
