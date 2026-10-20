@@ -56,7 +56,7 @@ The person drives several factory projects at once, often through autopilots and
 ### Pages
 
 - **FR-07** — A factory page, linked from the navigation without a count, lists every `FactoryBoard` grouped by `Workspace`: workspaces with a live `FactoryRun` first, then by most recent scan; a long-`StaleBoard` is never hidden.
-- **FR-08** — A workspace's page shows a factory section with that workspace's boards, drawn as on the factory page.
+- **FR-08** — A workspace's page shows a factory section with that workspace's boards, drawn as on the factory page without the live runs of FR-12, since the live page already shows the running sessions.
 - **FR-09** — On the workspaces page, a workspace that has a board carries a factory badge with its number of features `En cours` and `À valider`, and a mark while one of its boards has a live `FactoryRun`.
 
 ### Board
@@ -145,3 +145,4 @@ The person drives several factory projects at once, often through autopilots and
 - The mod also records free requests as runs (`command` and `step` `off-workflow`), which BR-03 does not foresee → such a run is no factory job: when it is the session's match, the tile reads `Hors workflow` (live-sessions FR-34); BR-03 is left as is (append-only), this decision records the reading.
 - Are the `avec revue` and `test navigateur` switches shared with the live page? → Yes, kept by the browser (FR-23) (live-sessions FR-38 copies the next step's prompt "as the factory page's switches set them"; switches local to the page could not be read there).
 - The non-goal "Changing the live page beyond the factory line of FR-31" → revised: the live page draws the factory data (live-sessions FR-32 to FR-40); this feature keeps the match only.
+- The live runs on the workspace page's factory section (2026-10-20)? → Dropped, by the person's request (the live page shows the running sessions); the `Activité` (FR-27) stays, and the factory page keeps its live runs (FR-12).
