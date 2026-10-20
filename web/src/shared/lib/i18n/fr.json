@@ -337,5 +337,10 @@
   "factory.badge.running.other": "{count} en cours",
   "factory.badge.review.one": "{count} à valider",
   "factory.badge.review.other": "{count} à valider",
-  "factory.badge.live": "une session factory au travail"
+  "factory.badge.live": "une session factory au travail",
+  "factory.plan.title": "Plan",
+  "factory.plan.unreadable": "Le plan ne peut pas être lu : {path}",
+  "factory.plan.untitled": "Plan",
+  "factory.plan.footnotes": "Notes",
+  "factory.plan.footnoteBack": "Revenir à la référence {reference}"
 }

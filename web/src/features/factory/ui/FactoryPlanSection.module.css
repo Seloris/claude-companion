@@ -1,0 +1,10 @@
+/* FR-36: the plan could not be read; a warning, not a danger. */
+.unreadable {
+  margin: 0;
+  color: var(--warning);
+  overflow-wrap: anywhere;
+}
+
+.path {
+  font-family: var(--font-mono);
+}

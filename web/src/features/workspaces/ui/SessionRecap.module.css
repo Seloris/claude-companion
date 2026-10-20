@@ -1,6 +1,8 @@
 .section {
   display: grid;
   gap: 12px;
+  /* A wide table or code line of the plan scrolls inside its box, never the page (factory-board FR-34). */
+  min-width: 0;
 }
 
 .sectionTitle {

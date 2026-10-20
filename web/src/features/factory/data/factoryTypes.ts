@@ -20,3 +20,5 @@ export type FactoryMarker = components["schemas"]["FactoryMarker"];
 export type FactorySessionJob = components["schemas"]["FactorySessionJob"];
 export type FactoryJobFeature = components["schemas"]["FactoryJobFeature"];
 export type FactoryJobStep = components["schemas"]["FactoryJobStep"];
+export type FactorySessionPlan = components["schemas"]["FactorySessionPlan"];
+export type FactorySessionPlanResponse = components["schemas"]["FactorySessionPlanResponse"];

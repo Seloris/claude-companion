@@ -1,0 +1,116 @@
+.markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.2em 0 0.5em;
+  font-family: var(--font-display);
+  font-weight: var(--title-weight);
+  line-height: 1.25;
+}
+
+/* The plan's own levels, drawn one level deeper (PlanMarkdown): sized after the plan's level, not the tag. */
+.h1 {
+  font-size: 1.3em;
+}
+
+.h2 {
+  font-size: 1.15em;
+}
+
+.h3 {
+  font-size: 1em;
+}
+
+.markdown :is(p, ul, ol, blockquote, pre, table) {
+  margin: 0 0 0.8em;
+}
+
+.markdown :is(ul, ol) {
+  padding-left: 1.4em;
+}
+
+.markdown li + li {
+  margin-top: 0.2em;
+}
+
+/* GFM task lists: the app's checkbox replaces the bullet, disabled (read only). */
+.markdown li:has(> .task, > p:first-child > .task) {
+  list-style: none;
+}
+
+.task {
+  display: inline-flex;
+  vertical-align: -4px;
+  margin: 0 0.4em 0 -1.4em;
+}
+
+/* A link reads as text: it leads nowhere. */
+.link {
+  color: inherit;
+}
+
+.markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+/* Code blocks and tables scroll inside their own box: the page never scrolls sideways on a phone. */
+.markdown pre {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.markdown pre code {
+  padding: 0;
+  background: none;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
+.markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  overflow-wrap: normal;
+}
+
+.markdown :is(th, td) {
+  padding: 6px 10px;
+  border: var(--border-width) solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown th {
+  background: var(--surface-2);
+}
+
+.markdown blockquote {
+  padding-left: 12px;
+  border-left: calc(var(--border-width) * 3) solid var(--border);
+  color: var(--text-muted);
+}
+
+.markdown hr {
+  border: none;
+  border-top: var(--border-width) solid var(--border);
+}

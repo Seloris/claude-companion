@@ -4,6 +4,7 @@ import { t } from "../../../shared/lib/i18n/index.ts";
 import { Dialog } from "../../../shared/ui/Dialog.tsx";
 import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
+import type { SessionPlanState } from "../../factory/data/sessionPlanState.ts";
 import type { ReopenAction } from "../../workspaces/data/useReopenAction.ts";
 import { ReopenActions } from "../../workspaces/ui/ReopenActions.tsx";
 import { SessionRecap } from "../../workspaces/ui/SessionRecap.tsx";
@@ -15,7 +16,7 @@ export type RecapDialogState =
   | { kind: "loading" }
   | { kind: "notFound" }
   | { kind: "error"; message: string }
-  | { kind: "loaded"; session: SessionDetail; reopenAction: ReopenAction };
+  | { kind: "loaded"; session: SessionDetail; reopenAction: ReopenAction; plan: SessionPlanState };
 
 // FR-42: a stored session's recap over the live board. FR-43: the links to its full page, its workspace and the
 // dashboard. FR-47: full screen on a phone (the Dialog's own rule).
@@ -56,7 +57,7 @@ function renderBody(state: RecapDialogState) {
               {t("session.page.dashboard", { workspace: session.workspace.name })}
             </Link>
           </nav>
-          <SessionRecap session={session} />
+          <SessionRecap session={session} plan={state.plan} />
         </>
       );
     }

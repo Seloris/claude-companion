@@ -12,6 +12,8 @@ import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Switch } from "../../../shared/ui/Switch.tsx";
+import { toSessionPlanState } from "../../factory/data/sessionPlanState.ts";
+import { useSessionPlanQuery } from "../../factory/data/useSessionPlanQuery.ts";
 import { useReopenAction } from "../../workspaces/data/useReopenAction.ts";
 import { useSessionQuery } from "../../workspaces/data/useSessionQuery.ts";
 import { setCompactMode, useCompactMode } from "../data/compactMode.ts";
@@ -74,6 +76,8 @@ function LivePage() {
   const [searchParams] = useSearchParams();
   const openSessionId = searchParams.get("session") || null;
   const recapQuery = useSessionQuery(openSessionId ?? "", { enabled: openSessionId !== null });
+  // factory-board FR-32, FR-35: the session's plan, read again each time its dialog opens.
+  const planQuery = useSessionPlanQuery(openSessionId ?? "", { enabled: openSessionId !== null });
   const reopenActionOf = useReopenAction();
   const recapState: RecapDialogState = recapQuery.isPending
     ? { kind: "loading" }
@@ -81,7 +85,12 @@ function LivePage() {
       ? recapQuery.error instanceof ApiError && recapQuery.error.status === 404
         ? { kind: "notFound" }
         : { kind: "error", message: recapQuery.error.message }
-      : { kind: "loaded", session: recapQuery.data, reopenAction: reopenActionOf(recapQuery.data) };
+      : {
+          kind: "loaded",
+          session: recapQuery.data,
+          reopenAction: reopenActionOf(recapQuery.data),
+          plan: toSessionPlanState(planQuery),
+        };
 
   // FR-44: the arrow's push is undone by going back; a dialog opened without it leaves the address without staying in
   // the history, and never leaves the app.

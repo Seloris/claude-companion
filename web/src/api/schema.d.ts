@@ -276,6 +276,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/factory/sessions/{sessionId}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The plan of a session: the plan.md of the folder its factory runs name, read under the run's root */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sessionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The session's plan */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FactorySessionPlanResponse"];
+                    };
+                };
+                /** @description The session id is not a session id */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -889,6 +936,16 @@ export interface components {
         FactoryPluginVersions: {
             factory: string | null;
             factoryBoard: string | null;
+        };
+        FactorySessionPlanResponse: {
+            plan: components["schemas"]["FactorySessionPlan"] | null;
+        };
+        FactorySessionPlan: {
+            folder: string;
+            root: string;
+            path: string;
+            title: string | null;
+            content: string | null;
         };
         RefreshStatus: {
             isRunning: boolean;

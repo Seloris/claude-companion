@@ -95,6 +95,9 @@ flowchart TD
 - Stage 1: a folder empty after trimming (`""`, `"  "`) → `{ plan: null }`, not `content: null` as the Tests list says (the FR-33 pick drops a run naming no folder before the order, so it never reaches `readPlanFile`; the test asserts `plan: null` for it, and `content: null` for `.` and `./`).
 - Stage 1: `test/setup.ts`, not listed by the plan → its `factory` wrapper forwards `getSessionPlan` (the route tests go through it).
 - Stage 1: the plan folders of the route tests live under the context's `tempRoot` (`project-roots`), removed in `afterEach` (and wiped by `reset()` anyway).
+- Stage 2: `factoryTypes.ts`, not listed by the plan → gains the `FactorySessionPlan` and `FactorySessionPlanResponse` aliases (the feature names the contract's entities there once).
+- Stage 2: the path in the FR-36 line in `--font-mono` → the `factory.plan.unreadable` message is split around its `{path}` placeholder, the path drawn in its own span.
+- Stage 2 review, api finding (`pickPlanRun`'s folder filter trims the folder, `readPlanFile` resolves the untrimmed one, so `" x "` reads a path with spaces) → left open, not fixed in the web stage (the skill: findings on another component are reported, not fixed); `Review` stays `[ ]` for the final review to settle it.
 
 ## api
 
@@ -240,6 +243,15 @@ Stage 1, from the stage review (autonomous, no person to accept them: recorded h
 - The route's session id pattern → the shared `SESSION_ID` exported from `factory.schema.ts` and imported by the service, instead of a second copy of the regex.
 - Two route tests added for these: "keeps a heading's last # after a word, skips a longer fence holding a shorter one, and ignores a BOM" and "reads no file for a board whose root is not absolute".
 
+Stage 2, from the stage review (autonomous, recorded here):
+
+- Task-list boxes → the shared `Checkbox` (disabled, read only) through a `components.input` mapping, instead of the native box with `accent-color` (no unstyled native control; a disabled native box read ticked and unticked alike).
+- The plan's headings → drawn one level deeper (`#` as `h3`, `##` as `h4`, …, sized by the plan's level), so the outline stays under the recap's `h2` "Plan".
+- GFM footnotes → their heading and back links in French (`remarkRehypeOptions`, new keys `factory.plan.footnotes` "Notes" and `factory.plan.footnoteBack` "Revenir à la référence {reference}").
+- An image with no alt text → renders nothing (it gave a bare `[]`).
+- Borders → `--border-width` instead of literal widths.
+- `SessionRecap.module.css` `.section` → `min-width: 0`, so a wide table or code line cannot widen the panel at 375 px (unverified without a browser run).
+
 ## Progress
 
 ### Stage 1 — api
@@ -252,17 +264,17 @@ Commit: `feat(factory-board): api — the plan of a session, read from its run's
 
 ### Stage 2 — web
 Commit: `feat(factory-board): web — a folded plan section in the session recap`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: `react-markdown` and `remark-gfm` installed exact; `factoryKeys.sessionPlan`, `useSessionPlanQuery`, `sessionPlanState.ts`
-- [ ] pages: `SessionPage` and `LivePage` read the session's plan and pass its state to the recap
-- [ ] ui: `FactoryPlanSection`, `PlanMarkdown`, the `plan` prop of `SessionRecap` and `RecapDialog`, i18n keys
-- [ ] conventions: `web/CLAUDE.md` Design line on the Markdown rendering
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: `react-markdown` and `remark-gfm` installed exact; `factoryKeys.sessionPlan`, `useSessionPlanQuery`, `sessionPlanState.ts`
+- [x] pages: `SessionPage` and `LivePage` read the session's plan and pass its state to the recap
+- [x] ui: `FactoryPlanSection`, `PlanMarkdown`, the `plan` prop of `SessionRecap` and `RecapDialog`, i18n keys
+- [x] conventions: `web/CLAUDE.md` Design line on the Markdown rendering
 
 ## Validation
 
 - [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill). Scenarios:
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [-] Browser test: not run (autopilot without browser test). Scenarios:
   - session page, against the real API on 3100 (`~/.claude/factory-board` and the projects read only): a session that ran `/factory:implement` on a plan of this repository shows a folded `Plan` section under its facts, headed `{plan name} · {title}`. Unfolded, it shows the plan with its headings, lists, ticked and unticked checkboxes, tables and code blocks; links read as text, and no image loads;
   - a session typed without `/factory:`, or one that ran only `write-spec`, shows no `Plan` section;
   - a session whose plan lives in a removed worktree shows "Le plan ne peut pas être lu" with the path;

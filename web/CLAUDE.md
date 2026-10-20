@@ -69,6 +69,7 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 - A command to copy by hand uses `--font-mono` (`overrides.css`; the skin has no monospace token).
 - Warnings use `--warning` and `--warning-soft` (`overrides.css`, aliased to the live page's amber), never `--danger`.
 - The live page and its navigation use `--live-width` (1360 px): its board needs three columns; every other page keeps `--content-width`.
+- A plan's Markdown is rendered by `react-markdown` with `remark-gfm` (`PlanMarkdown`): no raw HTML, links as text, no images; tables and code blocks scroll inside their own box.
 
 ## Testing
 
