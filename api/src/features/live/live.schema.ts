@@ -41,9 +41,10 @@ export const liveSessionSchema = z
     // True: the stored history holds the session, so it has a page.
     isStored: z.boolean(),
     lastPrompt: z.string().nullable(),
-    // The last text Claude wrote in the latest turn, shortened; null without a prompt or text.
+    // The last text Claude wrote in the latest turn, shortened; null without a turn or text.
     lastReply: z.string().nullable(),
-    // The last prompt's time, null before the first prompt.
+    // The latest turn's start: the last prompt, or Claude Code restarting Claude (a background task's notification,
+    // another session's message); null before the first turn.
     turnStartedAt: z.iso.datetime().nullable(),
     // The question Claude Code asked, shortened, for an awaitingAnswer session; null when it is not a question
     // (an elicitation, a dialog): `waitingFor` then says what it waits for.

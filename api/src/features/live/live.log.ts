@@ -55,9 +55,10 @@ export interface LiveLog {
   origin: string | null;
   startedAt: Date;
   lastPrompt: string | null;
-  // The last prompt's time, null before the first prompt.
+  // The latest turn's start: the last prompt, or Claude Code restarting Claude (a background task's notification,
+  // another session's message); null before the first turn.
   turnStartedAt: Date | null;
-  // The last text Claude wrote in the main log since the last prompt, shortened; null without a prompt or text.
+  // The last text Claude wrote in the main log since the turn started, shortened; null without a turn or text.
   lastReply: string | null;
   lastLineAt: Date | null;
   activity: CurrentActivityRead;
@@ -80,6 +81,14 @@ const userTextSchema = z.looseObject({
   message: z.looseObject({
     content: z.union([z.string(), z.array(z.looseObject({ type: z.string(), text: z.string().optional() }))]),
   }),
+});
+
+// Claude Code marks the user line that starts a turn with its origin, the person's prompt or a restart of its own.
+const turnStartSchema = z.looseObject({
+  type: z.literal("user"),
+  timestamp: z.iso.datetime(),
+  turnOrigin: z.string(),
+  isSidechain: z.boolean().optional(),
 });
 
 const askInputSchema = z.looseObject({
@@ -118,6 +127,7 @@ export function readLiveLog(input: { sessionId: string; mainLines: string[]; sub
   const pending = pendingCalls(mainBlocks);
   const ask = readQuestion(pending);
   const prompt = session.prompts.at(-1);
+  const turnStartedAt = readTurnStart(main, prompt?.sentAt ?? null);
   const skillCall =
     prompt === undefined
       ? undefined
@@ -131,8 +141,8 @@ export function readLiveLog(input: { sessionId: string; mainLines: string[]; sub
     origin: session.origin,
     startedAt: session.startedAt,
     lastPrompt: prompt === undefined ? null : shortenText(prompt.text),
-    turnStartedAt: prompt?.sentAt ?? null,
-    lastReply: prompt === undefined ? null : readLastReply(main, prompt.sentAt),
+    turnStartedAt,
+    lastReply: turnStartedAt === null ? null : readLastReply(main, turnStartedAt),
     lastLineAt,
     activity: {
       ...readActivityKind(pending, subagents.some((subagent) => subagent.isRunning)),
@@ -146,8 +156,22 @@ export function readLiveLog(input: { sessionId: string; mainLines: string[]; sub
   };
 }
 
+// A background task's notification or another session's message restarts Claude without a prompt: only the turn origin
+// Claude Code writes on the line tells it (older versions write none, the last prompt is then the start). The latest by
+// time, not by position: the lines copied before a compaction keep their old timestamp.
+function readTurnStart(main: ParsedLine[], promptAt: Date | null): Date | null {
+  let start = promptAt;
+  for (const line of main) {
+    const restart = turnStartSchema.safeParse(line);
+    if (!restart.success || restart.data.isSidechain === true) continue;
+    const time = new Date(restart.data.timestamp);
+    if (start === null || time > start) start = time;
+  }
+  return start;
+}
+
 // Claude Code writes one line per content block: the reply is the text of every line of the last message that wrote
-// text since the prompt. Only the main log is read, a subagent's text is not Claude's reply to the person.
+// text since the turn started. Only the main log is read, a subagent's text is not Claude's reply to the person.
 function readLastReply(main: ParsedLine[], promptAt: Date): string | null {
   const texts = readAssistantTexts(main).filter((entry) => entry.at >= promptAt);
   const last = texts.at(-1);

@@ -14,13 +14,14 @@ import {
   askUserQuestionBlock,
   assistantLine,
   queueLine,
+  taskNotificationText,
   userLine,
   writeSession,
   type LogLine,
   type SubagentLog,
 } from "../ingestion/log-builders.js";
 import { createTestContext } from "../setup.js";
-import { LIVE_STARTED_AT, at, callLine, promptLine, statusFile, writeStatusFile } from "./live-builders.js";
+import { LIVE_STARTED_AT, at, callLine, promptLine, restartLine, statusFile, writeStatusFile } from "./live-builders.js";
 
 const ms = (second: number) => LIVE_STARTED_AT + second * 1000;
 
@@ -225,6 +226,26 @@ describe("live routes", () => {
 
         // Assert
         expect(session).toMatchObject({ lastReply: "The login page is fixed.", turnStartedAt: at(5) });
+      });
+
+      it("moves the turn start to a notification that restarted Claude", async () => {
+        // Arrange
+        await startSession({
+          pid: 11,
+          status: { status: "idle", statusUpdatedAt: ms(70) },
+          lines: [
+            promptLine("Run the build in the background", 5),
+            assistantLine("m1", "claude-opus-5-5", {}, { timestamp: at(8), content: [{ type: "text", text: "Started." }] }),
+            restartLine("task-notification", taskNotificationText(["b1"], "completed"), 60),
+            assistantLine("m2", "claude-opus-5-5", {}, { timestamp: at(65), content: [{ type: "text", text: "The build passed." }] }),
+          ],
+        });
+
+        // Act
+        const session = await getOnlySession();
+
+        // Assert
+        expect(session).toMatchObject({ lastReply: "The build passed.", turnStartedAt: at(60) });
       });
 
       it("has no turn when the last prompt predates the process", async () => {

@@ -12,7 +12,7 @@ import {
   userLine,
   type LogLine,
 } from "../ingestion/log-builders.js";
-import { answerLine, at, callLine, promptLine } from "./live-builders.js";
+import { answerLine, at, callLine, promptLine, restartLine } from "./live-builders.js";
 
 type Subagent = { agentId: string; lines: (LogLine | string)[]; meta?: unknown };
 
@@ -665,6 +665,96 @@ describe("readLiveLog", () => {
 
       // Assert
       expect(log.lastReply).toBeNull();
+    });
+
+    it("starts the turn at a background task's notification that restarted Claude", () => {
+      // Arrange
+      const lines = [
+        promptLine("Run the build in the background", 0),
+        text("m1", "Started", 3),
+        restartLine("task-notification", taskNotificationText(["b1"], "completed"), 60),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.turnStartedAt).toEqual(date(60));
+      expect(log.lastPrompt).toBe("Run the build in the background");
+    });
+
+    it("starts the turn at a message from another session that restarted Claude", () => {
+      // Arrange
+      const lines = [
+        promptLine("Start a side session", 0),
+        text("m1", "Started", 3),
+        restartLine("peer", "Another Claude session sent a message: done", 60),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.turnStartedAt).toEqual(date(60));
+    });
+
+    it("does not start a turn at a notification only recorded in the transcript", () => {
+      // Arrange
+      const lines = [
+        promptLine("Go", 0),
+        text("m1", "Done", 3),
+        restartLine("task-notification", taskNotificationText(["b1"], "completed"), 60, { isTranscriptOnly: true }),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.turnStartedAt).toEqual(date(0));
+    });
+
+    it("takes the last reply from the turn a notification restarted", () => {
+      // Arrange
+      const lines = [
+        promptLine("Run the build in the background", 0),
+        text("m1", "Started", 3),
+        restartLine("task-notification", taskNotificationText(["b1"], "completed"), 60),
+        text("m2", "The build passed", 62),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBe("The build passed");
+    });
+
+    it("has no last reply when the turn a notification restarted wrote no text", () => {
+      // Arrange
+      const lines = [
+        promptLine("Run the build in the background", 0),
+        text("m1", "Started", 3),
+        restartLine("task-notification", taskNotificationText(["b1"], "completed"), 60),
+        callLine("m2", "toolu_1", "Bash", { command: "cat build.log" }, 62),
+      ];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.lastReply).toBeNull();
+    });
+
+    it("keeps the latest start when an older restart line comes after the last prompt", () => {
+      // Arrange
+      const copied = restartLine("task-notification", taskNotificationText(["b1"], "completed"), 10);
+      const lines = [promptLine("Go", 0), copied, promptLine("Next", 30), copied];
+
+      // Act
+      const log = live(lines);
+
+      // Assert
+      expect(log.turnStartedAt).toEqual(date(30));
     });
 
     it("caps the last reply at 300 characters", () => {

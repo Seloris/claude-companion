@@ -50,16 +50,21 @@ Grill not run: the facts below were checked on the logs and status files of this
 - **api**, routes (`test/live/live.routes.test.ts`): `it("moves the turn start to a notification that restarted Claude")`.
 - **web**: none (no web change; its build and lint run against the regenerated client in Validation).
 
+## Deviations
+
+- Handoff "the description changes" → `api/openapi.json` unchanged (the field comments of `live.schema.ts` are code comments, not OpenAPI descriptions; the export ran and wrote an identical file). The `lastReply` comment of `live.schema.ts` was also reworded ("null without a turn or text"), as the review found it stale.
+- Decisions say built-in commands carry no `turnOrigin` → the review found `/doctor` written with `turnOrigin: "human"`. No code change: built-in commands were already prompts and moved `turnStartedAt` before this plan, and the web's `bucketOf` mitigation covers them.
+
 ## Progress
 
 ### Stage 1 — api
 Commit: `fix(live-sessions): api — turn restarted without a prompt`
-- [ ] services: `readTurnStart` in `live.log.ts`, `lastReply` scoped to it, with their tests
-- [ ] routes: `turnStartedAt` description, route test
-- [ ] Handoff: `api/openapi.json` exported
+- [x] services: `readTurnStart` in `live.log.ts`, `lastReply` scoped to it, with their tests
+- [x] routes: `turnStartedAt` description, route test
+- [x] Handoff: `api/openapi.json` exported
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Web: client regenerated from `api/openapi.json`, `npm run build` and lint clean
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [x] Web: client regenerated from `api/openapi.json`, `npm run build` and lint clean

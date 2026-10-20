@@ -51,6 +51,23 @@ export function promptLine(text: string, second: number, options: LineOptions = 
   return userLine(text, { timestamp: at(second), ...options });
 }
 
+// A message Claude Code sends by itself: a background task's notification, or another session's message. Written with
+// `turnOrigin` when it restarts Claude; `isTranscriptOnly` writes the record of a notification that started no turn.
+export function restartLine(
+  origin: "task-notification" | "peer",
+  text: string,
+  second: number,
+  { isTranscriptOnly = false }: { isTranscriptOnly?: boolean } = {},
+): LogLine {
+  const restart = isTranscriptOnly
+    ? { queueTranscriptOnly: true }
+    : { turnOrigin: origin === "peer" ? "peer" : "task_notification", turnPosition: { promptIndex: 2, turnIndex: 3 } };
+  return userLine(text, {
+    timestamp: at(second),
+    extra: { origin: { kind: origin }, promptSource: "system", ...(origin === "peer" ? { isMeta: true } : {}), ...restart },
+  });
+}
+
 // An assistant message made of one tool call.
 export function callLine(
   messageId: string,
