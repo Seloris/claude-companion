@@ -90,7 +90,7 @@ Canonical entity names introduced or reused. Names only: no properties, relation
 
 - **FR-11** — The page updates by itself, without a reload, and a change of `LiveStatus` or of `CurrentActivity` is visible within 5 seconds.
 - **FR-12** — When the live state can no longer be read (folder missing or unreadable), the page says so instead of freezing on stale sessions.
-- **FR-13** — When a `LiveSession` leaves the page (its process ended), a `Refresh` runs, so that its recap in the stored history is up to date without the person asking.
+- **FR-13** — A `Refresh` runs when a `LiveSession` leaves the page (its process ended), so that its recap in the stored history is up to date without the person asking, and when the page shows a `LiveSession` whose log is readable but which the stored history lacks, once per state of that log, so that its arrow (FR-10) turns active within seconds instead of at the next periodic refresh.
 
 ### Navigation
 

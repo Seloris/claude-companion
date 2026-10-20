@@ -7,6 +7,7 @@ import { createWorkspacesRepository } from "../../src/features/workspaces/worksp
 import { refreshStatusSchema } from "../../src/features/ingestion/ingestion.schema.js";
 import { liveStateSchema, type LiveSession, type LiveState } from "../../src/features/live/live.schema.js";
 import type { StatusFile } from "../../src/features/live/live.source.js";
+import { refreshRuns } from "../../src/features/ingestion/ingestion.table.js";
 import { sessions } from "../../src/features/workspaces/workspaces.table.js";
 import { buildSession, buildWorkspace } from "../factories.js";
 import {
@@ -1035,22 +1036,33 @@ describe("live routes", () => {
     });
 
     describe("refresh when a session leaves", () => {
+      // Already stored: the history holds it, so only its leaving asks for a refresh (its missing-session refresh stays out of the way).
       async function startStoredCandidate() {
+        await ctx.seed.session(buildWorkspace({ name: "demo", path: "C:\\WS\\demo" }), buildSession({ sessionId: SESSION_ID }));
         await startSession({ pid: 11, lines: [promptLine("Go", 0)] });
       }
 
-      it("starts a refresh that stores the session once its process is gone (FR-13)", async () => {
+      // The refresh a leave starts re-reads the session's log, which the seeded row never came from.
+      async function expectRefreshRead() {
+        await ctx.ingestion.whenIdle();
+        await vi.waitFor(async () => {
+          const status = refreshStatusSchema.parse((await request(ctx.app).get("/v1/refresh")).body);
+          expect(status.lastReport?.sessionsRead).toBe(1);
+        });
+      }
+
+      it("starts a refresh that reads the session again once its process is gone (FR-13)", async () => {
         // Arrange
         await startStoredCandidate();
         await getLive();
+        await expectNoRefresh();
         ctx.alivePids.delete(11);
 
         // Act
         await getLive();
-        await ctx.ingestion.whenIdle();
 
         // Assert
-        await vi.waitFor(async () => expect(await storedIds()).toEqual([SESSION_ID]));
+        await expectRefreshRead();
       });
 
       it("starts none on the first read", async () => {
@@ -1062,7 +1074,6 @@ describe("live routes", () => {
 
         // Assert
         await expectNoRefresh();
-        expect(await storedIds()).toEqual([]);
       });
 
       it("starts none while the live state is unreadable, and compares with the last good read after it", async () => {
@@ -1079,8 +1090,74 @@ describe("live routes", () => {
         await expectNoRefresh();
         await mkdir(ctx.sessionsDir);
         await getLive();
+        await expectRefreshRead();
+      });
+    });
+
+    describe("refresh when a session is missing from the history", () => {
+      async function refreshRunCount(): Promise<number> {
         await ctx.ingestion.whenIdle();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await ctx.ingestion.whenIdle();
+        return (await ctx.db.select({ id: refreshRuns.id }).from(refreshRuns)).length;
+      }
+
+      it("starts a refresh that stores a session the history lacks, once its log is readable (FR-13)", async () => {
+        // Arrange
+        await startSession({ pid: 11, lines: [promptLine("Go", 0)] });
+
+        // Act
+        const first = await getOnlySession();
+        await ctx.ingestion.whenIdle();
+
+        // Assert
+        expect(first.isStored).toBe(false);
         await vi.waitFor(async () => expect(await storedIds()).toEqual([SESSION_ID]));
+        expect((await getOnlySession()).isStored).toBe(true);
+      });
+
+      it("starts none for a session without a log yet", async () => {
+        // Arrange
+        await startSession({ pid: 11 });
+
+        // Act
+        await getLive();
+
+        // Assert
+        await expectNoRefresh();
+      });
+
+      it("starts one refresh for several missing sessions", async () => {
+        // Arrange
+        await startSession({ pid: 11, sessionId: "a", lines: [promptLine("Go", 0, { sessionId: "a" })] });
+        await startSession({ pid: 12, sessionId: "b", lines: [promptLine("Go", 0, { sessionId: "b" })] });
+
+        // Act
+        await getLive();
+
+        // Assert
+        expect(await refreshRunCount()).toBe(1);
+        expect((await storedIds()).sort()).toEqual(["a", "b"]);
+      });
+
+      it("asks once per log, and again once the log of a session still missing changes", async () => {
+        // Arrange
+        const files = await startSession({ pid: 11, lines: [promptLine("Go", 0)] });
+        await getLive();
+        expect(await refreshRunCount()).toBe(1);
+        // As if the refresh could not store it.
+        await ctx.db.delete(sessions);
+
+        // Act
+        await getLive();
+        const unchanged = await refreshRunCount();
+        await writeSession(ctx.logsDir, "C--WS-demo", { lines: [promptLine("Go", 0), promptLine("Again", 10)] });
+        await utimes(files?.mainFile ?? "", new Date(ms(20)), new Date(ms(20)));
+        await getLive();
+
+        // Assert
+        expect(unchanged).toBe(1);
+        expect(await refreshRunCount()).toBe(2);
       });
     });
 

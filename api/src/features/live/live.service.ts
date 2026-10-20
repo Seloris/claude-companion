@@ -53,6 +53,9 @@ export function createLiveService({
   const logLocations = new Map<string, SessionLogLocation>();
   const logCache = new Map<string, CachedLog>();
   const failedSessions = new Set<string>();
+  // FR-13: the log files of each session missing from the history when a refresh was asked for it, so that the same
+  // log never asks twice and a session the refresh could not store yet asks again once its log changes.
+  const missingRefreshes = new Map<string, FileStat[]>();
   let previousIds: Set<string> | null = null;
   // One log until the boards read again.
   let hasJobsFailed = false;
@@ -171,12 +174,22 @@ export function createLiveService({
     };
   }
 
-  // FR-13: a run in progress may have read the log before the session's last writes, so a new run follows it.
-  function refreshAfterLeave(): void {
+  // FR-13: a run in progress may have read the logs before the session's last writes, so a new run follows it.
+  function refreshAfterRun(reason: string): void {
     ingestion
       .whenIdle()
       .then(() => ingestion.start())
-      .catch((error: unknown) => console.error("refresh after a live session left failed", error));
+      .catch((error: unknown) => console.error(`refresh after ${reason} failed`, error));
+  }
+
+  // FR-13: a session the history lacks, once its log is readable (before, a refresh has nothing to store).
+  function hasNewMissingLog(id: string, log: LiveLog | null, isStored: boolean): boolean {
+    const files = logCache.get(id)?.files;
+    if (isStored || log === null || files === undefined) return false;
+    const asked = missingRefreshes.get(id);
+    if (asked !== undefined && !haveFilesChanged(files, asked)) return false;
+    missingRefreshes.set(id, files);
+    return true;
   }
 
   async function readLiveState(): Promise<LiveState> {
@@ -207,11 +220,12 @@ export function createLiveService({
     }
     const alive = [...bySession.values()];
     const ids = new Set(alive.map((status) => status.sessionId));
-    for (const id of [...logCache.keys(), ...logLocations.keys(), ...failedSessions]) {
+    for (const id of [...logCache.keys(), ...logLocations.keys(), ...failedSessions, ...missingRefreshes.keys()]) {
       if (!ids.has(id)) {
         logCache.delete(id);
         logLocations.delete(id);
         failedSessions.delete(id);
+        missingRefreshes.delete(id);
       }
     }
 
@@ -228,7 +242,13 @@ export function createLiveService({
     for (const entry of entries) state.counts[entry.session.status] += 1;
 
     // The first read has nothing to compare with.
-    if (previousIds !== null && [...previousIds].some((id) => !ids.has(id))) refreshAfterLeave();
+    const hasLeft = previousIds !== null && [...previousIds].some((id) => !ids.has(id));
+    // One refresh stores every missing session: every one is marked, hence no short-circuit.
+    const hasMissing = alive
+      .map((status, index) => hasNewMissingLog(status.sessionId, logs[index] ?? null, stored.has(status.sessionId)))
+      .includes(true);
+    if (hasLeft) refreshAfterRun("a live session left");
+    else if (hasMissing) refreshAfterRun("a live session missing from the history appeared");
     previousIds = ids;
     return state;
   }
