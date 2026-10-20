@@ -23,9 +23,13 @@ The code uses identifiers in English, each mapped to a business term. Use the id
 
 ## Local development
 
-Two components, started in this order (Node 22, no database server: the API runs PGlite in-process).
+Node 22, no database server: the API runs PGlite in-process and applies the pending migrations itself at start-up.
 
-1. `api`: `cd api && npm ci && npm run db:migrate && npm run dev` → http://localhost:3100. Re-run `npm run db:migrate` after every new migration, with the API stopped. It reads the session logs from `~/.claude/projects` (`CLAUDE_PROJECTS_DIR` overrides it), the live state of the running sessions from `~/.claude/sessions` (`CLAUDE_SESSIONS_DIR` overrides it) and the log retention from `~/.claude/settings.json` (`CLAUDE_SETTINGS_FILE` overrides it).
+**Launch.** Once after a clone or a dependency change: `npm run setup` at the repository root. Then `npm start` at the root → http://localhost:3100. It builds both components, regenerates `web/src/api/schema.d.ts` from the committed `api/openapi.json`, applies the pending migrations and serves the front and the API (under `/api`) on one port. It and the dev API share port 3100 and the same database: stop one before starting the other (a second instance exits on the busy port). Stop it with Ctrl+C.
+
+**Development.** Two components, started in this order.
+
+1. `api`: `cd api && npm ci && npm run dev` → http://localhost:3100. Restart it after a new migration. It reads the session logs from `~/.claude/projects` (`CLAUDE_PROJECTS_DIR` overrides it), the live state of the running sessions from `~/.claude/sessions` (`CLAUDE_SESSIONS_DIR` overrides it) and the log retention from `~/.claude/settings.json` (`CLAUDE_SETTINGS_FILE` overrides it).
 2. `web`: `cd web && npm ci && npx openapi-typescript ../api/openapi.json --output src/api/schema.d.ts && npm run dev` → http://localhost:5180. The dev server proxies `/api` to the API.
 
 No accounts, no sign-in: the application is local and single-user, every route is public and the front has no login.

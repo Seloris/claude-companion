@@ -75,4 +75,5 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 
 - Prerequisites: Node 22, `npm ci`.
 - Run: `npm run dev` → http://localhost:5180; the API must be running on http://localhost:3100 (`test-in-browser` starts both when they do not answer).
+- The root's `npm run build` builds the front into `dist/` (after `prepare`), and `npm start` there has the API serve it on http://localhost:3100; the dev server stays the way to work on the front.
 - `prepare` regenerates `src/api/schema.d.ts` from the API's committed handoff file; run it at the start of every front stage.

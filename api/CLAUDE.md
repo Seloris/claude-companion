@@ -9,7 +9,7 @@ commands:
   test: npx vitest run
   lint: npx eslint {files}
   handoff: npx tsx scripts/export-openapi.ts openapi.json
-  serve: npm run db:migrate && npm run dev
+  serve: npm run dev
 serve_url: http://localhost:3100
 ```
 
@@ -22,8 +22,8 @@ One folder per feature, the same files in every feature:
 ```
 src/
   app.ts                    createApp({ db, clock }): the Express app, no listen (tests use it)
-  server.ts                 reads the configuration, opens the database, listens on the port
-  config.ts                 environment variables, parsed with zod once at start-up
+  server.ts                 reads the configuration, binds the port, then opens and migrates the database and attaches the app
+  config.ts                 environment variables (zod) and the `--web-dir` flag (`parseArgs`), read once at start-up
   db/
     schema.ts               re-exports every feature's tables (the Drizzle schema entry point)
     client.ts               opens the database: PGlite locally and in tests, node-postgres in deployment
@@ -38,6 +38,7 @@ src/
     validate.ts             the zod validation middleware
     clock.ts                the Clock interface and its system implementation
     openapi.ts              the OpenAPI registry and document builder
+    web.ts                  serves the built front and its SPA fallback when the API is started with `--web-dir`
 drizzle/                    generated migrations (SQL + meta), never edited by hand
 scripts/export-openapi.ts   imports the features' schema modules and the registry, writes the OpenAPI document; no database, no listen
 test/
@@ -53,9 +54,9 @@ The layers are the plan's sections, in this order: `db` (tables, migration), `se
 |---|---|
 | `build` | `tsc -p tsconfig.build.json`: type-checks and emits `dist/` |
 | `dev` | `tsx watch src/server.ts` |
-| `start` | `node dist/server.js` |
+| `start` | `node dist/server.js`; with `--web-dir {folder}` it also serves the built front (the root's `npm start` passes `../web/dist`) |
 | `db:generate` | `drizzle-kit generate` |
-| `db:migrate` | `drizzle-kit migrate` |
+| `db:migrate` | `drizzle-kit migrate`, a second process on the PGlite folder: only with the API stopped; the API applies the migrations itself at start-up |
 
 ## Conventions
 
@@ -106,8 +107,8 @@ The `write-api-tests` skill reads this table.
 ## Local run
 
 - Prerequisites: Node 22, `npm ci`. Nothing else: the database is PGlite, created in `.data/pglite` on first start.
-- First run and after every new migration: `npm run db:migrate`.
-- Run: `npm run dev` → http://localhost:3100. The `serve` command applies the pending migrations first: `test-in-browser` runs it only when the API does not answer, so PGlite's folder is free.
+- Run: `npm run dev` → http://localhost:3100. The API applies the pending migrations at start-up (restart it after a new migration); `test-in-browser` runs `serve` only when the API does not answer, so PGlite's folder is free.
+- The port is bound before PGlite is opened, so a second instance on the same port (`npm start` at the root, or `npm run dev`) exits before touching the database. An instance on another `PORT` with the same `PGLITE_DIR` is not guarded.
 - PGlite allows one process per data folder: stop the API before `npm run db:migrate` or `drizzle-kit studio`, and say so in the report.
-- Reset the local database: stop the API, delete `.data/pglite`, `npm run db:migrate`.
+- Reset the local database: stop the API, delete `.data/pglite`, start it again.
 - Source data: the Claude Code session logs, read only, from `~/.claude/projects` (one folder per workspace, one `{session id}.jsonl` per session); `CLAUDE_PROJECTS_DIR` points elsewhere (tests, another machine). The live state of the running sessions is read the same way, from `~/.claude/sessions` (one `{pid}.json` per running process; the `*.key` files beside them hold credentials and are never opened); `CLAUDE_SESSIONS_DIR` points elsewhere. The log retention (`cleanupPeriodDays`, nothing else) is read from Claude Code's user settings, `~/.claude/settings.json`; `CLAUDE_SETTINGS_FILE` points elsewhere. The API never writes in any of these three places.

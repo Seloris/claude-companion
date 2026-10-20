@@ -66,7 +66,7 @@ export function createTestTimer(): TestTimer {
 }
 
 // The logs dir is a fresh temp folder by default: no test ever reads the real ~/.claude/projects.
-export async function createTestContext(options: { logsDir?: string } = {}) {
+export async function createTestContext(options: { logsDir?: string; webDir?: string } = {}) {
   const db: Database = openDatabase();
   await migrateDatabase(db);
   const clock = createTestClock();
@@ -108,7 +108,17 @@ export async function createTestContext(options: { logsDir?: string } = {}) {
     getSchedule: () => currentScheduler.getSchedule(),
     setSchedule: (schedule: Parameters<typeof currentScheduler.setSchedule>[0]) => currentScheduler.setSchedule(schedule),
   };
-  const app = createApp({ db, clock, ingestion, workspaces, dashboard, live, refreshScheduler, retention });
+  const app = createApp({
+    db,
+    clock,
+    ingestion,
+    workspaces,
+    dashboard,
+    live,
+    refreshScheduler,
+    retention,
+    ...(options.webDir === undefined ? {} : { webDir: options.webDir }),
+  });
 
   const seed = {
     async session(workspace: ResolvedWorkspace, session: ParsedSession, options: { isArchived?: boolean } = {}) {

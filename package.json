@@ -1,0 +1,13 @@
+{
+  "name": "claude-companion",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "cd api && npm ci && cd ../web && npm ci",
+    "build": "cd api && npm run build && cd ../web && npx openapi-typescript ../api/openapi.json --output src/api/schema.d.ts && npm run build",
+    "prestart": "npm run build",
+    "start": "cd api && npm start -- --web-dir ../web/dist"
+  }
+}

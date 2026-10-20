@@ -61,6 +61,11 @@ Technical questions parked by the person, settled here:
 - Review after every stage → yes (default under `autopilot`).
 - Branch → stay on `develop`, no branch created (the person works on `develop` directly; overrides `planning.md`'s branch default).
 - Spec for the slug → none (`tooling` is a reserved slug with no `00_spec.md`).
+- Review finding: the bound port accepts connections while PGlite opens, nothing answering → a temporary request listener answers 503 until the app is attached (cheap, fixes a hang for a health probe).
+- Review finding: with the root mount kept, an unknown `/v1/...` or `/health/...` path got `index.html` → the fallback also skips `/v1`, `/health` and `/api`, compared lower-case (+ one test).
+- Review finding: `api/CLAUDE.md` `config.ts` row out of date → updated.
+- Review nit: no test for exact `/api` or HEAD → not added (not in the plan).
+- Final review → `Review` and `Tests` run in the same run as the single stage; `Browser test` and `Integration tests` marked `[-]` (autopilot without browser test; never without the person's request).
 
 ## api
 
@@ -127,15 +132,17 @@ Technical questions parked by the person, settled here:
 
 ### Stage 1 — api
 Commit: `feat(tooling): api — single-command launch on one port`
-- [ ] routes: `test/setup.ts` option `webDir`, `test/shared/web.routes.test.ts` written first
-- [ ] routes: `src/shared/web.ts` (static files, SPA fallback), `src/app.ts` (API router at the root, `/api` alias and web routes when `webDir` is set)
-- [ ] routes: `src/config.ts` `readCliOptions`, `src/server.ts` reordered (web folder check, port bound before PGlite, app attached after the migrations)
-- [ ] Root: `package.json` with `setup`, `build`, `prestart`, `start`
-- [ ] Docs: root `CLAUDE.md` Local development, `api/CLAUDE.md` (serve command, Structure, Package scripts, Local run), `web/CLAUDE.md` Local run
-- [ ] Verify by hand, with no dev server running: `npm start` at the root builds and serves http://127.0.0.1:3100 (front at `/`, reload on `/live` serves the page, `/api/health` answers); its recap is the dev database's (same `api/.data/pglite`); a second `npm start` (or `cd api && npm run dev`) exits on the busy port; `git status` shows no change to `web/src/api/schema.d.ts`; stop it, then `cd api && npm run dev` and `cd web && npm run dev` still work on 3100 and 5180
-- [ ] Handoff: `api/openapi.json` exported (unchanged: no contract change)
+- [x] routes: `test/setup.ts` option `webDir`, `test/shared/web.routes.test.ts` written first
+- [x] routes: `src/shared/web.ts` (static files, SPA fallback), `src/app.ts` (API router at the root, `/api` alias and web routes when `webDir` is set)
+- [x] routes: `src/config.ts` `readCliOptions`, `src/server.ts` reordered (web folder check, port bound before PGlite, app attached after the migrations)
+- [x] Root: `package.json` with `setup`, `build`, `prestart`, `start`
+- [x] Docs: root `CLAUDE.md` Local development, `api/CLAUDE.md` (serve command, Structure, Package scripts, Local run), `web/CLAUDE.md` Local run
+- [x] Verify by hand (run on PORT 3199 with a temporary `PGLITE_DIR`, the person's dev API holding 3100: front, `/live`, `/workspaces/3`, `/api/health`, `/health` answer, a missing asset and an unknown `/api` path give 404, a second instance and a missing web folder exit 1, `git status` shows no change to `web/src/api/schema.d.ts`; the dev API entry `tsx src/server.ts` starts and answers on a temporary port; the `npm run dev` of the web was not restarted, the web is untouched), with no dev server running: `npm start` at the root builds and serves http://127.0.0.1:3100 (front at `/`, reload on `/live` serves the page, `/api/health` answers); its recap is the dev database's (same `api/.data/pglite`); a second `npm start` (or `cd api && npm run dev`) exits on the busy port; `git status` shows no change to `web/src/api/schema.d.ts`; stop it, then `cd api && npm run dev` and `cd web && npm run dev` still work on 3100 and 5180
+- [x] Handoff: `api/openapi.json` exported (unchanged: no contract change)
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [-] Browser test: not run (autopilot without browser test)
+- [-] Integration tests: not run (never without the person's request)

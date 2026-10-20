@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Router } from "express";
 import type { Database } from "./db/client.js";
 import { dashboardRoutes } from "./features/dashboard/dashboard.routes.js";
 import type { DashboardService } from "./features/dashboard/dashboard.service.js";
@@ -14,6 +14,7 @@ import { workspacesRoutes } from "./features/workspaces/workspaces.routes.js";
 import type { WorkspacesService } from "./features/workspaces/workspaces.service.js";
 import type { Clock } from "./shared/clock.js";
 import { errorHandler } from "./shared/errors.js";
+import { webRoutes } from "./shared/web.js";
 
 export interface AppContext {
   db: Database;
@@ -24,18 +25,28 @@ export interface AppContext {
   live: LiveService;
   refreshScheduler: Pick<RefreshScheduler, "getSchedule" | "setSchedule">;
   retention: RetentionService;
+  // Absolute folder of the built front; when set, the app also serves it (see shared/web.ts).
+  webDir?: string;
 }
 
 // Every route is public: the application is local and single-user, with no sign-in.
-export function createApp({ clock, ingestion, workspaces, dashboard, live, refreshScheduler, retention }: AppContext) {
+export function createApp({ clock, ingestion, workspaces, dashboard, live, refreshScheduler, retention, webDir }: AppContext) {
   const app = express();
   app.use(express.json());
-  app.use(healthRoutes({ clock }));
-  app.use(ingestionRoutes({ ingestion, refreshScheduler }));
-  app.use(workspacesRoutes({ workspaces }));
-  app.use(dashboardRoutes({ dashboard }));
-  app.use(liveRoutes({ live }));
-  app.use(retentionRoutes({ retention }));
+  const apiRouter = Router();
+  apiRouter.use(healthRoutes({ clock }));
+  apiRouter.use(ingestionRoutes({ ingestion, refreshScheduler }));
+  apiRouter.use(workspacesRoutes({ workspaces }));
+  apiRouter.use(dashboardRoutes({ dashboard }));
+  apiRouter.use(liveRoutes({ live }));
+  apiRouter.use(retentionRoutes({ retention }));
+  // At the root always (OpenAPI paths, route tests, Vite's proxy which strips /api); under /api too when serving the
+  // front, whose base URL it is. Both mounts come before the static files, so an API path always wins.
+  app.use(apiRouter);
+  if (webDir !== undefined) {
+    app.use("/api", apiRouter);
+    app.use(webRoutes({ webDir }));
+  }
   app.use(errorHandler);
   return app;
 }
