@@ -19,6 +19,7 @@ The person drives several factory projects at once, often through autopilots and
 - Recomputing the board: the states, the markers, the steps' runs, the live runs and the prompts are the mod's; the application draws them as exported, without correcting them.
 - The pane's controls that write or that the export does not carry: the plan picker (only the default plan's timeline is exported), `Nouvelle feature`, `Squasher`, the models screen, `Marquer comme fait`, the rescan.
 - Changing the live page beyond the factory line of FR-31: a tile's column, order, state and `Clôturer` stay `live-sessions`', and the folded `Idle` group carries no factory line.
+- A list of the factory sessions on the board: the live page shows the running ones, each tile with its factory line (FR-31), and closes them with `Clôturer` (live-sessions FR-17).
 - Making the board fresher than the mod writes it (every 10 seconds, after a commit and at each turn's end): a faster rescan is a change of the mod.
 
 ## Domain Glossary
@@ -87,12 +88,12 @@ The person drives several factory projects at once, often through autopilots and
 - **FR-25** — A session `attend la validation du commit` shows the commit message it proposed, so that the person knows what they are asked to approve before opening the session.
 - **FR-26** — A session `job done` shows its `Récap`: the recap line, else the subjects of its commits when the job wrote no recap line.
 - **FR-27** — Each board is headed by its `Activité`: the `Phase`, the feature and step, since when, and the commit message or the `Récap` it carries; `au repos` when the project has none, or when its session is `Clôturée`.
-- **FR-28** — Each board lists its `FactorySession`s, most recently changed first, one line each with its `Phase`, feature, step, since when and session link; a session `job done` or `interrompue` stays listed until the person clicks `Clôturer` on it, and comes back once a later turn of it ends.
+- **FR-28** — A board draws no list of its `FactorySession`s and offers no `Clôturer`: they serve only to match a live tile (FR-31) and to name the `Activité`'s plan (FR-30).
 
 ### Step labels and plan names
 
 - **FR-29** — A `FactoryRun`'s step reads `Spec`, `Plan`, `Revue du plan` (a run of the `review` command on the `plan` step), `Revue finale`, or for a stage the title its own plan (the run's plan folder) gives that stage when the export carries that plan's stages (it is the feature's followed plan), else `Stage N`, so that a run is never labelled with a stage of another plan of its feature.
-- **FR-30** — Every live run line, timeline run line, `FactorySession` line, autopilot mark and the `Activité` names the run's plan: the last folder of its plan folder without its timestamp (`add-session-phases`), the `Activité` taking the plan of its session's run; a run that names no plan folder shows no plan name, so that two `Revue finale` of the same feature are told apart.
+- **FR-30** — Every live run line, timeline run line, autopilot mark and the `Activité` names the run's plan: the last folder of its plan folder without its timestamp (`add-session-phases`), the `Activité` taking the plan of its session's run; a run that names no plan folder shows no plan name, so that two `Revue finale` of the same feature are told apart.
 
 ### Live page
 
@@ -103,12 +104,12 @@ The person drives several factory projects at once, often through autopilots and
 - **BR-01** — The application only reads the boards folder: it never writes, moves or deletes a board file, even a long-stale one.
 - **BR-02** — The board is drawn as exported: a state, a marker, a run's status or a prompt is never derived again or corrected by the application, a `StaleBoard`'s included (FR-11 marks it, never changes it).
 - **BR-03** — A `FactoryRun` exists only for sessions started with a `/factory:` command: a session typed without one never appears on a board, only on the live page.
-- **BR-04** — `Clôturer` is the person's mark, kept by their browser and shared with the live page (live-sessions BR-10): it hides a session from the lists of FR-28 and from the `Activité` of FR-27, and never changes a `Phase` or anything else the mod exported (BR-02).
+- **BR-04** — `Clôturer` is the person's mark, made on the live page and kept by their browser (live-sessions BR-10): it hides a session from the `Activité` of FR-27, and never changes a `Phase` or anything else the mod exported (BR-02).
 
 ## UX Flow
 
 - Navigation → `Factory`: the boards grouped by workspace, live ones first.
-- Each board: branch line and scan age (frozen banner when stale) → its `Activité` → its sessions with their phase, a `job done` with its recap and `Clôturer` → live runs → state filters → cards by state, the finalized ones folded.
+- Each board: branch line and scan age (frozen banner when stale) → its `Activité` → live runs → state filters → cards by state, the finalized ones folded.
 - A card unfolds into its timeline; the step at hand shows its prompt buttons and the two switches; a click copies the prompt.
 - A run's session opens the stored session page.
 - Workspaces page: factory badge on a workspace → its page → factory section with its boards.
@@ -128,3 +129,13 @@ The person drives several factory projects at once, often through autopilots and
 - Does the folded `Idle` group of the live page carry the factory line? → No, the column tiles only (the group's lines are kept compact).
 - Is the live tile's factory line a link to the factory page? → No (not asked; the tile's own links stay live-sessions').
 - Does a `Clôturée` session's tile lose its factory line? → No rule added: the tile follows live-sessions, the line follows the tile.
+- Feature slug for dropping the session list (2026-10-20) → `factory-board`, existing (the list is its FR-28; the live page is unchanged).
+- Which list goes? → The `FactorySession` list of FR-28 only; the live runs of FR-12 stay (they are the runs at work, with their feature and step, and unfold the feature's card).
+- FR-28 removed or revised? → Revised in place under the same id, stating the board draws no session list (ids are never renumbered; FR-29 to FR-31 are cited by plans).
+- Does the factory page keep a `Clôturer`? → No: it went with the list; the person closes a session on the live page (live-sessions FR-17).
+- Does the `Activité` still honour a `Clôturée` mark? → Yes, the mark made on the live page (FR-27, BR-04).
+- Does the board still read the exported `FactorySession`s? → Yes, for the live tile's factory line (FR-31) and the `Activité`'s plan name (FR-30); only their drawing goes.
+- A session `job done` or `interrompue` whose process ended is no longer listed anywhere live? → Accepted (the request: the live page shows the sessions; the stored history keeps it, and the `Activité` still names the latest one).
+- Where do FR-25's commit message and FR-26's `Récap` show now? → In the `Activité` and on the live run lines, unchanged (they never belonged to the list alone).
+- The workspace page's factory section (FR-08)? → Loses the list too: it is drawn as on the factory page.
+- live-sessions BR-10 and its `Clôturée` glossary entry still say the mark is shared with the factory sessions → Left for the plan (write-spec called mode): this commit holds the factory-board spec only.
