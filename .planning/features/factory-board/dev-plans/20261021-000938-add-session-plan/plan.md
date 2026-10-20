@@ -92,6 +92,9 @@ flowchart TD
 - The root `CLAUDE.md` hard rule (parked by the spec) → it gains the project `plan.md` files that exported runs name, as a read-only source. The api's `CLAUDE.md` source paragraph says the same.
 - Prepare step of `web` → kept (`web` declares `commands.prepare`); the regenerated `src/api/schema.d.ts` carries the new route.
 - Web unit tests → none (`web/CLAUDE.md`); the browser test covers the stage.
+- Stage 1: a folder empty after trimming (`""`, `"  "`) → `{ plan: null }`, not `content: null` as the Tests list says (the FR-33 pick drops a run naming no folder before the order, so it never reaches `readPlanFile`; the test asserts `plan: null` for it, and `content: null` for `.` and `./`).
+- Stage 1: `test/setup.ts`, not listed by the plan → its `factory` wrapper forwards `getSessionPlan` (the route tests go through it).
+- Stage 1: the plan folders of the route tests live under the context's `tempRoot` (`project-roots`), removed in `afterEach` (and wiped by `reset()` anyway).
 
 ## api
 
@@ -226,15 +229,26 @@ Route tests in `test/factory/factory.routes.test.ts`, a new `describe("the plan 
 
 None: `web/CLAUDE.md` has no unit tests on the front. The browser test of Validation checks the stage.
 
+## Deviations
+
+Stage 1, from the stage review (autonomous, no person to accept them: recorded here):
+
+- Title regex `/^# +(.+?)\s*#*\s*$/` → `/^ {0,3}#[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/` (the plan's regex cut "# Port to C#" to "Port to C"; a closing `#` run counts only after a space, as CommonMark says).
+- Fences `` ``` `` / `~~~` of exactly three characters → a run of 3 or more, closed only by the same character, at least as long, with nothing after it (a 4-backtick fence holding a 3-backtick sample, or an opening line with an info string, closed the fence early and gave a wrong title).
+- `planTitle` strips a leading BOM (a plan saved by a Windows editor lost its title).
+- `readPlanFile` also refuses a root that is not absolute (it would resolve against the API's own folder, which is no run's root; BR-06).
+- The route's session id pattern → the shared `SESSION_ID` exported from `factory.schema.ts` and imported by the service, instead of a second copy of the regex.
+- Two route tests added for these: "keeps a heading's last # after a word, skips a longer fence holding a shorter one, and ignores a BOM" and "reads no file for a board whose root is not absolute".
+
 ## Progress
 
 ### Stage 1 — api
 Commit: `feat(factory-board): api — the plan of a session, read from its run's folder`
-- [ ] services: `readPlanFile`, `planTitle` and `PLAN_MAX_BYTES` in `factory.source.ts`; `pickPlanRun` and `getSessionPlan` in `factory.service.ts`
-- [ ] routes: `FactorySessionPlan` and its response schema, registered; `GET /v1/factory/sessions/{sessionId}/plan`
-- [ ] tests: the route tests of "the plan of a session", with `writePlan` in the builders
-- [ ] conventions: root `CLAUDE.md` hard rule and `api/CLAUDE.md` source paragraph name the plan read
-- [ ] Handoff: `api/openapi.json` exported
+- [x] services: `readPlanFile`, `planTitle` and `PLAN_MAX_BYTES` in `factory.source.ts`; `pickPlanRun` and `getSessionPlan` in `factory.service.ts`
+- [x] routes: `FactorySessionPlan` and its response schema, registered; `GET /v1/factory/sessions/{sessionId}/plan`
+- [x] tests: the route tests of "the plan of a session", with `writePlan` in the builders
+- [x] conventions: root `CLAUDE.md` hard rule and `api/CLAUDE.md` source paragraph name the plan read
+- [x] Handoff: `api/openapi.json` exported
 
 ### Stage 2 — web
 Commit: `feat(factory-board): web — a folded plan section in the session recap`

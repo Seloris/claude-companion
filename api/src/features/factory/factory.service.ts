@@ -9,13 +9,17 @@ import type {
   FactoryRun,
   FactorySession,
   FactorySessionJob,
+  FactorySessionPlanResponse,
   FactoryState,
   FactoryWorkspace,
 } from "./factory.schema.js";
+import { SESSION_ID } from "./factory.schema.js";
 import {
   listBoardFiles,
+  planTitle,
   readBoardFile,
   readInstalledPlugins,
+  readPlanFile,
   type ExportRun,
   type ExportSession,
   type FactoryExport,
@@ -24,8 +28,6 @@ import {
 
 // FR-11: a board scanned more than this long ago is frozen, no session of its project runs the mod.
 export const STALE_AFTER_MS = 60_000;
-
-const SESSION_ID = /^[\w-]+$/;
 
 // The mod's command for a free request: the export records it as a run, but it is no factory job.
 export const OFF_WORKFLOW = "off-workflow";
@@ -166,7 +168,18 @@ export function createFactoryService({
     return latestPluginVersions(await readInstalledPlugins(pluginsFile));
   }
 
-  return { getFactoryState, getSessionJobs, getPluginVersions };
+  // FR-35: the plan file is read at every request, never cached, so each open of the recap shows its current content.
+  async function getSessionPlan(sessionId: string): Promise<FactorySessionPlanResponse> {
+    const picked = pickPlanRun(await getFactoryState(), sessionId);
+    // FR-37: no run of the session names a plan folder.
+    if (picked === null || picked.run.folder === null) return { plan: null };
+    const { root } = picked.board;
+    const { folder } = picked.run;
+    const { path, content } = await readPlanFile(root, folder);
+    return { plan: { folder, root, path, title: content === null ? null : planTitle(content), content } };
+  }
+
+  return { getFactoryState, getSessionJobs, getSessionPlan, getPluginVersions };
 }
 
 export type FactoryService = ReturnType<typeof createFactoryService>;
@@ -240,6 +253,40 @@ export function matchSessionJobs(state: FactoryState): Map<string, FactorySessio
     jobs.set(sessionId, toJob(candidate));
   }
   return jobs;
+}
+
+const namesPlan = (run: FactoryRun) => run.folder !== null && run.folder.trim() !== "";
+
+type PlanCandidate = { board: FactoryBoard; run: FactoryRun };
+
+// FR-33: the run whose plan a session's recap shows, over every board (a stale one included; an unsupported file carries
+// no board). Unlike matchSessionJobs, the runs that name no plan folder (an off-workflow run among them) are dropped
+// before the order, so a later run off the workflow never hides an older one that names a plan. Then the boards' live
+// runs (the main loop, then the latest change), else their session entries (the latest change), else their timeline
+// runs: the steps' runs and the autopilot (the main loop, then the latest change). The winner keeps its board, whose
+// root is the one to read under (FR-35).
+export function pickPlanRun(state: FactoryState, sessionId: string): PlanCandidate | null {
+  const boards = state.workspaces.flatMap((workspace) => workspace.boards);
+  const tiers: { runs: (board: FactoryBoard) => FactoryRun[]; isBetter: (a: FactoryRun, b: FactoryRun) => boolean }[] = [
+    { runs: (board) => board.live, isBetter: isBetterLiveRun },
+    { runs: (board) => board.sessions, isBetter: (candidate, best) => updatedAtMs(candidate) > updatedAtMs(best) },
+    {
+      runs: (board) =>
+        board.features.flatMap((feature) => [
+          ...(feature.autopilot === null ? [] : [feature.autopilot]),
+          ...feature.steps.flatMap((step) => step.runs),
+        ]),
+      isBetter: isBetterLiveRun,
+    },
+  ];
+  for (const { runs, isBetter } of tiers) {
+    const winner = boards
+      .flatMap((board) => runs(board).map((run): PlanCandidate => ({ board, run })))
+      .filter(({ run }) => run.sessionId === sessionId && namesPlan(run))
+      .reduce<PlanCandidate | null>((best, candidate) => (best === null || isBetter(candidate.run, best.run) ? candidate : best), null);
+    if (winner !== null) return winner;
+  }
+  return null;
 }
 
 function runsOf(board: FactoryExport): ExportRun[] {

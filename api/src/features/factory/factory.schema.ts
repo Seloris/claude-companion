@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { problemDetailsSchema } from "../../shared/errors.js";
 import { registry } from "../../shared/openapi.js";
 
 export const factoryRunStatusSchema = z.enum(["running", "waiting", "done", "interrupted"]).meta({ id: "FactoryRunStatus" });
@@ -223,6 +224,32 @@ export const factorySessionJobSchema = z
   })
   .meta({ id: "FactorySessionJob" });
 
+// A Claude Code session id: also the only ids the service looks up in the history.
+export const SESSION_ID = /^[\w-]+$/;
+
+export const factorySessionPlanParamsSchema = z.object({ sessionId: z.string().regex(SESSION_ID) });
+
+// The plan a session works on: the plan.md of the folder its factory run names, under the run's board root (FR-32).
+export const factorySessionPlanSchema = z
+  .object({
+    // As exported: relative to `root`, forward slashes.
+    folder: z.string(),
+    // The board's root, the run's own checkout or worktree (FR-35).
+    root: z.string(),
+    // Absolute, the file looked for, named when it cannot be read (FR-36).
+    path: z.string(),
+    // The first level-1 heading outside a code block; null when there is none or the file was not read (FR-34).
+    title: z.string().nullable(),
+    // Null when not read: missing, too large, or outside the root (FR-36, BR-06).
+    content: z.string().nullable(),
+  })
+  .meta({ id: "FactorySessionPlan" });
+
+// Null: the session's runs name no plan folder (FR-37).
+export const factorySessionPlanResponseSchema = z
+  .object({ plan: z.union([factorySessionPlanSchema, z.null()]) })
+  .meta({ id: "FactorySessionPlanResponse" });
+
 export type FactoryRun = z.infer<typeof factoryRunSchema>;
 export type FactorySession = z.infer<typeof factorySessionSchema>;
 export type FactoryActivity = z.infer<typeof factoryActivitySchema>;
@@ -234,6 +261,8 @@ export type FactoryWorkspace = z.infer<typeof factoryWorkspaceSchema>;
 export type FactoryState = z.infer<typeof factoryStateSchema>;
 export type FactoryJobFeature = z.infer<typeof factoryJobFeatureSchema>;
 export type FactorySessionJob = z.infer<typeof factorySessionJobSchema>;
+export type FactorySessionPlan = z.infer<typeof factorySessionPlanSchema>;
+export type FactorySessionPlanResponse = z.infer<typeof factorySessionPlanResponseSchema>;
 
 registry.registerPath({
   method: "get",
@@ -252,6 +281,20 @@ registry.registerPath({
     200: {
       description: "The installed plugin versions",
       content: { "application/json": { schema: factoryPluginVersionsSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/v1/factory/sessions/{sessionId}/plan",
+  summary: "The plan of a session: the plan.md of the folder its factory runs name, read under the run's root",
+  request: { params: factorySessionPlanParamsSchema },
+  responses: {
+    200: { description: "The session's plan", content: { "application/json": { schema: factorySessionPlanResponseSchema } } },
+    400: {
+      description: "The session id is not a session id",
+      content: { "application/problem+json": { schema: problemDetailsSchema } },
     },
   },
 });

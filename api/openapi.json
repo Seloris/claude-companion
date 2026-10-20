@@ -1665,6 +1665,57 @@
           "factoryBoard"
         ]
       },
+      "FactorySessionPlanResponse": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactorySessionPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan"
+        ]
+      },
+      "FactorySessionPlan": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string"
+          },
+          "root": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "folder",
+          "root",
+          "path",
+          "title",
+          "content"
+        ]
+      },
       "RefreshStatus": {
         "type": "object",
         "properties": {
@@ -2584,6 +2635,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FactoryPluginVersions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/factory/sessions/{sessionId}/plan": {
+      "get": {
+        "summary": "The plan of a session: the plan.md of the folder its factory runs name, read under the run's root",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[\\w-]+$"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session's plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorySessionPlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The session id is not a session id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }

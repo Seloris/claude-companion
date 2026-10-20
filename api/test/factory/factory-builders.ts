@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
   ExportActivity,
@@ -81,5 +81,13 @@ export function buildBoardExportV1(overrides: Partial<FactoryExportV1> = {}): Fa
 export async function writeBoard(boardsDir: string, fileName: string, value: unknown): Promise<string> {
   const target = path.join(boardsDir, fileName);
   await writeFile(target, typeof value === "string" ? value : JSON.stringify(value));
+  return target;
+}
+
+// A plan.md in a plan folder of a project root, the folder relative to the root as the mod exports it.
+export async function writePlan(root: string, folder: string, content: string): Promise<string> {
+  const target = path.join(root, folder, "plan.md");
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, content);
   return target;
 }

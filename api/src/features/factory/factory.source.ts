@@ -1,8 +1,9 @@
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
-// Read only (BR-01): readdir, stat and readFile, nothing that writes, moves or deletes in the boards folder.
+// Read only (BR-01): readdir, stat and readFile, nothing that writes, moves or deletes in the boards folder. The plan.md
+// of a project is read only too (BR-05): realpath, stat and readFile.
 
 const timestamp = z.number().int().nonnegative().max(8.64e15);
 
@@ -212,4 +213,56 @@ export async function readInstalledPlugins(pluginsFile: string): Promise<PluginI
       ];
     });
   });
+}
+
+// FR-36: a plan is a few tens of KiB; beyond this, a wrong file would flood the recap, so it is not read.
+export const PLAN_MAX_BYTES = 1024 * 1024;
+
+const isOutside = (relative: string) => relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
+
+// BR-05, BR-06: only the plan.md of the named plan folder, never outside the run's root, the real paths checked too so a
+// junction or a symlink cannot lead out of it; nothing that writes. The path looked for is always returned (FR-36).
+// Nothing is logged: a removed worktree is a common reason for a missing file.
+export async function readPlanFile(root: string, folder: string): Promise<{ path: string; content: string | null }> {
+  const target = path.resolve(root, folder, "plan.md");
+  const unread = { path: target, content: null };
+  // A relative root would resolve against the API's own folder, which is no run's root.
+  if (!path.isAbsolute(root)) return unread;
+  if (path.isAbsolute(folder) || /^[A-Za-z]:/.test(folder) || /^[\\/]/.test(folder)) return unread;
+  // `.`, `./` or `a/..` would read the root's own plan.md, which is no plan folder.
+  if (path.relative(root, path.resolve(root, folder)) === "") return unread;
+  if (isOutside(path.relative(root, target))) return unread;
+  try {
+    const [realRoot, realTarget] = await Promise.all([realpath(root), realpath(target)]);
+    if (isOutside(path.relative(realRoot, realTarget))) return unread;
+    const file = await stat(realTarget);
+    if (!file.isFile() || file.size > PLAN_MAX_BYTES) return unread;
+    return { path: target, content: await readFile(realTarget, "utf8") };
+  } catch {
+    return unread;
+  }
+}
+
+// CommonMark: a fence is 3 or more backticks or tildes; it closes on the same character, at least as long, with
+// nothing after it. A closing `#` run counts only after a space, so "# Port to C#" keeps its last character.
+const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+const TITLE = /^ {0,3}#[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
+
+// FR-34: the text of the first level-1 heading outside a fenced code block, or null. A leading BOM (a plan saved by a
+// Windows editor) is not part of the heading.
+export function planTitle(content: string): string | null {
+  let fence: string | null = null;
+  for (const line of content.replace(/^\uFEFF/, "").split(/\r?\n/)) {
+    const match = FENCE.exec(line);
+    if (match !== null) {
+      const [, marker = "", rest = ""] = match;
+      if (fence === null) fence = marker;
+      else if (marker[0] === fence[0] && marker.length >= fence.length && rest.trim() === "") fence = null;
+      continue;
+    }
+    if (fence !== null) continue;
+    const title = TITLE.exec(line)?.[1]?.trim();
+    if (title !== undefined && title !== "") return title;
+  }
+  return null;
 }

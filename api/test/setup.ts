@@ -100,6 +100,7 @@ export async function createTestContext(options: { logsDir?: string; webDir?: st
     getFactoryState: () => currentFactory.getFactoryState(),
     getSessionJobs: () => currentFactory.getSessionJobs(),
     getPluginVersions: () => currentFactory.getPluginVersions(),
+    getSessionPlan: (sessionId: string) => currentFactory.getSessionPlan(sessionId),
   };
   const buildLive = () =>
     createLiveService({

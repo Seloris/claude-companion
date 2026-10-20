@@ -1,9 +1,15 @@
-import { readdir, rm, stat, unlink, utimes, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, unlink, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFactoryService } from "../../src/features/factory/factory.service.js";
-import { factoryStateSchema, type FactoryState } from "../../src/features/factory/factory.schema.js";
+import {
+  factorySessionPlanResponseSchema,
+  factoryStateSchema,
+  type FactorySessionPlanResponse,
+  type FactoryState,
+} from "../../src/features/factory/factory.schema.js";
+import { PLAN_MAX_BYTES } from "../../src/features/factory/factory.source.js";
 import { buildSession, buildWorkspace } from "../factories.js";
 import { createTestContext } from "../setup.js";
 import {
@@ -15,6 +21,7 @@ import {
   buildExportRun,
   buildExportSession,
   writeBoard,
+  writePlan,
 } from "./factory-builders.js";
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -794,6 +801,353 @@ describe("factory routes", () => {
       // Assert
       expect(before).toEqual({ factory: "0.7.0", factoryBoard: null });
       expect(after).toEqual({ factory: "0.8.0", factoryBoard: null });
+    });
+  });
+
+  describe("the plan of a session", () => {
+    const sessionId = "33333333-3333-4333-8333-333333333333";
+    const folder = ".planning/features/demo/dev-plans/20261021-000000-add-demo";
+    const other = ".planning/features/demo/dev-plans/20261020-000000-fix-demo";
+    let projects = "";
+    let root = "";
+
+    beforeEach(async () => {
+      projects = path.join(ctx.tempRoot, "project-roots");
+      root = path.join(projects, "checkout");
+      await mkdir(root, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await rm(projects, { recursive: true, force: true });
+    });
+
+    async function getPlan(): Promise<FactorySessionPlanResponse> {
+      const response = await request(ctx.app).get(`/v1/factory/sessions/${sessionId}/plan`).expect(200);
+      return factorySessionPlanResponseSchema.parse(response.body);
+    }
+
+    const run = (overrides: Parameters<typeof buildExportRun>[0] = {}) => buildExportRun({ sessionId, folder, ...overrides });
+    const session = (overrides: Parameters<typeof buildExportSession>[0] = {}) =>
+      buildExportSession({ sessionId, folder, ...overrides });
+    const stepRuns = (...runs: ReturnType<typeof buildExportRun>[]) =>
+      buildExportFeature({ steps: [{ step: "stage:1", title: "Stage 1", detail: "", marker: "running", runs }] });
+
+    it("returns no plan when no board names the session (FR-37)", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run({ sessionId: "44444444-4444-4444-8444-444444444444" })] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body).toEqual({ plan: null });
+    });
+
+    it("returns no plan when the session's runs name no plan folder (FR-37)", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run({ command: "write-spec", step: "spec", folder: null })] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body).toEqual({ plan: null });
+    });
+
+    it("reads the plan.md of the live run's folder under its board's root (FR-32, FR-34, FR-35)", async () => {
+      // Arrange
+      const content = "# Demo: a plan\n\n## Context\n\n- [ ] a step\n";
+      await writePlan(root, folder, content);
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run()] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body).toEqual({
+        plan: { folder, root, path: path.resolve(root, folder, "plan.md"), title: "Demo: a plan", content },
+      });
+    });
+
+    it("prefers a live run over a session entry and a timeline run naming another folder (FR-33)", async () => {
+      // Arrange
+      await writePlan(root, folder, "# Live");
+      await writePlan(root, other, "# Other");
+      await write(
+        "C--WS-demo.json",
+        buildBoardExport({
+          root,
+          live: [run({ updatedAt: NOW - 60_000 })],
+          sessions: [session({ folder: other, updatedAt: NOW - 1_000 })],
+          features: [stepRuns(run({ folder: other, updatedAt: NOW - 1_000 }))],
+        }),
+      );
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan?.title).toBe("Live");
+    });
+
+    it("prefers the main loop's live run over a subagent's, then the latest change (FR-33)", async () => {
+      // Arrange
+      const older = ".planning/features/demo/dev-plans/20261019-000000-add-older";
+      await writePlan(root, folder, "# Main, latest");
+      await writePlan(root, other, "# Subagent");
+      await writePlan(root, older, "# Main, older");
+      await write(
+        "C--WS-demo.json",
+        buildBoardExport({
+          root,
+          live: [
+            run({ folder: older, updatedAt: NOW - 50_000 }),
+            run({ folder: other, agentId: "agent-1", updatedAt: NOW - 1_000 }),
+            run({ updatedAt: NOW - 20_000 }),
+          ],
+        }),
+      );
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan?.title).toBe("Main, latest");
+    });
+
+    it("uses the latest session entry when no live run names a folder (FR-33)", async () => {
+      // Arrange
+      await writePlan(root, folder, "# Latest entry");
+      await writePlan(root, other, "# Older entry");
+      await write(
+        "C--WS-demo.json",
+        buildBoardExport({
+          root,
+          live: [run({ folder: null })],
+          sessions: [session({ folder: other, updatedAt: NOW - 50_000 }), session({ updatedAt: NOW - 10_000 })],
+          features: [stepRuns(run({ folder: other, updatedAt: NOW - 1_000 }))],
+        }),
+      );
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan?.title).toBe("Latest entry");
+    });
+
+    it("uses a step's run, or the autopilot, when neither a live run nor a session entry names a folder (FR-33)", async () => {
+      // Arrange
+      await writePlan(root, folder, "# Step run");
+      await writePlan(root, other, "# Autopilot");
+      await write("C--WS-step.json", buildBoardExport({ root, features: [stepRuns(run({ agentId: "agent-1" }))] }));
+      const fromStep = await getPlan();
+      await rm(path.join(ctx.boardsDir, "C--WS-step.json"));
+      await write(
+        "C--WS-autopilot.json",
+        buildBoardExport({ root, features: [buildExportFeature({ autopilot: run({ folder: other, command: "autopilot" }) })] }),
+      );
+
+      // Act
+      const fromAutopilot = await getPlan();
+
+      // Assert
+      expect(fromStep.plan?.title).toBe("Step run");
+      expect(fromAutopilot.plan?.title).toBe("Autopilot");
+    });
+
+    it("skips an off-workflow live run with no folder and uses the session entry that names a plan (FR-33)", async () => {
+      // Arrange
+      await writePlan(root, folder, "# The plan");
+      await write(
+        "C--WS-demo.json",
+        buildBoardExport({
+          root,
+          live: [run({ command: "off-workflow", feature: null, folder: null, updatedAt: NOW - 1_000 })],
+          sessions: [session({ updatedAt: NOW - 60_000 })],
+        }),
+      );
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan?.title).toBe("The plan");
+    });
+
+    it("reads the plan under the root of the run's own board when a checkout and its worktree hold the same folder (FR-35)", async () => {
+      // Arrange
+      const worktree = path.join(projects, "worktree");
+      await writePlan(root, folder, "# Checkout");
+      await writePlan(worktree, folder, "# Worktree");
+      await write("C--WS-checkout.json", buildBoardExport({ root, live: [run({ sessionId: "55555555-5555-4555-8555-555555555555" })] }));
+      await write("C--WS-worktree.json", buildBoardExport({ root: worktree, live: [run()] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan).toMatchObject({ root: worktree, path: path.resolve(worktree, folder, "plan.md"), title: "Worktree" });
+    });
+
+    it("includes a stale board and ignores a board file of an unsupported version (FR-33)", async () => {
+      // Arrange
+      await writePlan(root, folder, "# Stale");
+      await writePlan(root, other, "# Unsupported");
+      await write("C--WS-stale.json", buildBoardExport({ root, scannedAt: NOW - 3_600_000, live: [run()] }));
+      await write("C--WS-future.json", { ...buildBoardExport({ root, live: [run({ folder: other, updatedAt: NOW })] }), schemaVersion: 3 });
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan?.title).toBe("Stale");
+    });
+
+    it("returns the new content after the file changed between two requests (FR-35)", async () => {
+      // Arrange
+      await writePlan(root, folder, "# First");
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run()] }));
+      const first = await getPlan();
+      await writePlan(root, folder, "# Second, longer");
+
+      // Act
+      const second = await getPlan();
+
+      // Assert
+      expect(first.plan?.content).toBe("# First");
+      expect(second.plan).toMatchObject({ title: "Second, longer", content: "# Second, longer" });
+    });
+
+    it("returns no content and no title, with the path looked for, when the file is missing (FR-36)", async () => {
+      // Arrange
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run()] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body).toEqual({ plan: { folder, root, path: path.resolve(root, folder, "plan.md"), title: null, content: null } });
+    });
+
+    it("reads no file outside the root, through a relative or an absolute folder (BR-06)", async () => {
+      // Arrange
+      const outside = path.join(projects, "outside");
+      await writePlan(outside, "", "# Outside");
+      await write("C--WS-relative.json", buildBoardExport({ root, live: [run({ folder: "../outside" })] }));
+      const relative = await getPlan();
+      await rm(path.join(ctx.boardsDir, "C--WS-relative.json"));
+      await write("C--WS-absolute.json", buildBoardExport({ root, live: [run({ folder: outside })] }));
+
+      // Act
+      const absolute = await getPlan();
+
+      // Assert
+      expect(relative.plan).toMatchObject({ path: path.resolve(outside, "plan.md"), title: null, content: null });
+      expect(absolute.plan).toMatchObject({ path: path.resolve(outside, "plan.md"), title: null, content: null });
+    });
+
+    it("reads no plan.md of the root itself for a folder that is the root (BR-05)", async () => {
+      // Arrange
+      await writePlan(root, "", "# Root");
+      await write("C--WS-dot.json", buildBoardExport({ root, live: [run({ folder: "." })] }));
+      const dot = await getPlan();
+      await rm(path.join(ctx.boardsDir, "C--WS-dot.json"));
+      await write("C--WS-slash.json", buildBoardExport({ root, live: [run({ folder: "./" })] }));
+
+      // Act
+      const slash = await getPlan();
+
+      // Assert
+      expect(dot.plan).toMatchObject({ title: null, content: null });
+      expect(slash.plan).toMatchObject({ title: null, content: null });
+    });
+
+    it("returns no plan for a folder that is empty after trimming, as for no folder (BR-05, FR-37)", async () => {
+      // Arrange
+      await writePlan(root, "", "# Root");
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run({ folder: "" })], sessions: [session({ folder: "  " })] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body).toEqual({ plan: null });
+    });
+
+    it("returns no content for a file larger than the size cap (FR-36)", async () => {
+      // Arrange
+      await writePlan(root, folder, `# Big\n${"x".repeat(PLAN_MAX_BYTES)}`);
+      await write("C--WS-demo.json", buildBoardExport({ root, live: [run()] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan).toMatchObject({ title: null, content: null });
+    });
+
+    it("returns no title without a level-1 heading, and ignores a heading inside a fenced code block (FR-34)", async () => {
+      // Arrange
+      await writePlan(root, folder, "## Only a level 2\n\ntext\n");
+      await writePlan(root, other, "```md\n# In a fence\n```\n\n~~~\n# In a tilde fence\n~~~\n\n# The title #\n");
+      await write("C--WS-none.json", buildBoardExport({ root, live: [run()] }));
+      const untitled = await getPlan();
+      await rm(path.join(ctx.boardsDir, "C--WS-none.json"));
+      await write("C--WS-fenced.json", buildBoardExport({ root, live: [run({ folder: other })] }));
+
+      // Act
+      const fenced = await getPlan();
+
+      // Assert
+      expect(untitled.plan).toMatchObject({ title: null, content: "## Only a level 2\n\ntext\n" });
+      expect(fenced.plan?.title).toBe("The title");
+    });
+
+    it("keeps a heading's last # after a word, skips a longer fence holding a shorter one, and ignores a BOM (FR-34)", async () => {
+      // Arrange
+      const third = ".planning/features/demo/dev-plans/20261019-000000-add-bom";
+      await writePlan(root, folder, "# Port to C#\n");
+      await writePlan(root, other, "````md\n```\n# Inside\n```\n````\n\n```\n```js\n# Still inside\n```\n\n# Real\n");
+      await writePlan(root, third, "\uFEFF# Bom title\n");
+      const titleOf = async (name: string, runFolder: string) => {
+        await write(name, buildBoardExport({ root, live: [run({ folder: runFolder })] }));
+        const body = await getPlan();
+        await rm(path.join(ctx.boardsDir, name));
+        return body.plan?.title;
+      };
+
+      // Act
+      const hash = await titleOf("C--WS-hash.json", folder);
+      const fences = await titleOf("C--WS-fences.json", other);
+      const bom = await titleOf("C--WS-bom.json", third);
+
+      // Assert
+      expect(hash).toBe("Port to C#");
+      expect(fences).toBe("Real");
+      expect(bom).toBe("Bom title");
+    });
+
+    it("reads no file for a board whose root is not absolute (BR-06)", async () => {
+      // Arrange: a relative root that leads, from the API's own folder, to a real plan.
+      await writePlan(root, folder, "# Relative");
+      const relativeRoot = path.relative(process.cwd(), root);
+      await write("C--WS-demo.json", buildBoardExport({ root: relativeRoot, live: [run()] }));
+
+      // Act
+      const body = await getPlan();
+
+      // Assert
+      expect(body.plan).toMatchObject({ root: relativeRoot, title: null, content: null });
+    });
+
+    it("answers 400 for a session id that is not a session id", async () => {
+      // Act
+      const response = await request(ctx.app).get("/v1/factory/sessions/a%20b/plan");
+
+      // Assert
+      expect(response.status).toBe(400);
+      expect(response.headers["content-type"]).toMatch(/application\/problem\+json/);
     });
   });
 });
