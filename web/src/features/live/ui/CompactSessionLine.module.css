@@ -2,7 +2,7 @@
 .line {
   --tile-tone: var(--accent);
   display: grid;
-  grid-template-columns: 10px minmax(0, 1.6fr) 150px minmax(0, 1.4fr) minmax(0, 2fr) 64px auto;
+  grid-template-columns: 22px minmax(0, 1.6fr) 150px minmax(0, 1.4fr) minmax(0, 2fr) 64px auto;
   align-items: center;
   gap: 8px 14px;
   min-width: 0;
@@ -26,13 +26,6 @@
 /* FR-18: the halo of a change, as on the tile. */
 .isHighlighted {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tile-tone) 45%, transparent);
-}
-
-.color {
-  width: 10px;
-  height: 10px;
-  background: var(--workspace-color);
-  border-radius: var(--check-radius);
 }
 
 .identity {

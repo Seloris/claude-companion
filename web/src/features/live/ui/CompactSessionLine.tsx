@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { formatElapsed } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
 import { isDesktopLink } from "../../../shared/lib/desktopLink.ts";
@@ -15,7 +14,7 @@ import { FactoryMarks } from "./LiveSessionTile.tsx";
 import { NextStepButton } from "./NextStepButton.tsx";
 import { RecapLink } from "./RecapLink.tsx";
 import { StatusPill } from "./StatusPill.tsx";
-import { workspaceColorVar } from "./workspaceColor.ts";
+import { WorkspaceSquare } from "./WorkspaceChip.tsx";
 
 // What counts on a running line: its activity, with its subagents and queued prompts when it has some.
 function activitySummary(session: BoardSession): string {
@@ -25,7 +24,7 @@ function activitySummary(session: BoardSession): string {
   return parts.join(" · ");
 }
 
-// FR-40: one session on one line: its workspace's colour, its title over its workspace, branch and origin, its pill, its
+// FR-40: one session on one line: its workspace's square (colour and initials), its title over its workspace, branch and origin, its pill, its
 // factory band in short or `Hors workflow`, what counts (the commit to validate, the question, the recap, the last reply
 // or the activity), since when, and the tile's actions.
 export function CompactSessionLine({
@@ -92,11 +91,7 @@ export function CompactSessionLine({
 
   return (
     <li className={classes}>
-      <span
-        className={styles.color}
-        style={{ "--workspace-color": workspaceColorVar(session.workspace) } as CSSProperties}
-        aria-hidden="true"
-      />
+      <WorkspaceSquare workspace={session.workspace} />
       <span className={styles.identity}>
         <span className={styles.title} title={session.title}>
           {session.title}

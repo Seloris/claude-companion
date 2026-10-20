@@ -13,13 +13,20 @@ function initials(name: string): string {
     .join("");
 }
 
-// FR-02: the workspace's square, in its colour, with its initials, and its name.
+// FR-02: the workspace's square, in its colour, with its initials.
+export function WorkspaceSquare({ workspace }: { workspace: BoardWorkspace }) {
+  return (
+    <span className={styles.square} style={{ "--workspace-color": workspaceColorVar(workspace) } as CSSProperties} aria-hidden="true">
+      {initials(workspace.name)}
+    </span>
+  );
+}
+
+// FR-02: the workspace's square and its name.
 export function WorkspaceChip({ workspace }: { workspace: BoardWorkspace }) {
   return (
     <span className={styles.chip}>
-      <span className={styles.square} style={{ "--workspace-color": workspaceColorVar(workspace) } as CSSProperties} aria-hidden="true">
-        {initials(workspace.name)}
-      </span>
+      <WorkspaceSquare workspace={workspace} />
       <span className={styles.name}>{workspace.name}</span>
     </span>
   );
