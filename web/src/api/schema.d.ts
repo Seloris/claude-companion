@@ -516,6 +516,8 @@ export interface components {
             failedToolCallCount: number;
             skillCallCount: number;
             agentTypes: string[];
+            desktopLink: string | null;
+            resumeCommand: string | null;
         };
         SessionDetail: {
             id: string;
@@ -536,6 +538,8 @@ export interface components {
             failedToolCallCount: number;
             skillCallCount: number;
             agentTypes: string[];
+            desktopLink: string | null;
+            resumeCommand: string | null;
             workspace: {
                 id: number;
                 name: string;
@@ -712,6 +716,7 @@ export interface components {
             lastActivityAt: string;
             origin: string | null;
             gitBranch: string | null;
+            desktopLink: string | null;
             isLogFound: boolean;
             isStored: boolean;
             lastPrompt: string | null;

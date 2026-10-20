@@ -6,6 +6,7 @@ import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
+import { useReopenAction } from "../data/useReopenAction.ts";
 import { useWorkspaceQuery } from "../data/useWorkspaceQuery.ts";
 import { SessionList } from "../ui/SessionList.tsx";
 import styles from "./pages.module.css";
@@ -13,6 +14,7 @@ import styles from "./pages.module.css";
 function WorkspacePage() {
   const workspaceId = Number(useParams().workspaceId);
   const workspaceQuery = useWorkspaceQuery(workspaceId);
+  const reopenActionOf = useReopenAction();
 
   function renderContent() {
     if (workspaceQuery.isPending) return <LoadingState>{t("common.state.loading")}</LoadingState>;
@@ -38,7 +40,7 @@ function WorkspacePage() {
         {workspace.sessions.length === 0 ? (
           <EmptyState>{t("workspace.sessions.empty")}</EmptyState>
         ) : (
-          <SessionList sessions={workspace.sessions} />
+          <SessionList sessions={workspace.sessions} reopenActionOf={reopenActionOf} />
         )}
       </>
     );

@@ -122,6 +122,9 @@ The parked technical questions, settled here:
 - Web unit tests → none (`web/CLAUDE.md`: no unit tests on the front); the browser test covers the stage.
 - Stage 1: two status files naming one CLI session (a dead process beside its respawn) → the refresh keeps one entry per session id, the freshest by `statusUpdatedAt ?? updatedAt ?? startedAt`, before `saveDesktopSessionIds` (one `INSERT … ON CONFLICT` cannot update a row twice, and the failure would be swallowed, losing every link of the refresh); a test covers it.
 - Stage 1: `saveDesktopSessionIds` called with duplicate session ids → its contract says the rows hold one entry per session id; the refresh is the one place that guarantees it.
+- Stage 2: the ghost `ButtonLink` on the live tile and the idle line → its hover is neutral (text color, `--surface-2`), not the ghost button's danger red, which belongs to the delete action (an open action must not look destructive).
+- Stage 2: the mono font of the command to copy by hand → `--font-mono` added to `overrides.css` (the aurora skin has no monospace token).
+- Stage 2: the review of the last stage covers the whole plan (`1655bf1..HEAD`) and settles `Review` in the same run (the person's instruction).
 - Stage 1: test seeding of a recorded desktop id → `seed.desktopSessionId(sessionId, desktopSessionId)` in `test/setup.ts`, through the repository (the convention: never a raw insert).
 
 ## api
@@ -290,6 +293,10 @@ None: `web/CLAUDE.md` has no unit tests on the front. The browser test of Valida
 
 - Folders that cannot be quoted: the listed characters → also the curly double quotes U+201C, U+201D and U+201E (PowerShell reads them as `"`, so a folder name could end the quotes and run a command), and every other control character `\x00-\x1f` and `\x7f` (a tab completes, an escape sequence acts on the terminal); a test per case (found by the stage 1 review; BR-20 keeps its meaning).
 - Session id of a command: `^[\w-]+$` → `^\w[\w-]*$` (a log named `-x.jsonl` would otherwise give an option instead of an id; found by the stage 1 review).
+- `ButtonLink` styles: `composes … from "./Button.module.css"` → the classes of `Button.module.css` combined in `ButtonLink.tsx` with the anchor's own (Vite's `composes … from` makes the build print a PostCSS `from` warning, and the stage must build with zero warnings).
+- `session.reopen.copy`: "Copier la commande de reprise" → "Copier la commande" (the button does not wrap and the longer label overflowed the 247 px of a list row at 375 px; the `aria-label` keeps the full "commande de reprise"; found by the final review).
+- `session.reopen.desktopLabel` and `live.tile.desktopLabel`: "Ouvrir « {title} » dans l'app Claude" → "Ouvrir dans l'app : {title}" (the visible text must stay contiguous in the accessible name; found by the final review).
+- `LiveSessionTile.module.css`: `.actions` now wraps (three actions on a finished desktop tile overflow the footer at 375 px). `ReopenActions` renders `div`s, one persistent `role="status"` line, and keeps the copy state in a component mounted only while the command is offered (a stale failure never comes back). `rows.module.css` is untouched: `List`'s wrapping rows already put the actions under the text. `web/CLAUDE.md` lists `ButtonLink`, the icons, the two lib files and two Design lines (found by the final review).
 
 ## Progress
 
@@ -303,16 +310,16 @@ Commit: `feat(session-ingestion): api — desktop link and resume command`
 
 ### Stage 2 — web
 Commit: `feat(session-ingestion): web — open in the desktop app or copy the resume command`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: `isDesktopLink`, `useClipboard`, `useReopenAction`
-- [ ] pages: session page actions, workspace page passes the reopen action to the list
-- [ ] ui: `ButtonLink`, icons, `ReopenActions`, session list rows, live tile and idle group links, i18n keys
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: `isDesktopLink`, `useClipboard`, `useReopenAction`
+- [x] pages: session page actions, workspace page passes the reopen action to the list
+- [x] ui: `ButtonLink`, icons, `ReopenActions`, session list rows, live tile and idle group links, i18n keys
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Tests: the full `test` command of `api` green on the plan's final code
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill):
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [x] Tests: the full `test` command of `api` green on the plan's final code
+- [-] Browser test: not run (autopilot without browser test); the click on the desktop link is untested, for the person. Scenarios to run by hand:
   - a desktop-app session shows "Ouvrir dans l'app" on its page, its row, its live tile and its idle line, and clicking it opens that session in the desktop app (the first click-test of the link);
   - a non-live CLI session shows the copy button, its confirmation line, and a clipboard holding the two-line command. The command is not run;
   - with the clipboard refused (`navigator.clipboard` overridden), the command shows to copy by hand;

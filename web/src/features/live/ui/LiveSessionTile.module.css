@@ -125,8 +125,10 @@
 
 .actions {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 6px 12px;
 }
 
 .actions svg {

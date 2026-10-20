@@ -4,12 +4,20 @@ import { formatDateTime, formatDuration } from "../../../shared/lib/format.ts";
 import { t } from "../../../shared/lib/i18n/index.ts";
 import { Badge } from "../../../shared/ui/Badge.tsx";
 import { List, ListItem, ListItemText } from "../../../shared/ui/List.tsx";
+import type { ReopenAction } from "../data/useReopenAction.ts";
+import { ReopenActions } from "./ReopenActions.tsx";
 import styles from "./rows.module.css";
 import { TokenCount } from "./TokenCount.tsx";
 
 type SessionSummary = components["schemas"]["SessionSummary"];
 
-export function SessionList({ sessions }: { sessions: SessionSummary[] }) {
+export function SessionList({
+  sessions,
+  reopenActionOf,
+}: {
+  sessions: SessionSummary[];
+  reopenActionOf: (session: SessionSummary) => ReopenAction;
+}) {
   return (
     <List>
       {sessions.map((session) => (
@@ -28,6 +36,7 @@ export function SessionList({ sessions }: { sessions: SessionSummary[] }) {
               </span>
             </span>
           </ListItemText>
+          <ReopenActions action={reopenActionOf(session)} title={session.title} />
           {session.isArchived && <Badge>{t("sessions.badge.archived")}</Badge>}
         </ListItem>
       ))}

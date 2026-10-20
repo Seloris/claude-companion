@@ -33,10 +33,10 @@ src/
                             Panel, PageTitle, Field (label, error, the control as a render prop), TextInput, SearchInput, Select,
                             Button (variant: primary, danger, quiet, ghost), Switch, Checkbox, List (List, ListItem with isDone, ListItemText),
                             Badge (tone: default, attention, muted), Banner (a warning strip, role="status"), EmptyState, LoadingState, ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>),
-                            NavBar (the navigation: links as props, counts as `badges`), Disclosure (a native <details>, folded until opened),
-                            Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, QuestionIcon, CheckIcon, EyeIcon, BranchIcon)
+                            NavBar (the navigation: links as props, counts as `badges`), ButtonLink (an <a> with the button's look, variant: quiet, ghost), Disclosure (a native <details>, folded until opened),
+                            Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, QuestionIcon, CheckIcon, EyeIcon, BranchIcon, DesktopIcon, CopyIcon)
       theme/                fonts.ts (the skin's font imports) and skin.css (its tokens), both written by factory-init: never edited; base.css (the page), overrides.css (this application's values)
-    lib/                    utils, i18n; useNow.ts (the current time, re-read every interval)
+    lib/                    utils, i18n; useNow.ts (the current time, re-read every interval), useClipboard.ts (copy text, with its copied/failed state), desktopLink.ts (isDesktopLink: the only desktop-app href the pages render)
 ```
 
 ## Package scripts
@@ -64,6 +64,8 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 
 - Variables this application changes: in `src/shared/ui/theme/overrides.css`, never in `skin.css`.
 - Rules this application adds or replaces: here, one line each.
+- A `ButtonLink` ghost hovers toward the text color (`--text`, `--surface-2`), not the ghost button's `--danger`: an open action is not destructive. `ButtonLink` combines `Button.module.css`'s classes in code, never `composes … from` (it makes the build warn).
+- A command to copy by hand uses `--font-mono` (`overrides.css`; the skin has no monospace token).
 - Warnings use `--warning` and `--warning-soft` (`overrides.css`, aliased to the live page's amber), never `--danger`.
 - The live page and its navigation use `--live-width` (1360 px): its board needs three columns; every other page keeps `--content-width`.
 

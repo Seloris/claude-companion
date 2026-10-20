@@ -5,8 +5,10 @@ import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
+import { useReopenAction } from "../data/useReopenAction.ts";
 import { useSessionQuery } from "../data/useSessionQuery.ts";
 import { ActivityTimeline } from "../ui/ActivityTimeline.tsx";
+import { ReopenActions } from "../ui/ReopenActions.tsx";
 import { SessionFacts } from "../ui/SessionFacts.tsx";
 import { SubagentTable } from "../ui/SubagentTable.tsx";
 import { TokenTable } from "../ui/TokenTable.tsx";
@@ -16,6 +18,7 @@ import styles from "./pages.module.css";
 function SessionPage() {
   const sessionId = useParams().sessionId ?? "";
   const sessionQuery = useSessionQuery(sessionId);
+  const reopenActionOf = useReopenAction();
 
   function renderContent() {
     if (sessionQuery.isPending) return <LoadingState>{t("common.state.loading")}</LoadingState>;
@@ -47,6 +50,7 @@ function SessionPage() {
             </Link>
           </span>
           <PageTitle>{session.title}</PageTitle>
+          <ReopenActions action={reopenActionOf(session)} title={session.title} />
         </header>
         <SessionFacts session={session} />
         <section className={styles.section}>

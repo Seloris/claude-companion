@@ -12,6 +12,8 @@
   --content-width: 680px;
   /* The width of the live page and of the navigation above it: its board needs three columns. */
   --live-width: 1360px;
+  /* The face of a command to copy by hand: the skin has no monospace token. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* The colour of a workspace, picked by a stable hash of its key: the workspace's square and its filter dot. */
   --workspace-1: #7c3aed;
   --workspace-2: #be185d;

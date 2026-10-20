@@ -1,0 +1,11 @@
+/* The button's own classes (Button.module.css) carry the recipe; this file only adds what an anchor needs. */
+.link {
+  text-decoration: none;
+}
+
+/* The ghost button's hover is the delete action's (danger); an open action hovers toward the text color instead.
+   The two-class selector outranks the button's own rule whatever the order the stylesheets load in. */
+.link.ghost:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}

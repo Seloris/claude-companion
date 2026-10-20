@@ -1,8 +1,10 @@
 import type { components } from "../../../api/schema.d.ts";
 import { formatDateTime, formatDuration, formatElapsed, formatTime } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
+import { isDesktopLink } from "../../../shared/lib/desktopLink.ts";
 import { Button } from "../../../shared/ui/Button.tsx";
-import { BranchIcon, EyeIcon } from "../../../shared/ui/icons.tsx";
+import { ButtonLink } from "../../../shared/ui/ButtonLink.tsx";
+import { BranchIcon, DesktopIcon, EyeIcon } from "../../../shared/ui/icons.tsx";
 import type { BoardSession } from "./board.ts";
 import { originLabel, waitingForLabel } from "./labels.ts";
 import styles from "./LiveSessionTile.module.css";
@@ -155,6 +157,13 @@ export function LiveSessionTile({
               <EyeIcon />
               {t("live.tile.seen")}
             </Button>
+          )}
+          {session.desktopLink !== null && isDesktopLink(session.desktopLink) && (
+            // Live-sessions FR-31: the link that opens the session in the desktop app, when it has one.
+            <ButtonLink variant="ghost" href={session.desktopLink} aria-label={t("live.tile.desktopLabel", { title: session.title })}>
+              <DesktopIcon />
+              {t("live.tile.desktop")}
+            </ButtonLink>
           )}
           <RecapLink sessionId={session.sessionId} title={session.title} isStored={session.isStored} />
         </span>
