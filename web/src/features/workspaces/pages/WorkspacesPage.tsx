@@ -86,17 +86,19 @@ function WorkspacesPage() {
             {t("workspaces.page.dashboard")}
           </Link>
         </header>
-        <RefreshBar
-          status={status}
-          isStarting={startRefresh.isPending}
-          startError={startRefresh.isError ? startRefresh.error.message : null}
-          onRefresh={(mode) => startRefresh.mutate({ mode })}
-          intervalMinutes={scheduleQuery.data?.intervalMinutes}
-          isIntervalSaving={setSchedule.isPending}
-          intervalError={setSchedule.isError ? setSchedule.error.message : null}
-          onIntervalChange={(intervalMinutes) => setSchedule.mutate({ intervalMinutes })}
-        />
-        {renderRetention()}
+        <div className={styles.refreshGroup}>
+          <RefreshBar
+            status={status}
+            isStarting={startRefresh.isPending}
+            startError={startRefresh.isError ? startRefresh.error.message : null}
+            onRefresh={(mode) => startRefresh.mutate({ mode })}
+            intervalMinutes={scheduleQuery.data?.intervalMinutes}
+            isIntervalSaving={setSchedule.isPending}
+            intervalError={setSchedule.isError ? setSchedule.error.message : null}
+            onIntervalChange={(intervalMinutes) => setSchedule.mutate({ intervalMinutes })}
+          />
+          {renderRetention()}
+        </div>
         <section className={styles.section}>
           <div className={styles.toolbar}>
             <Switch

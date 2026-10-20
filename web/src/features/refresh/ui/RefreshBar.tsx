@@ -72,10 +72,7 @@ export function RefreshBar({
         <Button variant="quiet" onClick={() => onRefresh("full")} disabled={isRunning} title={t("refresh.button.fullHint")}>
           {t("refresh.button.full")}
         </Button>
-        <Field
-          label={t("refresh.interval.label")}
-          error={intervalError === null ? null : t("refresh.interval.failed", { message: intervalError })}
-        >
+        <Field label={t("refresh.interval.label")} error={null}>
           {(control) => (
             <Select
               {...control}
@@ -107,6 +104,7 @@ export function RefreshBar({
               </ErrorMessage>
             )
             : <ReportSummary report={report} />}
+      {intervalError !== null && <ErrorMessage>{t("refresh.interval.failed", { message: intervalError })}</ErrorMessage>}
       {startError !== null && <ErrorMessage>{t("refresh.start.failed", { message: startError })}</ErrorMessage>}
     </div>
   );

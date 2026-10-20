@@ -28,7 +28,7 @@
   "refresh.report.notFound": "Dernière actualisation {when} : le dossier {logsDir} est introuvable, aucune session n'a été lue ni archivée.",
   "refresh.report.none": "Aucune actualisation pour l'instant.",
   "refresh.start.failed": "L'actualisation n'a pas pu démarrer : {message}",
-  "refresh.interval.label": "Actualisation automatique",
+  "refresh.interval.label": "Actualisation périodique",
   "refresh.interval.off": "Désactivée",
   "refresh.interval.minutes": "Toutes les {minutes} min",
   "refresh.interval.hour": "Toutes les heures",
