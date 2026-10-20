@@ -220,5 +220,17 @@
   "live.tile.notStored": "Pas encore dans l'historique",
   "live.prompt.queued": "{count} en file : « {first} »",
   "live.announce.change": "{title} : {status}",
-  "live.page.summary": "{sessions}, {projects}"
+  "live.page.summary": "{sessions}, {projects}",
+  "live.notify.heading": "Notifications",
+  "live.notify.enable": "Activer les notifications",
+  "live.notify.enableHint": "Le navigateur vous demandera l'autorisation.",
+  "live.notify.awaiting": "Questions posées",
+  "live.notify.finished": "Tours terminés",
+  "live.notify.grantedHint": "Tant qu'une page de l'application reste ouverte dans ce navigateur.",
+  "live.notify.unsupported": "Ce navigateur ne peut pas afficher de notifications ici : il faut un navigateur récent et l'adresse localhost de l'application.",
+  "live.notify.denied": "Les notifications sont bloquées pour ce site. Pour les autoriser, cliquez sur l'icône à gauche de l'adresse, autorisez les notifications, puis rechargez la page.",
+  "live.notify.awaitingTitle": "Question posée · {workspace}",
+  "live.notify.awaitingBody": "{title}\n{question}",
+  "live.notify.finishedTitle": "Tour terminé · {workspace}",
+  "live.notify.finishedBody": "{title} · {turn}\n{reply}"
 }

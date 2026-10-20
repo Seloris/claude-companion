@@ -22,6 +22,8 @@ export function useLiveStateQuery({ isPolling }: { isPolling: boolean }) {
     queryKey: liveKeys.state(),
     queryFn: async () => unwrap(await api.GET("/v1/live")),
     refetchInterval: isPolling ? LIVE_POLL_INTERVAL_MS : false,
+    // FR-27: the notifications need the poll while the tab is hidden, which is exactly when the person is elsewhere.
+    refetchIntervalInBackground: isPolling,
   });
 
   // FR-13: a session that left the live state makes the API start a refresh; look at its status now, so that

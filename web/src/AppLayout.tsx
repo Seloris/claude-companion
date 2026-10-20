@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Outlet, useMatch, useSearchParams } from "react-router";
 import { useLiveStateQuery } from "./features/live/data/useLiveStateQuery.ts";
+import { useLiveNotifications } from "./features/live/pages/useLiveNotifications.ts";
 import { useRefreshStatusQuery } from "./features/refresh/data/useRefreshStatusQuery.ts";
 import { t, tp } from "./shared/lib/i18n/index.ts";
 import { NavBar, type NavBarBadge, type NavBarItem } from "./shared/ui/NavBar.tsx";
@@ -11,6 +12,8 @@ export function AppLayout() {
   const scratchSuffix = searchParams.get("scratch") === "1" ? "?scratch=1" : "";
   const isLivePage = useMatch("/live") !== null;
   const liveQuery = useLiveStateQuery({ isPolling: true });
+  // FR-27: every page of the application notifies, since the layout is the one that polls the live state everywhere.
+  useLiveNotifications(liveQuery);
   // The refresh the API starts when a live session ends (FR-13) is followed from every page, so that its end reloads the recap.
   useRefreshStatusQuery();
 

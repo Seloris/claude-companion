@@ -59,6 +59,12 @@ The grill was run in autonomous mode. Every question took its recommended answer
 - Both origins open at once (5180 and 3100) → each notifies on its own (permission, settings, lock and tags are per origin); accepted, the person runs one mode at a time
 - Layer placement → browser APIs and storage in `data/` (like `useSeenMarks`); the pure change detection and texts in `ui/notifications.ts` (like `board.ts`); the effectful orchestration in `pages/useLiveNotifications.ts` (like `useStatusTracking`), called by `AppLayout`
 - Spec → unchanged and already `Approved` (commit 7a9f7db); the plan covers its delta only
+- Prepare at implementation → `openapi-typescript` regenerated `schema.d.ts` with no change (the working tree stayed clean), so it is not part of the stage commit
+- `NotificationSettings` names the settings type (`data/`) and the component (`ui/`) → the component imports the type under the alias `NotificationSettingsValue` (a same-named import and declaration do not compile)
+- Autopilot without browser test → `Browser test` is `[-]` in the Validation (not run: autopilot without browser test); the scenarios stay in the item for a later manual run
+- Review finding: a read without the log (`isLogFound` false, e.g. a busy file on Windows) nulls `turnStartedAt` and `question`, so the next read with the log notified the same `Tour terminé` again → fixed: `trackNotifications` keeps the previous baseline's question and turn for a session whose log is missing (the status-based triggers are unchanged)
+- Review finding: `NotificationSettings.module.css` restates the label and muted text styles of `texts.module.css` → left as is (that file is the live cards' texts; the values match the skin's recipes, a nit)
+- Review finding: the workspace of a clicked notification stays in the history state, so a reload or back navigation re-applies it → left as is (what the plan specifies; the status board plan kept the filter out of the URL)
 
 ## web
 
@@ -124,15 +130,15 @@ The grill was run in autonomous mode. Every question took its recommended answer
 
 ### Stage 1 — web
 Commit: `feat(live-sessions): web — browser notifications`
-- [ ] Prepare: client regenerated from `api/openapi.json`
-- [ ] data: background poll in `useLiveStateQuery`; `notificationSettings.ts` and `notificationPermission.ts` stores
-- [ ] pages: `useLiveNotifications` (leader lock, tracking, show, withdraw, click), called by `AppLayout`; `LivePage` renders the settings and applies the workspace from the navigation state
-- [ ] ui: `notifications.ts` (`trackNotifications`, tag, texts), `NotificationSettings` with its CSS module, i18n keys
+- [x] Prepare: client regenerated from `api/openapi.json`
+- [x] data: background poll in `useLiveStateQuery`; `notificationSettings.ts` and `notificationPermission.ts` stores
+- [x] pages: `useLiveNotifications` (leader lock, tracking, show, withdraw, click), called by `AppLayout`; `LivePage` renders the settings and applies the workspace from the navigation state
+- [x] ui: `notifications.ts` (`trackNotifications`, tag, texts), `NotificationSettings` with its CSS module, i18n keys
 
 ## Validation
 
-- [ ] Review: the `reviewer` agent on the plan's implementation, its findings settled
-- [ ] Browser test: the change tested in `web` (`test-in-browser` skill), on the dev server (http://localhost:5180) and on `npm start` (http://localhost:3100). Scenarios:
+- [x] Review: the `reviewer` agent on the plan's implementation, its findings settled
+- [-] Browser test: not run (autopilot without browser test). Scenarios kept for a manual run on the dev server (http://localhost:5180) and on `npm start` (http://localhost:3100):
   - notifications are off by default, and `Activer les notifications` turns `Question posée` on at once on `granted`;
   - a session becoming `AwaitingAnswer` notifies from the workspaces page, with the tab in the background;
   - answering it withdraws the notification;

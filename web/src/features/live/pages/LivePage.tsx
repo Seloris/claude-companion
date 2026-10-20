@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router";
 import { formatDuration } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
 import { useNow } from "../../../shared/lib/useNow.ts";
@@ -6,11 +7,14 @@ import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
 import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
+import { requestNotificationPermission, useNotificationPermission } from "../data/notificationPermission.ts";
+import { setNotificationSettings, useNotificationSettings } from "../data/notificationSettings.ts";
 import { useLiveStateQuery } from "../data/useLiveStateQuery.ts";
 import { useSeenMarks } from "../data/useSeenMarks.ts";
 import { buildColumns, flattenWorkspaces, workspaceChoices } from "../ui/board.ts";
 import { IdleGroup } from "../ui/IdleGroup.tsx";
 import { LiveBoard, type ColumnId } from "../ui/LiveBoard.tsx";
+import { NotificationSettings } from "../ui/NotificationSettings.tsx";
 import { WorkspaceFilter } from "../ui/WorkspaceFilter.tsx";
 import styles from "./LivePage.module.css";
 import { useStatusTracking } from "./useStatusTracking.ts";
@@ -18,11 +22,28 @@ import { useStatusTracking } from "./useStatusTracking.ts";
 // The "since" labels and durations show seconds, so they tick every second, between two polls.
 const NOW_TICK_MS = 1000;
 
+// FR-28: a click on a notification opens this page with the workspace of its session in the navigation state.
+function readWorkspaceState(state: unknown): string | null {
+  if (typeof state !== "object" || state === null || !("workspace" in state)) return null;
+  return typeof state.workspace === "string" ? state.workspace : null;
+}
+
 function LivePage() {
   const liveQuery = useLiveStateQuery({ isPolling: false });
   const now = useNow(NOW_TICK_MS);
   const seen = useSeenMarks();
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null);
+  const permission = useNotificationPermission();
+  const notificationSettings = useNotificationSettings();
+  const location = useLocation();
+  const requestedWorkspace = readWorkspaceState(location.state);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(requestedWorkspace);
+  // FR-28: a click while this page is open is a new navigation (a new key), applied once, during render, so that the
+  // page never shows the old filter for a frame.
+  const [appliedKey, setAppliedKey] = useState(location.key);
+  if (location.key !== appliedKey) {
+    setAppliedKey(location.key);
+    if (requestedWorkspace !== null) setSelectedWorkspace(requestedWorkspace);
+  }
   const [selectedTab, setSelectedTab] = useState<ColumnId>("awaiting");
 
   const live = liveQuery.data;
@@ -118,6 +139,12 @@ function LivePage() {
           <WorkspaceFilter choices={choices} total={all.length} selected={filter} onSelect={setSelectedWorkspace} />
         )}
       </header>
+      <NotificationSettings
+        permission={permission}
+        settings={notificationSettings}
+        onEnable={requestNotificationPermission}
+        onChange={setNotificationSettings}
+      />
       {renderContent()}
     </main>
   );
