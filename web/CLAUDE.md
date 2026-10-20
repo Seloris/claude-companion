@@ -32,7 +32,7 @@ src/
     ui/                     shared components, one {Name}.tsx and its {Name}.module.css per element of the skin's recipes; labels are props, no className prop, no feature word
                             Panel, PageTitle, Field (label, error, the control as a render prop), TextInput, SearchInput, Select,
                             Button (variant: primary, danger, quiet, ghost), Switch, Checkbox, List (List, ListItem with isDone, ListItemText),
-                            Badge (tone: default, attention, muted), EmptyState, LoadingState, ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>),
+                            Badge (tone: default, attention, muted), Banner (a warning strip, role="status"), EmptyState, LoadingState, ErrorMessage (role="alert"), ConfirmDialog (a native <dialog>),
                             NavBar (the navigation: links as props, counts as `badges`), Disclosure (a native <details>, folded until opened),
                             Tabs (a tab list with counts), ChipGroup (toggle chips that pick one item), icons.tsx (SearchIcon, TrashIcon, ChevronIcon, QuestionIcon, CheckIcon, EyeIcon, BranchIcon)
       theme/                fonts.ts (the skin's font imports) and skin.css (its tokens), both written by factory-init: never edited; base.css (the page), overrides.css (this application's values)
@@ -64,6 +64,7 @@ The skin named in the `component` block above: its fonts in `src/shared/ui/theme
 
 - Variables this application changes: in `src/shared/ui/theme/overrides.css`, never in `skin.css`.
 - Rules this application adds or replaces: here, one line each.
+- Warnings use `--warning` and `--warning-soft` (`overrides.css`, aliased to the live page's amber), never `--danger`.
 - The live page and its navigation use `--live-width` (1360 px): its board needs three columns; every other page keeps `--content-width`.
 
 ## Testing

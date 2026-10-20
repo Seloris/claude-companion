@@ -1,15 +1,20 @@
 import { Link, useSearchParams } from "react-router";
 import { formatTokens } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
+import { useNow } from "../../../shared/lib/useNow.ts";
 import { EmptyState } from "../../../shared/ui/EmptyState.tsx";
 import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
 import { LoadingState } from "../../../shared/ui/LoadingState.tsx";
 import { PageTitle } from "../../../shared/ui/PageTitle.tsx";
 import { Panel } from "../../../shared/ui/Panel.tsx";
 import { Switch } from "../../../shared/ui/Switch.tsx";
+import { useRefreshScheduleQuery } from "../../refresh/data/useRefreshScheduleQuery.ts";
 import { useRefreshStatusQuery } from "../../refresh/data/useRefreshStatusQuery.ts";
 import { useStartRefreshMutation } from "../../refresh/data/useStartRefreshMutation.ts";
+import { useSetRefreshScheduleMutation } from "../../refresh/data/useSetRefreshScheduleMutation.ts";
 import { RefreshBar } from "../../refresh/ui/RefreshBar.tsx";
+import { useLogRetentionQuery } from "../../retention/data/useLogRetentionQuery.ts";
+import { RetentionNotice } from "../../retention/ui/RetentionNotice.tsx";
 import { useWorkspacesQuery } from "../data/useWorkspacesQuery.ts";
 import { WorkspaceList } from "../ui/WorkspaceList.tsx";
 import styles from "./pages.module.css";
@@ -20,9 +25,23 @@ function WorkspacesPage() {
   const workspacesQuery = useWorkspacesQuery({ includeScratch });
   const statusQuery = useRefreshStatusQuery();
   const startRefresh = useStartRefreshMutation();
+  const scheduleQuery = useRefreshScheduleQuery();
+  const setSchedule = useSetRefreshScheduleMutation();
+  const retentionQuery = useLogRetentionQuery();
+  // The banner tells an upcoming deletion from an overdue one: the clock keeps ticking while the page stays open.
+  const now = useNow(60_000);
 
   const status = statusQuery.data;
   const logsDir = status?.logsDir ?? "";
+
+  function renderRetention() {
+    // A discreet line has no loading state.
+    if (retentionQuery.isError) {
+      return <ErrorMessage>{t("retention.state.error", { message: retentionQuery.error.message })}</ErrorMessage>;
+    }
+    if (retentionQuery.isPending) return null;
+    return <RetentionNotice retention={retentionQuery.data} now={now} />;
+  }
 
   function renderList() {
     if (workspacesQuery.isPending) return <LoadingState>{t("common.state.loading")}</LoadingState>;
@@ -72,7 +91,12 @@ function WorkspacesPage() {
           isStarting={startRefresh.isPending}
           startError={startRefresh.isError ? startRefresh.error.message : null}
           onRefresh={(mode) => startRefresh.mutate({ mode })}
+          intervalMinutes={scheduleQuery.data?.intervalMinutes}
+          isIntervalSaving={setSchedule.isPending}
+          intervalError={setSchedule.isError ? setSchedule.error.message : null}
+          onIntervalChange={(intervalMinutes) => setSchedule.mutate({ intervalMinutes })}
         />
+        {renderRetention()}
         <section className={styles.section}>
           <div className={styles.toolbar}>
             <Switch

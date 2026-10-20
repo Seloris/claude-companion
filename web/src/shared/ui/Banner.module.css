@@ -1,0 +1,9 @@
+.banner {
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 0.9em;
+  background: var(--warning-soft);
+  border: var(--border-width) solid var(--warning);
+  border-radius: var(--radius-control);
+  overflow-wrap: anywhere;
+}

@@ -3,12 +3,25 @@ import { formatDuration, formatRelative } from "../../../shared/lib/format.ts";
 import { t, tp } from "../../../shared/lib/i18n/index.ts";
 import { Button } from "../../../shared/ui/Button.tsx";
 import { ErrorMessage } from "../../../shared/ui/ErrorMessage.tsx";
+import { Field } from "../../../shared/ui/Field.tsx";
+import { Select } from "../../../shared/ui/Select.tsx";
 import styles from "./RefreshBar.module.css";
 
 type RefreshStatus = components["schemas"]["RefreshStatus"];
 // The generated type is nullable: the API document marks the report as such where the status refers to it.
 type RefreshReport = NonNullable<components["schemas"]["RefreshReport"]>;
 type RefreshMode = components["schemas"]["RefreshMode"];
+type RefreshInterval = components["schemas"]["RefreshInterval"];
+
+// session-ingestion FR-13: off, then the intervals the API accepts; "off" stands for the contract's null.
+const OFF_VALUE = "off";
+const INTERVAL_OPTIONS: { value: string; interval: RefreshInterval; label: string }[] = [
+  { value: OFF_VALUE, interval: null, label: t("refresh.interval.off") },
+  { value: "5", interval: 5, label: t("refresh.interval.minutes", { minutes: 5 }) },
+  { value: "10", interval: 10, label: t("refresh.interval.minutes", { minutes: 10 }) },
+  { value: "30", interval: 30, label: t("refresh.interval.minutes", { minutes: 30 }) },
+  { value: "60", interval: 60, label: t("refresh.interval.hour") },
+];
 
 function ReportSummary({ report }: { report: RefreshReport }) {
   const shared = {
@@ -33,11 +46,20 @@ export function RefreshBar({
   isStarting,
   startError,
   onRefresh,
+  intervalMinutes,
+  isIntervalSaving,
+  intervalError,
+  onIntervalChange,
 }: {
   status: RefreshStatus | undefined;
   isStarting: boolean;
   startError: string | null;
   onRefresh(mode: RefreshMode): void;
+  // Undefined while the schedule is not loaded: the select waits for it.
+  intervalMinutes: RefreshInterval | undefined;
+  isIntervalSaving: boolean;
+  intervalError: string | null;
+  onIntervalChange(intervalMinutes: RefreshInterval): void;
 }) {
   const isRunning = isStarting || (status?.isRunning ?? false);
   const report = status?.lastReport ?? null;
@@ -50,6 +72,29 @@ export function RefreshBar({
         <Button variant="quiet" onClick={() => onRefresh("full")} disabled={isRunning} title={t("refresh.button.fullHint")}>
           {t("refresh.button.full")}
         </Button>
+        <Field
+          label={t("refresh.interval.label")}
+          error={intervalError === null ? null : t("refresh.interval.failed", { message: intervalError })}
+        >
+          {(control) => (
+            <Select
+              {...control}
+              value={intervalMinutes === undefined ? "" : (intervalMinutes === null ? OFF_VALUE : String(intervalMinutes))}
+              disabled={intervalMinutes === undefined || isIntervalSaving}
+              onChange={(event) => {
+                const option = INTERVAL_OPTIONS.find((candidate) => candidate.value === event.target.value);
+                if (option !== undefined) onIntervalChange(option.interval);
+              }}
+            >
+              {intervalMinutes === undefined && <option value="" />}
+              {INTERVAL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
       </div>
       {report === null
         ? status !== undefined && <p className={styles.report}>{t("refresh.report.none")}</p>

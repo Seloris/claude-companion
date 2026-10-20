@@ -312,6 +312,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/refresh/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The interval of the periodic refresh */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The schedule */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefreshSchedule"];
+                    };
+                };
+            };
+        };
+        /** Choose the interval of the periodic refresh; it applies at once and survives a restart */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RefreshSchedule"];
+                };
+            };
+            responses: {
+                /** @description The saved schedule */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefreshSchedule"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/live": {
         parameters: {
             query?: never;
@@ -336,6 +405,42 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["LiveState"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Claude Code's log retention, the oldest log, and the unread logs about to be deleted */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The log retention status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LogRetentionStatus"];
                     };
                 };
             };
@@ -573,6 +678,10 @@ export interface components {
         } | null;
         /** @enum {string} */
         RefreshMode: "incremental" | "full";
+        RefreshSchedule: {
+            intervalMinutes: components["schemas"]["RefreshInterval"];
+        };
+        RefreshInterval: 5 | 10 | 30 | 60 | null;
         LiveState: {
             /** Format: date-time */
             readAt: string;
@@ -653,6 +762,18 @@ export interface components {
             currentTool: string | null;
             /** Format: date-time */
             since: string;
+        };
+        LogRetentionStatus: {
+            retentionDays: number;
+            isDefault: boolean;
+            /** Format: date-time */
+            oldestLogAt: string | null;
+            archivedSessionCount: number;
+            unreadAtRisk: {
+                fileCount: number;
+                /** Format: date-time */
+                nearestDeletionAt: string | null;
+            };
         };
     };
     responses: never;

@@ -4,6 +4,7 @@ const LOCALE = "fr-FR";
 const tokenFormat = new Intl.NumberFormat(LOCALE, { notation: "compact", maximumFractionDigits: 1 });
 const numberFormat = new Intl.NumberFormat(LOCALE);
 const dateTimeFormat = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
+const dateFormat = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium" });
 const timeFormat = new Intl.DateTimeFormat(LOCALE, { timeStyle: "short" });
 const relativeFormat = new Intl.RelativeTimeFormat(LOCALE, { numeric: "auto" });
 
@@ -17,6 +18,11 @@ export function formatNumber(count: number): string {
 
 export function formatDateTime(iso: string): string {
   return dateTimeFormat.format(new Date(iso));
+}
+
+// The day of an instant, with no time of day.
+export function formatDate(iso: string): string {
+  return dateFormat.format(new Date(iso));
 }
 
 export function formatTime(iso: string): string {

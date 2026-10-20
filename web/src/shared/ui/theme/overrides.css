@@ -26,6 +26,9 @@
   --status-awaiting-soft: rgba(245, 158, 11, 0.16);
   --status-finished: #4338ca;
   --status-finished-soft: rgba(99, 102, 241, 0.14);
+  /* A warning is not a danger: it takes the awaiting amber (same meaning, it needs the person); the dark values follow the aliased pair. */
+  --warning: var(--status-awaiting);
+  --warning-soft: var(--status-awaiting-soft);
 }
 
 @media (prefers-color-scheme: dark) {
